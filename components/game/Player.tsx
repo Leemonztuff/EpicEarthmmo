@@ -36,14 +36,66 @@ export function Player() {
     const canvas = document.createElement('canvas');
     canvas.width = 64;
     canvas.height = 64;
-    const ctx = canvas.getContext('2d');
-    if (ctx) {
-      ctx.fillStyle = '#ff6b6b';
+    const ctx = canvas.getContext('2d')!;
+
+    // Hair
+    ctx.fillStyle = '#8B4513';
+    ctx.beginPath();
+    ctx.arc(32, 18, 11, 0, Math.PI * 2);
+    ctx.fill();
+    // Spiky hair
+    ctx.fillStyle = '#A0522D';
+    for (let i = 0; i < 5; i++) {
+      const angle = -Math.PI / 2 + (i - 2) * 0.3;
       ctx.beginPath();
-      ctx.arc(32, 20, 12, 0, Math.PI * 2);
+      ctx.arc(32 + Math.cos(angle) * 10, 18 + Math.sin(angle) * 10, 4, 0, Math.PI * 2);
       ctx.fill();
-      ctx.fillRect(20, 32, 24, 24);
     }
+
+    // Head
+    ctx.fillStyle = '#ffd5a0';
+    ctx.beginPath();
+    ctx.arc(32, 20, 9, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Eyes
+    ctx.fillStyle = '#333';
+    ctx.fillRect(27, 18, 3, 3);
+    ctx.fillRect(34, 18, 3, 3);
+
+    // Mouth
+    ctx.fillStyle = '#c97';
+    ctx.fillRect(30, 24, 4, 1);
+
+    // Body/tunic
+    ctx.fillStyle = '#2a7a9e';
+    ctx.beginPath();
+    ctx.moveTo(22, 26);
+    ctx.lineTo(42, 26);
+    ctx.lineTo(44, 42);
+    ctx.lineTo(20, 42);
+    ctx.closePath();
+    ctx.fill();
+
+    // Belt
+    ctx.fillStyle = '#8B4513';
+    ctx.fillRect(22, 37, 20, 2);
+
+    // Arms
+    ctx.fillStyle = '#ffd5a0';
+    ctx.fillRect(16, 28, 6, 4);
+    ctx.fillRect(42, 28, 6, 4);
+
+    // Legs
+    ctx.fillStyle = '#4a4a6a';
+    ctx.fillRect(24, 42, 6, 10);
+    ctx.fillRect(34, 42, 6, 10);
+
+    // Shoes
+    ctx.fillStyle = '#5a3a1a';
+    ctx.fillRect(23, 50, 8, 3);
+    ctx.fillRect(33, 50, 8, 3);
+
     return new CanvasTexture(canvas);
   }, []);
 
