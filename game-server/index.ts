@@ -1,9 +1,9 @@
 import express from 'express';
 import { createServer } from 'http';
 import { Server as SocketIOServer } from 'socket.io';
-import { INITIAL_ENEMIES, SKILL_TREE } from '../data/gameData';
-import type { JobClass, PlayerStats } from '../types/game';
-import type { PlayerInput, WorldSnapshot, SnapshotPlayer } from '../types/network';
+import { INITIAL_ENEMIES, SKILL_TREE } from './data/gameData';
+import type { JobClass, PlayerStats } from './types/game';
+import type { PlayerInput, WorldSnapshot, SnapshotPlayer } from './types/network';
 
 const GAME_PORT = parseInt(process.env.PORT || '3001', 10);
 const TICK_RATE_MS = 50;
