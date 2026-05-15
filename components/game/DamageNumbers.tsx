@@ -1,0 +1,50 @@
+import React, { useRef, useMemo } from 'react';
+import { useFrame } from '@react-three/fiber';
+import { Text } from '@react-three/drei';
+import { useGameStore } from '@/store/useGameStore';
+import { DamageText } from '@/types/game';
+
+function DamageNumber({ damage }: { damage: DamageText }) {
+  const ref = useRef<any>(null);
+  const startTime = useMemo(() => Date.now(), []);
+
+  useFrame(() => {
+    if (!ref.current) return;
+    const elapsed = Date.now() - startTime;
+    const t = elapsed / 1000; // time in seconds
+
+    // Float upwards and fade out
+    ref.current.position.y = damage.position.y + t * 2;
+    ref.current.material.opacity = Math.max(0, 1 - t * 1.5);
+  });
+
+  return (
+    <Text
+      ref={ref}
+      position={[damage.position.x, damage.position.y, damage.position.z]}
+      fontSize={0.5}
+      color={damage.color}
+      outlineWidth={0.05}
+      outlineColor="black"
+      fontWeight="bold"
+      transparent
+    >
+      {damage.amount}
+    </Text>
+  );
+}
+
+export function DamageNumbers() {
+  const damages = useGameStore((state) => state.damages);
+  
+  // Only render damages from the last 1.5 seconds
+  const activeDamages = damages.filter(d => Date.now() - d.timestamp < 1500);
+
+  return (
+    <group>
+      {activeDamages.map((d) => (
+        <DamageNumber key={d.id} damage={d} />
+      ))}
+    </group>
+  );
+}
