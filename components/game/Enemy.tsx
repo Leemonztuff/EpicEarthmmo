@@ -1,4 +1,4 @@
-import React, { useRef, useMemo, useState } from 'react';
+import React, { useRef, useMemo, useState, useEffect } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Vector3, Mesh, CanvasTexture } from 'three';
 import { Billboard, Text } from '@react-three/drei';
@@ -19,18 +19,20 @@ export function Enemy({ id }: { id: string }) {
     canvas.height = 64;
     const ctx = canvas.getContext('2d');
     if (ctx) {
-      // Draw a pink poring-like slime
       ctx.fillStyle = '#ff8cb0';
       ctx.beginPath();
       ctx.arc(32, 40, 20, 0, Math.PI * 2);
       ctx.fill();
-      // Eyes
       ctx.fillStyle = 'black';
       ctx.fillRect(20, 35, 4, 4);
       ctx.fillRect(40, 35, 4, 4);
     }
     return new CanvasTexture(canvas);
   }, []);
+
+  useEffect(() => {
+    return () => { texture?.dispose(); };
+  }, [texture]);
 
   if (!enemy || enemy.isDead) return null;
 
@@ -86,10 +88,12 @@ export function Enemy({ id }: { id: string }) {
               <meshBasicMaterial color="black" />
             </mesh>
             {/* HP Bar Foreground */}
-            <mesh position={[-0.5 + (enemy.hp / enemy.maxHp) / 2, 0, 0.01]}>
-              <planeGeometry args={[enemy.hp / enemy.maxHp, 0.08]} />
-              <meshBasicMaterial color={(enemy.hp / enemy.maxHp) < 0.3 ? "red" : "green"} />
-            </mesh>
+            {enemy.maxHp > 0 && (
+              <mesh position={[-0.5 + (enemy.hp / enemy.maxHp) / 2, 0, 0.01]}>
+                <planeGeometry args={[Math.max(0, enemy.hp / enemy.maxHp), 0.08]} />
+                <meshBasicMaterial color={(enemy.hp / enemy.maxHp) < 0.3 ? "red" : "green"} />
+              </mesh>
+            )}
           </group>
         </group>
       </Billboard>

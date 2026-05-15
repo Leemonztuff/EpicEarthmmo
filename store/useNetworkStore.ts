@@ -45,8 +45,13 @@ export const useNetworkStore = create<NetworkStore>()((set, get) => ({
   initSocket: async (playerName: string) => {
     if (get().socket || typeof window === 'undefined') return;
 
-    // We do late import to avoid circular dependency issues at boot
-    const { useGameStore } = await import('./useGameStore');
+    let useGameStore: any;
+    try {
+      useGameStore = (await import('./useGameStore')).useGameStore;
+    } catch (err) {
+      console.error('Failed to load game store:', err);
+      return;
+    }
 
     // Connect to same host/port serving Next.js
     const newSocket = io();
@@ -133,21 +138,100 @@ export const useNetworkStore = create<NetworkStore>()((set, get) => ({
       }
     });
 
-    newSocket.on('attackResult', (data: { targetId: string, damage: number, usedSkill: boolean, newSp: number }) => {
+    newSocket.on('attackResult', (data: { targetId: string, damage: number, usedSkill: boolean, newSp: number, hp: number, isDead: boolean }) => {
       const gs = useGameStore.getState();
       gs.setSp(data.newSp);
-      gs.setActiveSkill(data.usedSkill ? null : gs.activeSkill);
+      gs.updateEnemyState(data.targetId, { hp: data.hp, isDead: data.isDead });
     });
 
-    newSocket.on('enemyKilled', (data: { targetId: string, expBase: number, expJob: number, loot: any[], newSp: number, damage: number, usedSkill: boolean }) => {
+    newSocket.on('enemyKilled', (data: { targetId: string, expBase: number, expJob: number, loot: any[], newSp: number, damage: number, usedSkill: boolean, hp: number, isDead: boolean }) => {
       const gs = useGameStore.getState();
       gs.setSp(data.newSp);
-      gs.setActiveSkill(data.usedSkill ? null : gs.activeSkill);
+      gs.updateEnemyState(data.targetId, { hp: data.hp, isDead: data.isDead });
       gs.gainExp(data.expBase, data.expJob);
       if (data.loot.length > 0) {
         gs.gainLoot(data.loot);
       }
       gs.setSelectedTargetId(null);
+    });
+
+    // ── Trade Events ────────────────────────────────
+    newSocket.on('tradeRequested', (data: { from: string; name: string }) => {
+      set({ tradeRequest: { from: data.from, name: data.name } });
+    });
+
+    newSocket.on('tradeAccepted', (data: { peerId: string; name: string }) => {
+      set({
+        tradeRequest: null,
+        activeTrade: {
+          peerId: data.peerId,
+          myOffer: { zeny: 0, items: [], locked: false, accepted: false },
+          theirOffer: { zeny: 0, items: [], locked: false, accepted: false },
+        },
+      });
+      get().addChatMessage({
+        id: Date.now().toString(), sender: 'System',
+        text: `Trade started with ${data.name}`,
+        timestamp: Date.now(), isSystem: true,
+      });
+    });
+
+    newSocket.on('tradeDeclined', (data: { name: string }) => {
+      set({ tradeRequest: null });
+      get().addChatMessage({
+        id: Date.now().toString(), sender: 'System',
+        text: `${data.name} declined the trade.`,
+        timestamp: Date.now(), isSystem: true,
+      });
+    });
+
+    newSocket.on('tradeOfferUpdated', (data: { from: string; offer: { zeny: number; locked: boolean } }) => {
+      const state = get();
+      if (!state.activeTrade) return;
+      const isTheirs = data.from === state.activeTrade.peerId;
+      if (isTheirs) {
+        set({
+          activeTrade: {
+            ...state.activeTrade,
+            theirOffer: { ...state.activeTrade.theirOffer, zeny: data.offer.zeny, locked: data.offer.locked },
+          },
+        });
+      } else {
+        set({
+          activeTrade: {
+            ...state.activeTrade,
+            myOffer: { ...state.activeTrade.myOffer, zeny: data.offer.zeny, locked: data.offer.locked },
+          },
+        });
+      }
+    });
+
+    newSocket.on('tradeReady', () => {
+      get().addChatMessage({
+        id: Date.now().toString(), sender: 'System',
+        text: 'Both sides locked! Click Trade to complete.',
+        timestamp: Date.now(), isSystem: true,
+      });
+    });
+
+    newSocket.on('tradeCompleted', (data: { receivedZeny: number; sentZeny: number }) => {
+      const gs = useGameStore.getState();
+      // Update zeny server-side would be ideal, but client-side for now
+      set({ activeTrade: null });
+      get().addChatMessage({
+        id: Date.now().toString(), sender: 'System',
+        text: `Trade completed! +${data.receivedZeny} Zeny, -${data.sentZeny} Zeny`,
+        timestamp: Date.now(), isSystem: true,
+      });
+    });
+
+    newSocket.on('tradeCancelled', (data: { name: string }) => {
+      set({ activeTrade: null, tradeRequest: null });
+      get().addChatMessage({
+        id: Date.now().toString(), sender: 'System',
+        text: `Trade cancelled by ${data.name}.`,
+        timestamp: Date.now(), isSystem: true,
+      });
     });
 
     set({ socket: newSocket });
@@ -183,24 +267,63 @@ export const useNetworkStore = create<NetworkStore>()((set, get) => ({
     if (socket && socket.connected) {
       const { useGameStore } = await import('./useGameStore');
       const gs = useGameStore.getState();
-      socket.emit('attack', { 
-        targetId, 
+      socket.emit('attack', {
+        targetId,
         skillId: gs.activeSkill,
-        playerStats: gs.player.stats,
-        sp: gs.player.sp 
+        sp: gs.player.sp,
+        position: gs.position,
       });
     }
   },
 
-  // Trade Actions (These are mocked for now, would need server validation)
-  requestTrade: (targetSocketId, myName) => {
-    get().addChatMessage({ id: Date.now().toString(), sender: 'System', text: `Trade with ${targetSocketId} feature pending server integration.`, timestamp: Date.now(), isSystem: true });
+  // Trade Actions
+  requestTrade: (targetSocketId) => {
+    const socket = get().socket;
+    if (socket?.connected) {
+      socket.emit('requestTrade', { targetSocketId });
+    }
   },
-  acceptTradeRequest: () => {},
-  declineTradeRequest: () => {},
-  updateTradeOffer: (offerUpdate) => {},
-  lockTrade: () => {},
-  acceptTrade: () => {},
+  acceptTradeRequest: () => {
+    const socket = get().socket;
+    if (socket?.connected) {
+      socket.emit('acceptTradeRequest');
+    }
+  },
+  declineTradeRequest: () => {
+    const socket = get().socket;
+    if (socket?.connected) {
+      socket.emit('declineTradeRequest');
+    }
+    set({ tradeRequest: null });
+  },
+  updateTradeOffer: (offerUpdate) => {
+    const state = get();
+    if (!state.activeTrade || state.activeTrade.myOffer.locked) return;
+    const socket = state.socket;
+    if (socket?.connected) {
+      if (offerUpdate.zeny !== undefined) {
+        socket.emit('updateTradeOffer', { zeny: offerUpdate.zeny });
+      }
+    }
+  },
+  lockTrade: () => {
+    const socket = get().socket;
+    if (socket?.connected) {
+      socket.emit('lockTrade');
+    }
+  },
+  acceptTrade: () => {
+    const socket = get().socket;
+    if (socket?.connected) {
+      socket.emit('acceptTrade');
+    }
+  },
   processTradeCompletion: () => {},
-  cancelTrade: () => {}
+  cancelTrade: () => {
+    const socket = get().socket;
+    if (socket?.connected) {
+      socket.emit('cancelTrade');
+    }
+    set({ activeTrade: null, tradeRequest: null });
+  },
 }));

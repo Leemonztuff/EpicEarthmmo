@@ -9,7 +9,7 @@ export function SkillsWindow({ onClose }: { onClose: () => void }) {
   const unlockSkill = useGameStore((state) => state.unlockSkill);
 
   return (
-    <WindowFrame title="Árbol de Habilidades" onClose={onClose} style={{ right: '10px', top: '10px', width: '280px', height: '360px' }}>
+    <WindowFrame title="Árbol de Habilidades" onClose={onClose} style={{ right: '10px', top: '10px', width: 'min(90vw, 320px)', height: 'min(60dvh, 400px)' }}>
       <div className="flex justify-between items-center bg-blue-100 border border-blue-200 p-2 rounded-sm mb-2 font-sans font-medium text-sm">
         <span>Puntos de Hab. (SP):</span>
         <span className="text-blue-700 font-bold">{player.skillPoints}</span>
@@ -18,7 +18,7 @@ export function SkillsWindow({ onClose }: { onClose: () => void }) {
       <div className="flex-1 overflow-y-auto pr-1 space-y-2 font-sans">
         {SKILL_TREE.map((skill) => {
           const isUnlocked = player.unlockedSkills.includes(skill.id) || skill.cost === 0;
-          const meetsReqs = skill.req.every(r => player.unlockedSkills.includes(r) || SKILL_TREE.find(s => s.id === r)?.cost === 0);
+          const meetsReqs = skill.req.every(r => player.unlockedSkills.includes(r) || r === 'basic_attack');
           const canUnlock = !isUnlocked && meetsReqs && player.skillPoints >= skill.cost;
 
           return (

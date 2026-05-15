@@ -1,9 +1,7 @@
 import { InventoryItem } from './game';
+import { Vector3State } from './game';
 
-export interface PeerPlayerState {
-  x: number;
-  y: number;
-  z: number;
+export interface PeerPlayerState extends Vector3State {
   name: string;
 }
 

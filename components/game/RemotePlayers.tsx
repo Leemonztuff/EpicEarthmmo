@@ -1,5 +1,5 @@
 'use client';
-import React, { useMemo } from 'react';
+import React, { useMemo, useEffect } from 'react';
 import { useNetworkStore } from '@/store/useNetworkStore';
 import { useGameStore } from '@/store/useGameStore';
 import { RigidBody } from '@react-three/rapier';
@@ -26,6 +26,10 @@ export function RemotePlayers() {
     }
     return new CanvasTexture(canvas);
   }, []);
+
+  useEffect(() => {
+    return () => { texture?.dispose(); };
+  }, [texture]);
 
   return (
     <group>

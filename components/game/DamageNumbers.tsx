@@ -1,4 +1,4 @@
-import React, { useRef, useMemo } from 'react';
+import React, { useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Text } from '@react-three/drei';
 import { useGameStore } from '@/store/useGameStore';
@@ -6,16 +6,15 @@ import { DamageText } from '@/types/game';
 
 function DamageNumber({ damage }: { damage: DamageText }) {
   const ref = useRef<any>(null);
-  const startTime = useMemo(() => Date.now(), []);
+  const startTime = useRef(0);
 
-  useFrame(() => {
+  useFrame((state) => {
     if (!ref.current) return;
-    const elapsed = Date.now() - startTime;
-    const t = elapsed / 1000; // time in seconds
+    if (startTime.current === 0) startTime.current = state.clock.elapsedTime;
+    const elapsed = state.clock.elapsedTime - startTime.current;
 
-    // Float upwards and fade out
-    ref.current.position.y = damage.position.y + t * 2;
-    ref.current.material.opacity = Math.max(0, 1 - t * 1.5);
+    ref.current.position.y = damage.position.y + elapsed * 2;
+    ref.current.material.opacity = Math.max(0, 1 - elapsed * 1.5);
   });
 
   return (

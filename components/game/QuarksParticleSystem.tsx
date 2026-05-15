@@ -1,7 +1,6 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
-import { Group } from 'three';
 import {
   BatchedParticleRenderer,
   QuarksLoader,
@@ -16,14 +15,13 @@ import {
 
 let globalRenderer: BatchedParticleRenderer | null = null;
 
-// This component initializes the global BatchedParticleRenderer
 export function QuarksRenderer() {
   const { scene } = useThree();
-  
+
   useEffect(() => {
     globalRenderer = new BatchedParticleRenderer();
     scene.add(globalRenderer);
-    
+
     return () => {
       if (globalRenderer) {
         scene.remove(globalRenderer);
@@ -44,7 +42,7 @@ export function QuarksRenderer() {
 export function createHitEffect(position: {x: number, y: number, z: number}, color: string = '#ffaa00') {
   if (!globalRenderer) return;
 
-  // Simple hit particle system
+  const c = new THREE.Color(color);
   const system = new ParticleSystem({
     duration: 0.5,
     looping: false,
@@ -52,7 +50,7 @@ export function createHitEffect(position: {x: number, y: number, z: number}, col
     startLife: new IntervalValue(0.2, 0.4),
     startSpeed: new IntervalValue(2, 5),
     startSize: new IntervalValue(0.1, 0.3),
-    startColor: new ColorRange({r: 1, g: 0.8, b: 0, a: 1}, {r: 1, g: 0.2, b: 0, a: 1}),
+    startColor: new ColorRange({r: c.r, g: c.g, b: c.b, a: 1}, {r: c.r * 0.3, g: c.g * 0.3, b: c.b * 0.3, a: 0.5}),
     worldSpace: true,
     emissionOverTime: new ConstantValue(0),
     emissionBursts: [{
@@ -67,25 +65,17 @@ export function createHitEffect(position: {x: number, y: number, z: number}, col
       thickness: 1,
       arc: Math.PI * 2,
     }),
-    material: new THREE.MeshBasicMaterial({ 
+    material: new THREE.MeshBasicMaterial({
       color: 0xffffff,
       transparent: true,
-      blending: THREE.AdditiveBlending 
+      blending: THREE.AdditiveBlending
     }),
     renderMode: RenderMode.BillBoard,
   });
 
-  // Color isn't exactly matching color prop directly without a Color object
-  // Just a burst of particles
-  
-  const group = new Group();
-  group.position.set(position.x, position.y, position.z);
-  group.add(system.emitter);
-  
-  // Need to push to renderer
+  system.emitter.position.set(position.x, position.y, position.z);
   globalRenderer.addSystem(system);
 
-  // Add to scene briefly
   setTimeout(() => {
      if (globalRenderer) {
         globalRenderer.deleteSystem(system);

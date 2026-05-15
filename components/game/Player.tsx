@@ -1,19 +1,24 @@
 import React, { useRef, useMemo, useEffect, useState } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Vector3, Mesh, CanvasTexture } from 'three';
+import * as THREE from 'three';
 import { Billboard } from '@react-three/drei';
 import { useGameStore } from '@/store/useGameStore';
 import { useNetworkStore } from '@/store/useNetworkStore';
 import { RigidBody, RapierRigidBody } from '@react-three/rapier';
+import { touchInput } from '@/lib/touchInput';
 
 export function Player() {
   const rigidBodyRef = useRef<RapierRigidBody>(null);
   const meshRef = useRef<Mesh>(null);
+  const planeRef = useRef<Mesh>(null);
   const flipX = useRef(1);
   
   const [initialPos] = useState(() => useGameStore.getState().position);
   const [lastAttackTime, setLastAttackTime] = useState(0);
   const keys = useRef<{ [key: string]: boolean }>({});
+  const lastTargetPosRef = useRef<string | null>(null);
+  const firstFrameRef = useRef(true);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => { keys.current[e.code] = true; };
@@ -51,6 +56,12 @@ export function Player() {
   useFrame((state, delta) => {
     if (!rigidBodyRef.current) return;
 
+    if (firstFrameRef.current) {
+      firstFrameRef.current = false;
+      const pos = useGameStore.getState().position;
+      rigidBodyRef.current.setTranslation({ x: pos.x, y: pos.y, z: pos.z }, true);
+    }
+
     const gameStore = useGameStore.getState();
     const networkStore = useNetworkStore.getState();
     const { 
@@ -59,8 +70,8 @@ export function Player() {
     } = gameStore;
 
     const SPEED = 5;
-    const ATTACK_RANGE = 1.5;
-    const ATTACK_COOLDOWN = Math.max(0.2, 1.0 - (player.stats.agi * 0.02)); // Faster with AGI
+    const ATTACK_RANGE = 3.0;
+    const ATTACK_COOLDOWN = Math.max(0.2, 1.0 - (Math.max(0, player.stats.agi) * 0.02)); // Faster with AGI
 
     const pos = rigidBodyRef.current.translation();
     const current = new Vector3(pos.x, pos.y, pos.z);
@@ -79,9 +90,18 @@ export function Player() {
     if (keyUp) inputDirection.z -= 1;
     if (keyDown) inputDirection.z += 1;
 
+    // Touch joystick input (only if no keyboard direction)
+    if (inputDirection.lengthSq() === 0) {
+      if (Math.abs(touchInput.x) > 0.15 || Math.abs(touchInput.z) > 0.15) {
+        inputDirection.x = touchInput.x;
+        inputDirection.z = touchInput.z;
+        inputDirection.normalize();
+      }
+    }
+
     if (inputDirection.lengthSq() > 0) {
       inputDirection.normalize();
-      setTargetPosition(null); // Cancel click-to-move if using WASD
+      setTargetPosition(null); // Cancel click-to-move if using WASD or joystick
     }
 
     // Combat Logic
@@ -103,22 +123,25 @@ export function Player() {
             networkStore.attackTarget(selectedTargetId);
             
             // Visual effect feedback
-            if (meshRef.current) {
-                const mat = (meshRef.current.children[0] as any).material;
-                if (mat) {
-                    mat.color.setHex(0xcccccc);
+            if (planeRef.current) {
+                const mat = planeRef.current.material;
+                if (mat && 'color' in mat) {
+                    (mat as THREE.MeshBasicMaterial).color.setHex(0xcccccc);
                     setTimeout(() => {
-                        if (meshRef.current) {
-                            const m2 = (meshRef.current.children[0] as any).material;
-                            if (m2) m2.color.setHex(0xffffff);
+                        if (planeRef.current) {
+                            const m2 = planeRef.current.material;
+                            if (m2 && 'color' in m2) (m2 as THREE.MeshBasicMaterial).color.setHex(0xffffff);
                         }
                     }, 100);
                 }
             }
           }
         } else if (inputDirection.lengthSq() === 0) {
-          // Move towards enemy if no WASD input
-          setTargetPosition({ x: enemy.position.x, y: 0.5, z: enemy.position.z });
+          const targetKey = `${enemy.position.x.toFixed(1)},${enemy.position.z.toFixed(1)}`;
+          if (lastTargetPosRef.current !== targetKey) {
+            lastTargetPosRef.current = targetKey;
+            setTargetPosition({ x: enemy.position.x, y: 0.5, z: enemy.position.z });
+          }
         }
       }
     }
@@ -127,7 +150,7 @@ export function Player() {
     const targetVelocity = new Vector3(0, 0, 0);
 
     if (inputDirection.lengthSq() > 0) {
-      targetVelocity.copy(inputDirection.multiplyScalar(SPEED));
+      targetVelocity.copy(inputDirection.clone().multiplyScalar(SPEED));
       isMoving = true;
     } else if (targetPosition) {
       const target = new Vector3(targetPosition.x, current.y, targetPosition.z);
@@ -186,16 +209,16 @@ export function Player() {
         lockY={false}
         lockZ={false}
       >
-         <group ref={meshRef}>
-          <mesh>
+          <group ref={meshRef}>
+           <mesh ref={planeRef}>
             <planeGeometry args={[1.5, 1.5]} />
             {texture ? (
               <meshBasicMaterial map={texture} transparent={true} />
             ) : (
               <meshBasicMaterial color="red" />
             )}
-          </mesh>
-         </group>
+           </mesh>
+          </group>
       </Billboard>
     </RigidBody>
   );

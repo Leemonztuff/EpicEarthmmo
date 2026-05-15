@@ -35,6 +35,7 @@ export interface EnemyState {
   level: number;
   position: { x: number; y: number; z: number };
   isDead: boolean;
+  deathTime?: number;
 }
 
 export interface Vector3State { x: number; y: number; z: number; }
