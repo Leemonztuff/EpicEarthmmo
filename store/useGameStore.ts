@@ -8,7 +8,8 @@ import { INITIAL_PLAYER, INITIAL_ENEMIES } from '@/data/gameData';
 
 interface GameStore {
   player: PlayerState;
-  position: Vector3State; 
+  position: Vector3State;
+  inputDirection: Vector3State;
   targetPosition: Vector3State | null;
   selectedTargetId: string | null;
   activeSkill: string | null;
@@ -17,6 +18,7 @@ interface GameStore {
   ui: GameUIState;
   setTargetPosition: (pos: Vector3State | null) => void;
   setPosition: (pos: Vector3State) => void;
+  setInputDirection: (dir: Vector3State) => void;
   setSelectedTargetId: (id: string | null) => void;
   toggleUI: (window: keyof GameUIState) => void;
   allocateStat: (stat: keyof PlayerStats) => void;
@@ -37,6 +39,7 @@ interface GameStore {
 export const useGameStore = create<GameStore>()((set, get) => ({
   player: INITIAL_PLAYER,
   position: { x: 0, y: 0.5, z: 0 },
+  inputDirection: { x: 0, y: 0, z: 0 },
   targetPosition: null,
   selectedTargetId: null,
   activeSkill: null,
@@ -45,6 +48,7 @@ export const useGameStore = create<GameStore>()((set, get) => ({
   ui: { isSkillsOpen: false, isStatsOpen: false, isInventoryOpen: false },
   setTargetPosition: (pos) => set({ targetPosition: pos }),
   setPosition: (pos) => set({ position: pos }),
+  setInputDirection: (dir) => set({ inputDirection: dir }),
   setSelectedTargetId: (id) => set({ selectedTargetId: id }),
   setActiveSkill: (skillId) => set({ activeSkill: skillId }),
   setSp: (sp) => set(s => ({ player: { ...s.player, sp } })),

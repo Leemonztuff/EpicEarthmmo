@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { io, Socket } from 'socket.io-client';
-import { PeerPlayerState, ChatMessage, TradeOffer } from '@/types/network';
+import { PeerPlayerState, ChatMessage, TradeOffer, WorldSnapshot, PlayerInput } from '@/types/network';
 import { EnemyState } from '@/types/game';
 
 interface NetworkStore {
@@ -18,7 +18,7 @@ interface NetworkStore {
   } | null;
 
   initSocket: (playerName: string) => void;
-  broadcastPosition: (pos: PeerPlayerState) => void;
+  sendInput: (input: PlayerInput) => void;
   updateRemotePlayer: (id: string, state: Omit<PeerPlayerState, 'name'>) => void;
   sendChatMessage: (text: string) => void;
   addChatMessage: (msg: ChatMessage) => void;
@@ -34,6 +34,15 @@ interface NetworkStore {
   processTradeCompletion: () => void;
   cancelTrade: () => void;
 }
+
+const RECONCILIATION_WINDOW = 30;
+interface PredictedState {
+  seq: number;
+  input: PlayerInput;
+  timestamp: number;
+}
+const predictedStates: PredictedState[] = [];
+let lastReconciledPos = { x: 0, y: 0.5, z: 0 };
 
 export const useNetworkStore = create<NetworkStore>()((set, get) => ({
   socket: null,
@@ -53,8 +62,9 @@ export const useNetworkStore = create<NetworkStore>()((set, get) => ({
       return;
     }
 
-    // Connect to same host/port serving Next.js
-    const newSocket = io();
+    // Connect to game server on separate port
+    const serverUrl = process.env.NEXT_PUBLIC_GAME_SERVER || 'http://localhost:3001';
+    const newSocket = io(serverUrl);
 
     newSocket.on('connect', () => {
       console.log('Connected to MMO server:', newSocket.id);
@@ -82,17 +92,59 @@ export const useNetworkStore = create<NetworkStore>()((set, get) => ({
       }));
     });
 
-    newSocket.on('playerMoved', (data: { id: string, x: number, y: number, z: number }) => {
-      set((s) => {
-        const player = s.remotePlayers[data.id];
-        if (!player) return s;
-        return {
-          remotePlayers: {
-            ...s.remotePlayers,
-            [data.id]: { ...player, x: data.x, y: data.y, z: data.z }
+    newSocket.on('worldSnapshot', (snapshot: WorldSnapshot) => {
+      const gs = useGameStore.getState();
+      const localSocketId = get().socketId;
+
+      // Update remote players from snapshot
+      const updatedPlayers: Record<string, PeerPlayerState> = {};
+      for (const [id, sp] of Object.entries(snapshot.players)) {
+        if (id === localSocketId) {
+          // Client reconciliation: replay unconfirmed inputs
+          const serverSeq = sp.lastProcessedSeq ?? 0;
+          const serverPos = { x: sp.x, y: sp.y, z: sp.z };
+
+          // Find index in predicted buffer
+          let replayIdx = predictedStates.length;
+          for (let i = predictedStates.length - 1; i >= 0; i--) {
+            if (predictedStates[i].seq <= serverSeq) {
+              replayIdx = i + 1;
+              break;
+            }
           }
-        };
-      });
+
+          // Start from server position, replay unconfirmed inputs
+          const reconciled = { ...serverPos };
+          for (let i = replayIdx; i < predictedStates.length; i++) {
+            const inp = predictedStates[i].input;
+            if (inp.dirX !== 0 || inp.dirZ !== 0) {
+              const len = Math.sqrt(inp.dirX * inp.dirX + inp.dirZ * inp.dirZ);
+              if (len > 0) {
+                const speed = 5;
+                reconciled.x += (inp.dirX / len) * speed * 0.05;
+                reconciled.z += (inp.dirZ / len) * speed * 0.05;
+              }
+            }
+          }
+
+          // Clean up confirmed states
+          while (predictedStates.length > 0 && predictedStates[0].seq <= serverSeq) {
+            predictedStates.shift();
+          }
+
+          lastReconciledPos = reconciled;
+          gs.setPosition(reconciled);
+        } else {
+          const existing = get().remotePlayers[id];
+          updatedPlayers[id] = { x: sp.x, y: sp.y, z: sp.z, name: existing?.name ?? id };
+        }
+      }
+      set({ remotePlayers: updatedPlayers });
+
+      // Update enemies from snapshot
+      for (const [id, se] of Object.entries(snapshot.enemies)) {
+        gs.updateEnemyState(id, { hp: se.hp, isDead: se.isDead, position: se.position });
+      }
     });
 
     newSocket.on('playerLeft', (id: string) => {
@@ -236,10 +288,16 @@ export const useNetworkStore = create<NetworkStore>()((set, get) => ({
 
     set({ socket: newSocket });
   },
-  broadcastPosition: (pos) => {
+  sendInput: (input) => {
     const { socket } = get();
     if (socket && socket.connected) {
-      socket.emit('move', pos);
+      socket.emit('input', input);
+
+      // Record for reconciliation
+      predictedStates.push({ seq: input.seq, input, timestamp: Date.now() });
+      if (predictedStates.length > RECONCILIATION_WINDOW) {
+        predictedStates.shift();
+      }
     }
   },
   updateRemotePlayer: (id, state) => set((s) => {
