@@ -26,7 +26,7 @@ function DamageNumber({ damage }: { damage: DamageText }) {
       outlineWidth={0.05}
       outlineColor="black"
       fontWeight="bold"
-      transparent
+      material-transparent
     >
       {damage.amount}
     </Text>

@@ -24,9 +24,9 @@ export function Map() {
         <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]} onPointerDown={handlePointerDown} receiveShadow>
           <planeGeometry args={[100, 100]} />
           <meshStandardMaterial color="#8fd162" />
-          <gridHelper args={[100, 100, 0x000000, 0x000000]} rotation={[Math.PI / 2, 0, 0]} position={[0, 0, 0.01]} material-opacity={0.1} material-transparent={true} />
         </mesh>
       </RigidBody>
+      <gridHelper args={[100, 100]} position={[0, 0.01, 0]} />
       
       {/* Obstacles */}
       <RigidBody type="fixed">

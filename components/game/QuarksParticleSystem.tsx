@@ -11,6 +11,7 @@ import {
   RenderMode,
   ColorRange,
   PiecewiseBezier,
+// @ts-expect-error - three.quarks types are broken
 } from 'three.quarks';
 
 let globalRenderer: BatchedParticleRenderer | null = null;

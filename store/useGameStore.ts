@@ -117,6 +117,8 @@ export const useGameStore = create<GameStore>()((set, get) => ({
     if (state.player.stats.statPoints <= 0) return;
     if (state.player.stats[stat] >= 99) return;
 
+    const currentStatPoints = state.player.stats.statPoints;
+
     // Optimistic update
     set((s) => ({
       player: { ...s.player, stats: { ...s.player.stats, [stat]: s.player.stats[stat] + 1, statPoints: s.player.stats.statPoints - 1 } }
@@ -125,7 +127,7 @@ export const useGameStore = create<GameStore>()((set, get) => ({
     import('./useNetworkStore').then(({ useNetworkStore }) => {
       const socket = useNetworkStore.getState().socket;
       if (socket?.connected) {
-        socket.emit('allocateStat', { stat }, (res: { success: boolean; stats?: PlayerStats; error?: string }) => {
+        socket.emit('allocateStat', { stat, statPoints: currentStatPoints }, (res: { success: boolean; stats?: PlayerStats; error?: string }) => {
           if (!res.success) {
             set((s) => ({
               player: { ...s.player, stats: { ...s.player.stats, [stat]: s.player.stats[stat] - 1, statPoints: s.player.stats.statPoints + 1 } }
@@ -140,6 +142,8 @@ export const useGameStore = create<GameStore>()((set, get) => ({
     const state = get();
     if (state.player.skillPoints < cost || state.player.unlockedSkills.includes(skillId)) return;
 
+    const currentSkillPoints = state.player.skillPoints;
+
     // Optimistic update
     set((s) => ({
       player: {
@@ -152,7 +156,7 @@ export const useGameStore = create<GameStore>()((set, get) => ({
     import('./useNetworkStore').then(({ useNetworkStore }) => {
       const socket = useNetworkStore.getState().socket;
       if (socket?.connected) {
-        socket.emit('unlockSkill', { skillId }, (res: { success: boolean; error?: string }) => {
+        socket.emit('unlockSkill', { skillId, skillPoints: currentSkillPoints }, (res: { success: boolean; error?: string }) => {
           if (!res.success) {
             set((s) => ({
               player: {
@@ -253,7 +257,22 @@ export const useGameStore = create<GameStore>()((set, get) => ({
   },
   loadProgress: async () => {
     if (!supabase) {
-      console.warn('Supabase is not configured.');
+      const networkStore = (await import('./useNetworkStore')).useNetworkStore;
+      const socket = networkStore.getState().socket;
+      if (socket?.connected) {
+        socket.emit('loadProgress', (data: any) => {
+          if (data) {
+            const loaded = data as Partial<PlayerState>;
+            const merged: PlayerState = { ...INITIAL_PLAYER, ...loaded, stats: { ...INITIAL_PLAYER.stats, ...(loaded.stats || {}) } };
+            set({ player: merged });
+            console.log('Progress loaded via websocket proxy.');
+          } else {
+            console.warn('No saved progress found on server.');
+          }
+        });
+        return;
+      }
+      console.warn('Supabase is not configured and socket is not ready.');
       return;
     }
 

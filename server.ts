@@ -37,6 +37,7 @@ interface ServerPlayer {
   baseLevel: number;
   jobLevel: number;
   jobClass: JobClass;
+  jobExp: number;
   unlockedSkills: string[];
   skillPoints: number;
   lastAttackTime: number;
@@ -50,7 +51,7 @@ function createDefaultPlayer(id: string, name: string): ServerPlayer {
     name: (name || 'Player').slice(0, PLAYER_NAME_MAX_LENGTH),
     stats: { str: 5, agi: 5, vit: 5, int: 5, dex: 5, luk: 5, statPoints: 0 },
     hp: 50, maxHp: 50, sp: 10, maxSp: 10,
-    baseLevel: 1, jobLevel: 1,
+    baseLevel: 1, jobLevel: 1, jobExp: 0,
     jobClass: 'Novice',
     unlockedSkills: [],
     skillPoints: 5,
@@ -79,6 +80,7 @@ app.prepare().then(() => {
 
   // ── State ──────────────────────────────────────────────
   const players = new Map<string, ServerPlayer>();
+  const savedData = new Map<string, any>(); // In-memory save fallback (no Supabase)
   const enemies = JSON.parse(JSON.stringify(INITIAL_ENEMIES)) as Record<string, any>;
 
   // ── Server Ticks ──────────────────────────────────────
@@ -171,10 +173,10 @@ app.prepare().then(() => {
       if (now - player.lastAttackTime < ATTACK_COOLDOWN_MS) return;
       player.lastAttackTime = now;
 
-      // Distance check (including Y axis)
-      const dx = data.position.x - enemy.position.x;
-      const dz = data.position.z - enemy.position.z;
-      const dy = data.position.y - enemy.position.y;
+      // Distance check using server-authoritative player position
+      const dx = player.x - enemy.position.x;
+      const dz = player.z - enemy.position.z;
+      const dy = player.y - enemy.position.y;
       const distSq = dx * dx + dz * dz + dy * dy;
       if (distSq > ATTACK_RANGE_SQ) return;
 
@@ -267,12 +269,18 @@ app.prepare().then(() => {
     });
 
     // ── Allocate Stat ──────────────────────────────────
-    socket.on('allocateStat', (data: { stat: keyof PlayerStats }, callback?: (res: { success: boolean; error?: string }) => void) => {
+    socket.on('allocateStat', (data: { stat: keyof PlayerStats; statPoints?: number }, callback?: (res: { success: boolean; stats?: PlayerStats; error?: string }) => void) => {
       if (!player) return;
       if (data.stat === 'statPoints') {
         callback?.({ success: false, error: 'Cannot allocate statPoints directly.' });
         return;
       }
+
+      // Sync statPoints from client (server doesn't track EXP/level-ups)
+      if (data.statPoints !== undefined) {
+        player.stats.statPoints = Math.max(0, data.statPoints);
+      }
+
       if (player.stats.statPoints <= 0) {
         callback?.({ success: false, error: 'No stat points available.' });
         return;
@@ -289,7 +297,7 @@ app.prepare().then(() => {
     });
 
     // ── Unlock Skill ───────────────────────────────────
-    socket.on('unlockSkill', (data: { skillId: string }, callback?: (res: { success: boolean; error?: string }) => void) => {
+    socket.on('unlockSkill', (data: { skillId: string; skillPoints?: number }, callback?: (res: { success: boolean; unlockedSkills?: string[]; skillPoints?: number; error?: string }) => void) => {
       if (!player) return;
 
       const skill = SKILL_TREE.find(s => s.id === data.skillId);
@@ -301,6 +309,12 @@ app.prepare().then(() => {
         callback?.({ success: false, error: 'Skill already unlocked.' });
         return;
       }
+
+      // Sync skillPoints from client (server doesn't track EXP/level-ups)
+      if (data.skillPoints !== undefined) {
+        player.skillPoints = Math.max(0, data.skillPoints);
+      }
+
       if (player.skillPoints < skill.cost) {
         callback?.({ success: false, error: 'Not enough skill points.' });
         return;
@@ -476,14 +490,33 @@ app.prepare().then(() => {
       });
     });
 
-    // ── Save Progress (proxy to DB) ────────────────────
+    // ── Save Progress ─────────────────────────────────
     socket.on('saveProgress', async (playerData: any) => {
+      if (player && playerData) {
+        savedData.set(socket.id, playerData);
+      }
       socket.emit('progressSaved', { success: true });
+    });
+
+    socket.on('loadProgress', (callback?: (data: any) => void) => {
+      const data = savedData.get(socket.id);
+      if (callback) callback(data || null);
     });
 
     // ── Disconnect ─────────────────────────────────────
     socket.on('disconnect', () => {
       if (player) players.delete(socket.id);
+
+      // Clean up trade sessions involving this player
+      for (const [key, ts] of tradeSessions) {
+        if (ts.initiatorId === socket.id || ts.peerId === socket.id) {
+          const otherId = ts.initiatorId === socket.id ? ts.peerId : ts.initiatorId;
+          io.to(otherId).emit('tradeCancelled', { name: player?.name || 'Disconnected player' });
+          tradeSessions.delete(key);
+          break;
+        }
+      }
+
       io.emit('playerLeft', socket.id);
     });
   });

@@ -71,7 +71,7 @@ export function Player() {
 
     const SPEED = 5;
     const ATTACK_RANGE = 3.0;
-    const ATTACK_COOLDOWN = Math.max(0.2, 1.0 - (Math.max(0, player.stats.agi) * 0.02)); // Faster with AGI
+    const ATTACK_COOLDOWN = Math.max(0.25, 0.5 - (Math.max(0, player.stats.agi) * 0.005));
 
     const pos = rigidBodyRef.current.translation();
     const current = new Vector3(pos.x, pos.y, pos.z);
