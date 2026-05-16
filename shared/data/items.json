@@ -1,0 +1,56 @@
+[
+  {
+    "id": "red_potion",
+    "name": "Red Potion",
+    "type": "usable",
+    "description": "Restores 30 HP.",
+    "effect": {
+      "type": "restore_hp",
+      "value": 30
+    },
+    "maxStack": 99
+  },
+  {
+    "id": "blue_potion",
+    "name": "Blue Potion",
+    "type": "usable",
+    "description": "Restores 15 SP.",
+    "effect": {
+      "type": "restore_sp",
+      "value": 15
+    },
+    "maxStack": 99
+  },
+  {
+    "id": "white_potion",
+    "name": "White Potion",
+    "type": "usable",
+    "description": "Restores 25% of max HP.",
+    "effect": {
+      "type": "restore_hp_percent",
+      "percent": 25
+    },
+    "maxStack": 99
+  },
+  {
+    "id": "jellopy",
+    "name": "Jellopy",
+    "type": "misc",
+    "description": "A gelatinous substance dropped by Porings.",
+    "maxStack": 99
+  },
+  {
+    "id": "plant_stem",
+    "name": "Plant Stem",
+    "type": "misc",
+    "description": "A sturdy stem from a plant monster.",
+    "maxStack": 99
+  },
+  {
+    "id": "silky_cocoon",
+    "name": "Silky Cocoon",
+    "type": "misc",
+    "description": "A delicate cocoon spun by a Pupa.",
+    "maxStack": 99
+  }
+]

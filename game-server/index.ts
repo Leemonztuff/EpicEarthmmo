@@ -1,64 +1,64 @@
 import express from 'express';
 import { createServer } from 'http';
 import { Server as SocketIOServer } from 'socket.io';
-import { INITIAL_ENEMIES, SKILL_TREE } from './data/gameData';
-import type { JobClass, PlayerStats } from './types/game';
-import type { PlayerInput, WorldSnapshot, SnapshotPlayer } from './types/network';
+import { loadGameData } from '../shared/loader/serverLoader';
+import { calculateDamage, calculateExpReward, getSkillSpCost, getSkillMultiplier } from '../shared/loader/formulaEngine';
+import { MapManager, type RuntimeEnemy } from './MapManager';
+import type { ServerPlayer } from './types';
+import type { PlayerInput, WorldSnapshot, SnapshotPlayer, MapChangeData } from '../shared/types/network';
+
+// ── Load all game data from JSON files (validated with Zod) ──
+const gameData = loadGameData();
+const { balance, enemies: enemyData, skills, jobs, items, maps: mapConfigs } = gameData;
 
 const GAME_PORT = parseInt(process.env.PORT || '3001', 10);
-const TICK_RATE_MS = 50;
-const MAX_FRAME_DELTA_MS = 100;
-const PLAYER_SPEED = 8;
-const ATTACK_RANGE_SQ = 9.0;
-const ATTACK_COOLDOWN_MS = 250;
-const PLAYER_NAME_MAX_LENGTH = 20;
-const CHAT_MAX_LENGTH = 500;
-const REGEN_AMOUNT = 1;
-const RESPAWN_MS = 5000;
-const RESPAWN_GRACE_MS = 200;
-const STAT_CAP = 99;
-const FULL_SNAPSHOT_INTERVAL = 10;
-const INTEREST_RANGE = 30;
 
-const SKILL_SP_COST: Record<string, number> = {
-  bash: 5,
-  provoke: 3,
-  magnum_break: 10,
-};
-
-interface ServerPlayer {
-  id: string;
-  x: number; y: number; z: number;
-  name: string;
-  stats: PlayerStats;
-  hp: number; maxHp: number;
-  sp: number; maxSp: number;
-  baseLevel: number; jobLevel: number;
-  jobClass: JobClass;
-  jobExp: number;
-  unlockedSkills: string[];
-  skillPoints: number;
-  lastAttackTime: number;
-  inputQueue: PlayerInput[];
-  lastProcessedSeq: number;
-  lastSentSnapshot: SnapshotPlayer | null;
+// ── Initialize MapManager ──
+const mapManager = new MapManager();
+for (const template of enemyData.templates) {
+  mapManager.registerEnemyTemplate(template);
+}
+for (const mapConfig of mapConfigs) {
+  mapManager.loadMap(mapConfig);
 }
 
+// Build lookup maps
+const jobMap = new Map(jobs.map(j => [j.id, j]));
+const validJobIds = new Set(jobs.map(j => j.id));
+
 function createDefaultPlayer(id: string, name: string): ServerPlayer {
+  const { defaultPlayer } = balance;
   return {
     id,
-    x: 0, y: 0.5, z: 0,
-    name: (name || 'Player').slice(0, PLAYER_NAME_MAX_LENGTH),
-    stats: { str: 5, agi: 5, vit: 5, int: 5, dex: 5, luk: 5, statPoints: 0 },
-    hp: 50, maxHp: 50, sp: 10, maxSp: 10,
-    baseLevel: 1, jobLevel: 1, jobExp: 0,
-    jobClass: 'Novice',
+    x: defaultPlayer.spawnPosition.x,
+    y: defaultPlayer.spawnPosition.y,
+    z: defaultPlayer.spawnPosition.z,
+    name: (name || 'Player').slice(0, balance.limits.playerNameMaxLength),
+    stats: {
+      str: defaultPlayer.baseStats.str,
+      agi: defaultPlayer.baseStats.agi,
+      vit: defaultPlayer.baseStats.vit,
+      int: defaultPlayer.baseStats.int,
+      dex: defaultPlayer.baseStats.dex,
+      luk: defaultPlayer.baseStats.luk,
+      statPoints: 0,
+    },
+    hp: defaultPlayer.hp,
+    maxHp: defaultPlayer.hp,
+    sp: defaultPlayer.sp,
+    maxSp: defaultPlayer.sp,
+    baseLevel: 1,
+    jobLevel: 1,
+    jobExp: 0,
+    jobClass: 'novice',
     unlockedSkills: [],
-    skillPoints: 5,
+    skillPoints: defaultPlayer.skillPoints,
     lastAttackTime: 0,
     inputQueue: [],
     lastProcessedSeq: 0,
     lastSentSnapshot: null,
+    currentMapId: 'prontera',
+    warpCooldownUntil: 0,
   };
 }
 
@@ -77,36 +77,59 @@ function snapshotPlayerChanged(a: SnapshotPlayer, b: SnapshotPlayer): boolean {
   return a.x !== b.x || a.z !== b.z || a.hp !== b.hp || a.sp !== b.sp;
 }
 
+// ── Express & Socket.io setup ──
 const app = express();
 const httpServer = createServer(app);
 const allowedOrigins = process.env.CORS_ORIGIN?.split(',') || '*';
 const io = new SocketIOServer(httpServer, { cors: { origin: allowedOrigins } });
 
 app.get('/health', (_req, res) => {
-  res.json({ ok: true, players: players.size, tick: tickNum });
+  let totalPlayers = 0;
+  for (const instance of mapManager.getAllMaps().values()) {
+    totalPlayers += instance.players.size;
+  }
+  res.json({ ok: true, players: totalPlayers, maps: mapManager.getAllMaps().size, tick: tickNum });
 });
 
-const players = new Map<string, ServerPlayer>();
+// ── Game state ──
 const savedData = new Map<string, any>();
-const enemies = JSON.parse(JSON.stringify(INITIAL_ENEMIES)) as Record<string, any>;
 let tickNum = 0;
 
+// ── Socket.io handlers ──
 io.on('connection', (socket) => {
   let player: ServerPlayer | null = null;
 
-  socket.on('join', (data: { name?: string; stats?: PlayerStats; unlockedSkills?: string[] }) => {
+  socket.on('join', (data: { name?: string; stats?: any; unlockedSkills?: string[] }) => {
     player = createDefaultPlayer(socket.id, data.name || 'Player');
     if (data.stats) player.stats = data.stats;
     if (data.unlockedSkills) player.unlockedSkills = data.unlockedSkills;
-    players.set(socket.id, player);
 
-    const raw: Record<string, { id: string; x: number; y: number; z: number; name: string }> = {};
-    for (const [id, p] of players) {
-      raw[id] = { id, x: p.x, y: p.y, z: p.z, name: p.name };
-    }
+    const defaultMapId = 'prontera';
+    mapManager.addPlayerToMap(socket.id, player, defaultMapId);
 
-    socket.emit('init', { id: socket.id, players: raw, enemies });
-    socket.broadcast.emit('playerJoined', { id: socket.id, x: player.x, y: player.y, z: player.z, name: player.name });
+    const initData = mapManager.getMapInitData(defaultMapId);
+    const enemies = mapManager.getMapEnemies(defaultMapId);
+    const players = mapManager.getMapPlayers(defaultMapId);
+
+    socket.emit('init', {
+      id: socket.id,
+      mapId: defaultMapId,
+      mapName: initData?.mapName,
+      mapType: initData?.mapType,
+      players,
+      enemies,
+      initData,
+    });
+
+    socket.broadcast.to(defaultMapId).emit('playerJoined', {
+      id: socket.id,
+      x: player.x,
+      y: player.y,
+      z: player.z,
+      name: player.name,
+    });
+
+    socket.join(defaultMapId);
   });
 
   socket.on('input', (input: PlayerInput) => {
@@ -124,30 +147,35 @@ io.on('connection', (socket) => {
   }) => {
     if (!player) return;
 
-    const enemy = enemies[data.targetId];
+    if (mapManager.isInSafeZone(player.currentMapId, player.x, player.z)) {
+      socket.emit('attackResult', { targetId: data.targetId, damage: 0, usedSkill: false, newSp: player.sp, hp: 0, isDead: false, error: 'Cannot attack in safe zone' });
+      return;
+    }
+
+    const enemy = mapManager.getEnemy(player.currentMapId, data.targetId);
     if (!enemy || enemy.isDead) return;
 
-    if (enemy.respawnTime && Date.now() - enemy.respawnTime < RESPAWN_GRACE_MS) return;
+    if (enemy.respawnTime && Date.now() - enemy.respawnTime < balance.enemy.respawnGraceMs) return;
 
     const now = Date.now();
-    if (now - player.lastAttackTime < ATTACK_COOLDOWN_MS) return;
+    if (now - player.lastAttackTime < balance.combat.attackCooldownMs) return;
     player.lastAttackTime = now;
 
-    if (distSq(player, enemy.position) > ATTACK_RANGE_SQ) return;
+    if (distSq(player, enemy.position) > balance.combat.attackRange * balance.combat.attackRange) return;
 
     let usedSkill = false;
     let skillSpCost = 0;
     if (data.skillId) {
       if (!isSkillUnlocked(player, data.skillId)) return;
-      skillSpCost = SKILL_SP_COST[data.skillId] || 0;
+      skillSpCost = getSkillSpCost(skills, data.skillId);
     }
     if (player.sp < skillSpCost) return;
     player.sp -= skillSpCost;
     if (skillSpCost > 0) usedSkill = true;
 
-    let damage = (player.stats.str ?? 5) * 2 + Math.floor(Math.random() * 5);
-    if (data.skillId === 'bash') damage = Math.floor(damage * 2.5);
-    damage = Math.floor(damage);
+    const skillMultiplier = getSkillMultiplier(skills, data.skillId || 'basic_attack');
+    const statValue = player.stats.str ?? balance.defaultPlayer.baseStats.str;
+    const damage = calculateDamage(statValue, skillMultiplier, balance);
 
     enemy.hp = Math.max(0, enemy.hp - damage);
 
@@ -155,15 +183,22 @@ io.on('connection', (socket) => {
       enemy.isDead = true;
       enemy.deathTime = Date.now();
 
-      const expBase = enemy.level * 10;
-      const expJob = enemy.level * 5;
+      const { baseExp: expBase, jobExp: expJob } = calculateExpReward(enemy.level, balance);
+
+      const drops = mapManager.getEnemyDrops(enemy.templateId);
       const loot: any[] = [];
-      if (Math.random() > 0.5) {
-        loot.push({
-          id: 'jellopy', name: 'Jellopy', type: 'misc',
-          amount: 1,
-          description: 'A gelatinous substance dropped by Porings.',
-        });
+      for (const drop of drops) {
+        if (Math.random() <= drop.chance) {
+          const amount = drop.minAmount + Math.floor(Math.random() * (drop.maxAmount - drop.minAmount + 1));
+          const itemDef = items.find(i => i.id === drop.itemId);
+          loot.push({
+            id: drop.itemId,
+            name: itemDef?.name ?? drop.itemId,
+            type: itemDef?.type ?? 'misc',
+            amount,
+            description: itemDef?.description ?? '',
+          });
+        }
       }
 
       socket.emit('enemyKilled', {
@@ -178,37 +213,95 @@ io.on('connection', (socket) => {
       });
     }
 
-    io.emit('enemyDamaged', {
+    io.to(player.currentMapId).emit('enemyDamaged', {
       targetId: data.targetId, damage, usedSkill,
       attackerId: socket.id, hp: enemy.hp, isDead: enemy.isDead,
     });
   });
 
-  socket.on('changeJob', (data: { newJob: JobClass }, callback?: (res: { success: boolean; error?: string }) => void) => {
+  socket.on('requestWarp', (data: { warpId: string }, callback?: (res: { success: boolean; error?: string }) => void) => {
     if (!player) return;
 
-    const validJobs: JobClass[] = ['Swordsman', 'Mage', 'Archer'];
-    if (!validJobs.includes(data.newJob)) { callback?.({ success: false, error: 'Invalid job class.' }); return; }
-    if (player.jobClass !== 'Novice') { callback?.({ success: false, error: 'Can only change from Novice.' }); return; }
-    if (player.jobLevel < 10) { callback?.({ success: false, error: 'Need job level 10.' }); return; }
+    const now = Date.now();
+    if (now < player.warpCooldownUntil) {
+      callback?.({ success: false, error: 'Warp cooldown active' });
+      return;
+    }
+
+    const warp = mapManager.findWarpByProximity(player.currentMapId, player.x, player.z);
+    if (!warp) {
+      callback?.({ success: false, error: 'No warp nearby' });
+      return;
+    }
+
+    if (warp.id !== data.warpId) {
+      callback?.({ success: false, error: 'Warp mismatch' });
+      return;
+    }
+
+    const targetMap = mapManager.getMap(warp.targetMapId);
+    if (!targetMap) {
+      callback?.({ success: false, error: 'Target map not found' });
+      return;
+    }
+
+    if (warp.requirements) {
+      if (player.baseLevel < warp.requirements.minLevel) {
+        callback?.({ success: false, error: `Requires level ${warp.requirements.minLevel}` });
+        return;
+      }
+    }
+
+    performMapChange(player, socket, warp.targetMapId, warp.targetSpawnId);
+    callback?.({ success: true });
+  });
+
+  socket.on('changeJob', (data: { newJob: string }, callback?: (res: { success: boolean; error?: string }) => void) => {
+    if (!player) return;
+
+    const jobDef = jobMap.get(data.newJob);
+    if (!jobDef || !validJobIds.has(data.newJob)) {
+      callback?.({ success: false, error: 'Invalid job class.' });
+      return;
+    }
+
+    const req = jobDef.requirements;
+    if (req) {
+      if (player.jobClass !== req.fromJob) {
+        callback?.({ success: false, error: `Can only change from ${req.fromJob}.` });
+        return;
+      }
+      if (player.jobLevel < req.minJobLevel) {
+        callback?.({ success: false, error: `Need job level ${req.minJobLevel}.` });
+        return;
+      }
+    }
 
     player.jobClass = data.newJob;
     player.jobLevel = 1;
     player.jobExp = 0;
     player.unlockedSkills = [];
-    player.skillPoints += 1;
+    player.skillPoints += jobDef.bonusSkillPoints;
+
+    player.stats.str += jobDef.baseStatModifiers.str;
+    player.stats.agi += jobDef.baseStatModifiers.agi;
+    player.stats.vit += jobDef.baseStatModifiers.vit;
+    player.stats.int += jobDef.baseStatModifiers.int;
+    player.stats.dex += jobDef.baseStatModifiers.dex;
+    player.stats.luk += jobDef.baseStatModifiers.luk;
+
     callback?.({ success: true });
   });
 
-  socket.on('allocateStat', (data: { stat: keyof PlayerStats; statPoints?: number }, callback?: (res: { success: boolean; stats?: PlayerStats; error?: string }) => void) => {
+  socket.on('allocateStat', (data: { stat: string; statPoints?: number }, callback?: (res: { success: boolean; stats?: any; error?: string }) => void) => {
     if (!player) return;
     if (data.stat === 'statPoints') { callback?.({ success: false, error: 'Cannot allocate statPoints directly.' }); return; }
 
     if (data.statPoints !== undefined) player.stats.statPoints = Math.max(0, data.statPoints);
     if (player.stats.statPoints <= 0) { callback?.({ success: false, error: 'No stat points available.' }); return; }
-    if (player.stats[data.stat] >= STAT_CAP) { callback?.({ success: false, error: `Stat ${data.stat} is at max (${STAT_CAP}).` }); return; }
+    if (player.stats[data.stat as keyof typeof player.stats] >= balance.stats.cap) { callback?.({ success: false, error: `Stat ${data.stat} is at max (${balance.stats.cap}).` }); return; }
 
-    player.stats[data.stat] += 1;
+    (player.stats as any)[data.stat] += 1;
     player.stats.statPoints -= 1;
     callback?.({ success: true, stats: { ...player.stats } });
   });
@@ -216,19 +309,19 @@ io.on('connection', (socket) => {
   socket.on('unlockSkill', (data: { skillId: string; skillPoints?: number }, callback?: (res: { success: boolean; unlockedSkills?: string[]; skillPoints?: number; error?: string }) => void) => {
     if (!player) return;
 
-    const skill = SKILL_TREE.find(s => s.id === data.skillId);
+    const skill = skills.find(s => s.id === data.skillId);
     if (!skill) { callback?.({ success: false, error: 'Skill not found.' }); return; }
     if (player.unlockedSkills.includes(data.skillId)) { callback?.({ success: false, error: 'Skill already unlocked.' }); return; }
 
     if (data.skillPoints !== undefined) player.skillPoints = Math.max(0, data.skillPoints);
-    if (player.skillPoints < skill.cost) { callback?.({ success: false, error: 'Not enough skill points.' }); return; }
+    if (player.skillPoints < skill.skillPointCost) { callback?.({ success: false, error: 'Not enough skill points.' }); return; }
 
-    for (const req of skill.req) {
+    for (const req of skill.requirements) {
       if (!isSkillUnlocked(player, req)) { callback?.({ success: false, error: `Requires ${req}.` }); return; }
     }
 
     player.unlockedSkills.push(data.skillId);
-    player.skillPoints -= skill.cost;
+    player.skillPoints -= skill.skillPointCost;
     callback?.({ success: true, unlockedSkills: [...player.unlockedSkills], skillPoints: player.skillPoints });
   });
 
@@ -271,7 +364,7 @@ io.on('connection', (socket) => {
     if (!player) return;
     for (const [key, ts] of tradeSessions) {
       if (ts.peerId === socket.id) {
-        const initiatorName = players.get(ts.initiatorId)?.name;
+        const initiatorName = mapManager.getMapPlayers(player.currentMapId)[ts.initiatorId]?.name;
         io.to(ts.initiatorId).emit('tradeAccepted', { peerId: ts.peerId, name: player.name });
         socket.emit('tradeAccepted', { peerId: ts.initiatorId, name: initiatorName });
         return;
@@ -326,8 +419,8 @@ io.on('connection', (socket) => {
     if (myOffer.accepted) return;
     myOffer.accepted = true;
 
-    const initiator = players.get(ts.initiatorId);
-    const peer = players.get(ts.peerId);
+    const initiator = mapManager.getMapPlayers(player.currentMapId)[ts.initiatorId];
+    const peer = mapManager.getMapPlayers(player.currentMapId)[ts.peerId];
     if (initiator && peer && ts.initiatorOffer.accepted && ts.peerOffer.accepted) {
       io.to(ts.initiatorId).emit('tradeCompleted', { receivedZeny: ts.peerOffer.zeny, sentZeny: ts.initiatorOffer.zeny });
       io.to(ts.peerId).emit('tradeCompleted', { receivedZeny: ts.initiatorOffer.zeny, sentZeny: ts.peerOffer.zeny });
@@ -350,9 +443,9 @@ io.on('connection', (socket) => {
 
   socket.on('chat', (msg: string) => {
     if (!player) return;
-    const text = (typeof msg === 'string' ? msg : '').slice(0, CHAT_MAX_LENGTH);
+    const text = (typeof msg === 'string' ? msg : '').slice(0, balance.limits.chatMaxLength);
     if (!text.trim()) return;
-    io.emit('chatMessage', {
+    io.to(player.currentMapId).emit('chatMessage', {
       id: Date.now().toString() + Math.random().toString(),
       sender: player.name,
       text,
@@ -371,7 +464,13 @@ io.on('connection', (socket) => {
   });
 
   socket.on('disconnect', () => {
-    if (player) players.delete(socket.id);
+    if (player) {
+      const result = mapManager.removePlayerFromMap(socket.id);
+      if (result) {
+        socket.leave(result.mapId);
+        io.to(result.mapId).emit('playerLeft', socket.id);
+      }
+    }
 
     for (const [key, ts] of tradeSessions) {
       if (ts.initiatorId === socket.id || ts.peerId === socket.id) {
@@ -381,98 +480,147 @@ io.on('connection', (socket) => {
         break;
       }
     }
-
-    io.emit('playerLeft', socket.id);
   });
 });
 
+// ── Map change helper ──
+function performMapChange(player: ServerPlayer, socket: any, targetMapId: string, targetSpawnId: string) {
+  const oldMapId = player.currentMapId;
+  const oldInstance = mapManager.getMap(oldMapId);
+
+  if (oldInstance) {
+    oldInstance.players.delete(player.id);
+    socket.leave(oldMapId);
+    io.to(oldMapId).emit('playerLeft', player.id);
+  }
+
+  mapManager.addPlayerToMap(player.id, player, targetMapId, targetSpawnId);
+  socket.join(targetMapId);
+
+  const initData = mapManager.getMapInitData(targetMapId);
+  const enemies = mapManager.getMapEnemies(targetMapId);
+  const players = mapManager.getMapPlayers(targetMapId);
+
+  const mapChangeData: MapChangeData = {
+    mapId: targetMapId,
+    mapName: initData?.mapName ?? targetMapId,
+    mapType: initData?.mapType ?? 'field',
+    spawnPosition: { x: player.x, y: player.y, z: player.z },
+    initData: initData!,
+    enemies,
+    players,
+  };
+
+  socket.emit('mapChange', mapChangeData);
+
+  io.to(targetMapId).emit('playerJoined', {
+    id: player.id,
+    x: player.x,
+    y: player.y,
+    z: player.z,
+    name: player.name,
+  });
+
+  player.warpCooldownUntil = Date.now() + 2000;
+}
+
 // ── Game Loop ─────────────────────────────────────────────
 let ticking = false;
-const tickTimeSec = TICK_RATE_MS / 1000;
+const tickTimeSec = balance.server.tickRateMs / 1000;
+const regenIntervalTicks = balance.regen.intervalTicks;
 
 function tick() {
   tickNum++;
+  const now = Date.now();
 
-  // ── Process input queues ────────────────────────────
-  for (const p of players.values()) {
-    let dx = 0, dz = 0;
-    while (p.inputQueue.length > 0) {
-      const input = p.inputQueue.shift()!;
-      p.lastProcessedSeq = input.seq;
-      if (input.dirX !== 0 || input.dirZ !== 0) {
-        dx = input.dirX;
-        dz = input.dirZ;
-      }
-    }
-    if (dx !== 0 || dz !== 0) {
-      p.x += dx * PLAYER_SPEED * tickTimeSec;
-      p.z += dz * PLAYER_SPEED * tickTimeSec;
-    }
-
-    // Regen
-    if (tickNum % Math.round(5000 / TICK_RATE_MS) === 0) {
-      if (p.hp < p.maxHp) p.hp = Math.min(p.maxHp, p.hp + REGEN_AMOUNT);
-      if (p.sp < p.maxSp) p.sp = Math.min(p.maxSp, p.sp + REGEN_AMOUNT);
-    }
-  }
-
-  // ── Enemy respawn ───────────────────────────────────
-  for (const enemy of Object.values(enemies) as any[]) {
-    if (enemy.isDead && enemy.deathTime) {
-      if (Date.now() - enemy.deathTime > RESPAWN_MS) {
-        enemy.hp = enemy.maxHp;
-        enemy.isDead = false;
-        enemy.respawnTime = Date.now();
-        delete enemy.deathTime;
-        io.emit('enemyRespawned', enemy);
-      }
-    }
-  }
-
-  // ── Build snapshots ─────────────────────────────────
-  const isFullTick = tickNum % FULL_SNAPSHOT_INTERVAL === 0;
-
-  if (isFullTick) {
-    // Full snapshot broadcast
-    const full: WorldSnapshot = { tick: tickNum, players: {}, enemies: {} };
-    for (const [id, p] of players) {
-      const snap: SnapshotPlayer = { x: p.x, y: p.y, z: p.z, hp: p.hp, maxHp: p.maxHp, sp: p.sp, maxSp: p.maxSp, lastProcessedSeq: p.lastProcessedSeq };
-      full.players[id] = snap;
-      p.lastSentSnapshot = snap;
-    }
-    for (const [id, e] of Object.entries(enemies) as [string, any][]) {
-      full.enemies[id] = { hp: e.hp, isDead: e.isDead, position: { x: e.position.x, y: e.position.y, z: e.position.z } };
-    }
-    io.emit('worldSnapshot', full);
-  } else {
-    // Differential: for each player, compute changed entities in interest range
-    for (const [socketId, p] of players) {
-      const snap: WorldSnapshot = { tick: tickNum, players: {}, enemies: {} };
-
-      // Self snapshot (for client reconciliation)
-      const selfSnap: SnapshotPlayer = { x: p.x, y: p.y, z: p.z, hp: p.hp, maxHp: p.maxHp, sp: p.sp, maxSp: p.maxSp, lastProcessedSeq: p.lastProcessedSeq };
-      snap.players[socketId] = selfSnap;
-      p.lastSentSnapshot = selfSnap;
-
-      // Nearby changed players
-      for (const [otherId, other] of players) {
-        if (otherId === socketId) continue;
-        if (distSq(p, other) > INTEREST_RANGE * INTEREST_RANGE) continue;
-        const otherSnap: SnapshotPlayer = { x: other.x, y: other.y, z: other.z, hp: other.hp, maxHp: other.maxHp, sp: other.sp, maxSp: other.maxSp };
-        if (!other.lastSentSnapshot || snapshotPlayerChanged(other.lastSentSnapshot, otherSnap)) {
-          snap.players[otherId] = otherSnap;
+  for (const [mapId, instance] of mapManager.getAllMaps()) {
+    // ── Process input queues ──
+    for (const p of instance.players.values()) {
+      let dx = 0, dz = 0;
+      while (p.inputQueue.length > 0) {
+        const input = p.inputQueue.shift()!;
+        p.lastProcessedSeq = input.seq;
+        if (input.dirX !== 0 || input.dirZ !== 0) {
+          dx = input.dirX;
+          dz = input.dirZ;
         }
-        other.lastSentSnapshot = otherSnap;
+      }
+      if (dx !== 0 || dz !== 0) {
+        p.x += dx * balance.movement.playerSpeed * tickTimeSec;
+        p.z += dz * balance.movement.playerSpeed * tickTimeSec;
+
+        // Clamp to map bounds
+        const halfW = instance.config.dimensions.width / 2;
+        const halfH = instance.config.dimensions.height / 2;
+        p.x = Math.max(-halfW, Math.min(halfW, p.x));
+        p.z = Math.max(-halfH, Math.min(halfH, p.z));
       }
 
-      // Nearby alive enemies
-      for (const [id, e] of Object.entries(enemies) as [string, any][]) {
-        if (e.isDead) continue;
-        if (distSq(p, e.position) > INTEREST_RANGE * INTEREST_RANGE) continue;
-        snap.enemies[id] = { hp: e.hp, isDead: e.isDead, position: { x: e.position.x, y: e.position.y, z: e.position.z } };
+      // Regen
+      if (tickNum % regenIntervalTicks === 0) {
+        if (mapManager.isInSafeZone(mapId, p.x, p.z)) {
+          if (p.hp < p.maxHp) p.hp = Math.min(p.maxHp, p.hp + balance.regen.amountPerTick * 3);
+          if (p.sp < p.maxSp) p.sp = Math.min(p.maxSp, p.sp + balance.regen.amountPerTick * 3);
+        } else {
+          if (p.hp < p.maxHp) p.hp = Math.min(p.maxHp, p.hp + balance.regen.amountPerTick);
+          if (p.sp < p.maxSp) p.sp = Math.min(p.maxSp, p.sp + balance.regen.amountPerTick);
+        }
       }
+    }
 
-      io.to(socketId).emit('worldSnapshot', snap);
+    // ── Enemy respawn ──
+    mapManager.tickEnemies(mapId, now, (enemy) => {
+      io.to(mapId).emit('enemyRespawned', {
+        id: enemy.id,
+        name: enemy.name,
+        hp: enemy.hp,
+        maxHp: enemy.maxHp,
+        level: enemy.level,
+        position: enemy.position,
+        isDead: false,
+      });
+    });
+
+    // ── Build snapshots ──
+    const isFullTick = tickNum % balance.server.fullSnapshotInterval === 0;
+
+    if (isFullTick) {
+      const full: WorldSnapshot = { tick: tickNum, players: {}, enemies: {} };
+      for (const [id, p] of instance.players) {
+        const snap: SnapshotPlayer = { x: p.x, y: p.y, z: p.z, hp: p.hp, maxHp: p.maxHp, sp: p.sp, maxSp: p.maxSp, lastProcessedSeq: p.lastProcessedSeq };
+        full.players[id] = snap;
+        p.lastSentSnapshot = snap;
+      }
+      for (const [id, e] of instance.enemies) {
+        full.enemies[id] = { hp: e.hp, isDead: e.isDead, position: { x: e.position.x, y: e.position.y, z: e.position.z } };
+      }
+      io.to(mapId).emit('worldSnapshot', full);
+    } else {
+      for (const [socketId, p] of instance.players) {
+        const snap: WorldSnapshot = { tick: tickNum, players: {}, enemies: {} };
+
+        const selfSnap: SnapshotPlayer = { x: p.x, y: p.y, z: p.z, hp: p.hp, maxHp: p.maxHp, sp: p.sp, maxSp: p.maxSp, lastProcessedSeq: p.lastProcessedSeq };
+        snap.players[socketId] = selfSnap;
+        p.lastSentSnapshot = selfSnap;
+
+        for (const [otherId, other] of instance.players) {
+          if (otherId === socketId) continue;
+          if (distSq(p, other) > balance.network.interestRange * balance.network.interestRange) continue;
+          const otherSnap: SnapshotPlayer = { x: other.x, y: other.y, z: other.z, hp: other.hp, maxHp: other.maxHp, sp: other.sp, maxSp: other.maxSp };
+          if (!other.lastSentSnapshot || snapshotPlayerChanged(other.lastSentSnapshot, otherSnap)) {
+            snap.players[otherId] = otherSnap;
+          }
+          other.lastSentSnapshot = otherSnap;
+        }
+
+        for (const [id, e] of instance.enemies) {
+          if (e.isDead) continue;
+          if (distSq(p, e.position) > balance.network.interestRange * balance.network.interestRange) continue;
+          snap.enemies[id] = { hp: e.hp, isDead: e.isDead, position: { x: e.position.x, y: e.position.y, z: e.position.z } };
+        }
+
+        io.to(socketId).emit('worldSnapshot', snap);
+      }
     }
   }
 }
@@ -481,8 +629,13 @@ setInterval(() => {
   if (ticking) return;
   ticking = true;
   try { tick(); } finally { ticking = false; }
-}, TICK_RATE_MS);
+}, balance.server.tickRateMs);
 
 httpServer.listen(GAME_PORT, () => {
-  console.log(`[GameServer] listening on port ${GAME_PORT} | ${1000 / TICK_RATE_MS} tps`);
+  console.log(`[GameServer] listening on port ${GAME_PORT} | ${1000 / balance.server.tickRateMs} tps`);
+  console.log(`[GameServer] Maps loaded: ${mapManager.getAllMaps().size}`);
+  for (const [id, instance] of mapManager.getAllMaps()) {
+    console.log(`  - ${instance.config.name} (${id}) [${instance.config.type}]`);
+  }
+  console.log(`[GameServer] Data: ${enemyData.templates.length} enemy templates, ${skills.length} skills, ${items.length} items, ${jobs.length} jobs`);
 });

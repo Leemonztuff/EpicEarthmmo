@@ -7,6 +7,9 @@ import { useGameStore } from '@/store/useGameStore';
 import { useNetworkStore } from '@/store/useNetworkStore';
 import { RigidBody, RapierRigidBody } from '@react-three/rapier';
 import { touchInput } from '@/lib/touchInput';
+import { gameData } from '@/shared/loader';
+
+const { balance, skills } = gameData;
 
 export function Player() {
   const rigidBodyRef = useRef<RapierRigidBody>(null);
@@ -121,9 +124,9 @@ export function Player() {
       selectedTargetId, enemies, player
     } = gameStore;
 
-    const SPEED = 5;
-    const ATTACK_RANGE = 3.0;
-    const ATTACK_COOLDOWN = Math.max(0.25, 0.5 - (Math.max(0, player.stats.agi) * 0.005));
+    const SPEED = balance.movement.playerSpeed;
+    const ATTACK_RANGE = balance.combat.attackRange;
+    const ATTACK_COOLDOWN = Math.max(balance.combat.attackCooldownMs / 1000, balance.combat.attackCooldownMs / 1000 - (Math.max(0, player.stats.agi) * 0.005));
 
     let pos = rigidBodyRef.current.translation();
 
@@ -230,7 +233,7 @@ export function Player() {
     }
 
     // Store direction for network polling
-    setInputDirection(inputDir);
+    setInputDirection({ x: inputDir.x, y: 0, z: inputDir.z });
 
     // Local movement prediction (server snapshot will correct)
     isMoving = inputDir.x !== 0 || inputDir.z !== 0;

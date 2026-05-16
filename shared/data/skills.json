@@ -1,0 +1,51 @@
+[
+  {
+    "id": "basic_attack",
+    "name": "Ataque Basico",
+    "description": "Ataque cuerpo a cuerpo.",
+    "spCost": 0,
+    "requirements": [],
+    "skillPointCost": 0,
+    "effect": {
+      "type": "damage",
+      "statMultiplier": 1.0
+    }
+  },
+  {
+    "id": "bash",
+    "name": "Golpe Fuerte (Bash)",
+    "description": "Golpe poderoso.",
+    "spCost": 5,
+    "requirements": ["basic_attack"],
+    "skillPointCost": 1,
+    "effect": {
+      "type": "damage",
+      "statMultiplier": 2.5
+    }
+  },
+  {
+    "id": "provoke",
+    "name": "Provocar",
+    "description": "Atrae la atencion del enemigo.",
+    "spCost": 3,
+    "requirements": ["basic_attack"],
+    "skillPointCost": 1,
+    "effect": {
+      "type": "taunt",
+      "durationMs": 5000
+    }
+  },
+  {
+    "id": "magnum_break",
+    "name": "Magnum Break",
+    "description": "Ataque de area de fuego.",
+    "spCost": 10,
+    "requirements": ["bash", "provoke"],
+    "skillPointCost": 2,
+    "effect": {
+      "type": "aoe_damage",
+      "statMultiplier": 2.0,
+      "range": 5
+    }
+  }
+]
