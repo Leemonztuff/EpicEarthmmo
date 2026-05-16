@@ -6,7 +6,7 @@
     "dev": "tsx server.ts",
     "dev:game": "tsx game-server/index.ts",
     "dev:all": "concurrently \"npm run dev\" \"npm run dev:game\"",
-    "build": "cd game-server && npm install && npm run build && cd .. && next build && esbuild server.ts --bundle --platform=node --packages=external --outdir=dist",
+    "build": "npm install --prefix game-server && esbuild game-server/index.ts --bundle --platform=node --packages=external --outdir=game-server/dist && next build && esbuild server.ts --bundle --platform=node --packages=external --outdir=dist",
     "start": "node game-server/dist/index.js",
     "lint": "next lint"
   },
