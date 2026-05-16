@@ -43,7 +43,7 @@ export const EnemyAreaSchema = z.object({
 
 export const MapDecorationSchema = z.object({
   position: z.tuple([z.number(), z.number(), z.number()]),
-  type: z.enum(['tree', 'bush', 'rock', 'flower', 'building', 'fence', 'well', 'sign']),
+  type: z.enum(['tree', 'bush', 'rock', 'flower', 'building', 'fence', 'well', 'sign', 'castle', 'castle_tower_left', 'castle_tower_right', 'castle_gate', 'building_large', 'building_medium', 'building_small', 'fountain', 'stone_path', 'lamppost', 'bench', 'tree_ornamental', 'torch', 'pillar', 'mushroom', 'crack', 'chest', 'dungeon_wall', 'dungeon_floor_tile']),
   scale: z.number().positive(),
 });
 
