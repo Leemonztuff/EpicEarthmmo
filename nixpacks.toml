@@ -1,0 +1,11 @@
+[phases.setup]
+nixPkgs = ["nodejs_20"]
+
+[phases.install]
+cmds = ["npm install"]
+
+[phases.build]
+cmds = ["npm install --prefix game-server", "esbuild game-server/index.ts --bundle --platform=node --packages=external --outdir=game-server/dist", "next build", "esbuild server.ts --bundle --platform=node --packages=external --outdir=dist"]
+
+[start]
+cmd = "node game-server/dist/index.js"
