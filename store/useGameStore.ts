@@ -1,10 +1,59 @@
 import { create } from 'zustand';
 import { supabase } from '@/lib/supabase';
-import { 
-  JobClass, PlayerStats, ItemType, InventoryItem, DamageText, 
-  PlayerState, EnemyState, Vector3State, GameUIState 
-} from '@/types/game';
-import { INITIAL_PLAYER, INITIAL_ENEMIES } from '@/data/gameData';
+import { gameData, applyItemEffect, findItemById, processLevelUp } from '@/shared/loader';
+import type { PlayerStats, InventoryItem, PlayerState, EnemyState, Vector3State, GameUIState } from '@/shared/schemas/gameState';
+
+const { balance, enemies: enemyData, skills, items, jobs } = gameData;
+
+function buildInitialPlayer(): PlayerState {
+  const { defaultPlayer } = balance;
+  return {
+    name: 'Player',
+    baseLevel: 1,
+    jobLevel: 1,
+    baseExp: 0,
+    jobExp: 0,
+    hp: defaultPlayer.hp,
+    maxHp: defaultPlayer.hp,
+    sp: defaultPlayer.sp,
+    maxSp: defaultPlayer.sp,
+    zeny: 0,
+    jobClass: 'novice',
+    stats: {
+      str: defaultPlayer.baseStats.str,
+      agi: defaultPlayer.baseStats.agi,
+      vit: defaultPlayer.baseStats.vit,
+      int: defaultPlayer.baseStats.int,
+      dex: defaultPlayer.baseStats.dex,
+      luk: defaultPlayer.baseStats.luk,
+      statPoints: 0,
+    },
+    skillPoints: defaultPlayer.skillPoints,
+    unlockedSkills: [],
+    inventory: [
+      { id: 'red_potion', name: 'Red Potion', type: 'usable', amount: 10, description: 'Restores 30 HP.' },
+      { id: 'jellopy', name: 'Jellopy', type: 'misc', amount: 5, description: 'A gelatinous substance dropped by Porings.' },
+    ],
+  };
+}
+
+function buildInitialEnemies(): Record<string, EnemyState> {
+  const result: Record<string, EnemyState> = {};
+  for (const spawn of enemyData.spawns) {
+    const template = enemyData.templates.find(t => t.id === spawn.enemyId);
+    if (!template) continue;
+    result[spawn.spawnId] = {
+      id: spawn.spawnId,
+      name: template.name,
+      hp: template.hp,
+      maxHp: template.hp,
+      level: template.level,
+      position: { ...spawn.position },
+      isDead: false,
+    };
+  }
+  return result;
+}
 
 interface GameStore {
   player: PlayerState;
@@ -14,7 +63,7 @@ interface GameStore {
   selectedTargetId: string | null;
   activeSkill: string | null;
   enemies: Record<string, EnemyState>;
-  damages: DamageText[];
+  damages: Array<{ id: string; amount: number; position: Vector3State; timestamp: number; color: string }>;
   ui: GameUIState;
   setTargetPosition: (pos: Vector3State | null) => void;
   setPosition: (pos: Vector3State) => void;
@@ -27,9 +76,9 @@ interface GameStore {
   setEnemies: (enemies: Record<string, EnemyState>) => void;
   addDamageText: (amount: number, pos: Vector3State, color?: string) => void;
   gainExp: (base: number, job: number) => void;
-  gainLoot: (items: InventoryItem[]) => void;
+  gainLoot: (newItems: InventoryItem[]) => void;
   consumeItem: (itemId: string) => void;
-  changeJob: (newJob: JobClass) => void;
+  changeJob: (newJob: string) => void;
   setActiveSkill: (skillId: string | null) => void;
   setSp: (sp: number) => void;
   saveProgress: () => Promise<void>;
@@ -37,13 +86,13 @@ interface GameStore {
 }
 
 export const useGameStore = create<GameStore>()((set, get) => ({
-  player: INITIAL_PLAYER,
-  position: { x: 0, y: 0.5, z: 0 },
+  player: buildInitialPlayer(),
+  position: { x: balance.defaultPlayer.spawnPosition.x, y: balance.defaultPlayer.spawnPosition.y, z: balance.defaultPlayer.spawnPosition.z },
   inputDirection: { x: 0, y: 0, z: 0 },
   targetPosition: null,
   selectedTargetId: null,
   activeSkill: null,
-  enemies: INITIAL_ENEMIES,
+  enemies: buildInitialEnemies(),
   damages: [],
   ui: { isSkillsOpen: false, isStatsOpen: false, isInventoryOpen: false },
   setTargetPosition: (pos) => set({ targetPosition: pos }),
@@ -71,15 +120,15 @@ export const useGameStore = create<GameStore>()((set, get) => ({
     const item = state.player.inventory[itemIndex];
     if (item.type !== 'usable' || item.amount <= 0) return state;
 
-    let { hp, maxHp, sp, maxSp } = state.player;
-    const ITEM_EFFECTS: Record<string, () => void> = {
-      red_potion: () => { hp = Math.min(maxHp, hp + 30); },
-      blue_potion: () => { sp = Math.min(maxSp, sp + 15); },
-    };
+    const itemDef = findItemById(items, itemId);
+    if (!itemDef || !itemDef.effect) return state;
 
-    const effect = ITEM_EFFECTS[item.id];
-    if (!effect) return state;
-    effect();
+    const result = applyItemEffect(itemDef.effect, state.player, itemDef);
+    if (!result.success) return state;
+
+    let { hp, sp } = state.player;
+    if (result.hp !== undefined) hp = result.hp;
+    if (result.sp !== undefined) sp = result.sp;
 
     const newInventory = [...state.player.inventory];
     if (item.amount > 1) {
@@ -92,7 +141,11 @@ export const useGameStore = create<GameStore>()((set, get) => ({
   }),
   changeJob: async (newJob) => {
     const state = get();
-    if (state.player.jobLevel < 10 || state.player.jobClass !== 'Novice') return;
+    const jobDef = jobs.find(j => j.id === newJob);
+    if (!jobDef) return;
+
+    const req = jobDef.requirements;
+    if (req && (state.player.jobClass !== req.fromJob || state.player.jobLevel < req.minJobLevel)) return;
 
     const networkStore = (await import('./useNetworkStore')).useNetworkStore;
     const socket = networkStore.getState().socket;
@@ -106,7 +159,16 @@ export const useGameStore = create<GameStore>()((set, get) => ({
               jobLevel: 1,
               jobExp: 0,
               unlockedSkills: [],
-              skillPoints: s.player.skillPoints + 1,
+              skillPoints: s.player.skillPoints + jobDef.bonusSkillPoints,
+              stats: {
+                ...s.player.stats,
+                str: s.player.stats.str + jobDef.baseStatModifiers.str,
+                agi: s.player.stats.agi + jobDef.baseStatModifiers.agi,
+                vit: s.player.stats.vit + jobDef.baseStatModifiers.vit,
+                int: s.player.stats.int + jobDef.baseStatModifiers.int,
+                dex: s.player.stats.dex + jobDef.baseStatModifiers.dex,
+                luk: s.player.stats.luk + jobDef.baseStatModifiers.luk,
+              },
             }
           }));
         } else {
@@ -119,11 +181,10 @@ export const useGameStore = create<GameStore>()((set, get) => ({
     const state = get();
     if (stat === 'statPoints') return;
     if (state.player.stats.statPoints <= 0) return;
-    if (state.player.stats[stat] >= 99) return;
+    if (state.player.stats[stat] >= balance.stats.cap) return;
 
     const currentStatPoints = state.player.stats.statPoints;
 
-    // Optimistic update
     set((s) => ({
       player: { ...s.player, stats: { ...s.player.stats, [stat]: s.player.stats[stat] + 1, statPoints: s.player.stats.statPoints - 1 } }
     }));
@@ -144,15 +205,16 @@ export const useGameStore = create<GameStore>()((set, get) => ({
   },
   unlockSkill: (skillId, cost) => {
     const state = get();
-    if (state.player.skillPoints < cost || state.player.unlockedSkills.includes(skillId)) return;
+    const skillDef = skills.find(s => s.id === skillId);
+    if (!skillDef) return;
+    if (state.player.skillPoints < skillDef.skillPointCost || state.player.unlockedSkills.includes(skillId)) return;
 
     const currentSkillPoints = state.player.skillPoints;
 
-    // Optimistic update
     set((s) => ({
       player: {
         ...s.player,
-        skillPoints: s.player.skillPoints - cost,
+        skillPoints: s.player.skillPoints - skillDef.skillPointCost,
         unlockedSkills: [...s.player.unlockedSkills, skillId]
       }
     }));
@@ -165,7 +227,7 @@ export const useGameStore = create<GameStore>()((set, get) => ({
             set((s) => ({
               player: {
                 ...s.player,
-                skillPoints: s.player.skillPoints + cost,
+                skillPoints: s.player.skillPoints + skillDef.skillPointCost,
                 unlockedSkills: s.player.unlockedSkills.filter((s: string) => s !== skillId)
               }
             }));
@@ -187,38 +249,35 @@ export const useGameStore = create<GameStore>()((set, get) => ({
     baseExp += Math.max(0, base);
     jobExp += Math.max(0, job);
 
-    // Base level up (multiple level-ups possible)
-    while (baseExp >= baseLevel * 100) {
-      baseExp -= baseLevel * 100;
-      baseLevel += 1;
-      stats.statPoints += Math.floor((baseLevel - 1) / 5) + 3;
-      maxHp += 15;
-      maxSp += 3;
+    const result = processLevelUp(baseExp, jobExp, baseLevel, jobLevel, balance);
+
+    if (result.leveledUp) {
+      maxHp += result.hpGain;
+      maxSp += result.spGain;
+      stats.statPoints += result.statPointsGain;
+      skillPoints += result.skillPointsGain;
       hp = maxHp;
       sp = maxSp;
-    }
-
-    // Job level up (multiple level-ups possible)
-    while (jobExp >= jobLevel * 50 && jobLevel < 50) {
-      jobExp -= jobLevel * 50;
-      jobLevel += 1;
-      skillPoints += 1;
     }
 
     return {
       player: {
         ...state.player,
-        baseLevel, jobLevel, baseExp, jobExp, skillPoints,
+        baseLevel: result.baseLevel,
+        jobLevel: result.jobLevel,
+        baseExp: result.baseExp,
+        jobExp: result.jobExp,
+        skillPoints,
         hp, maxHp, sp, maxSp,
         stats: { ...stats }
       }
     };
   }),
-  gainLoot: (items) => set((state) => {
-    const MAX_STACK = 99;
+  gainLoot: (newItems) => set((state) => {
+    const MAX_STACK = balance.limits.itemMaxStack;
     const newInventory = [...state.player.inventory];
 
-    items.forEach(newItem => {
+    newItems.forEach(newItem => {
       const existingItemIndex = newInventory.findIndex(i => i.id === newItem.id);
       if (existingItemIndex > -1) {
         newInventory[existingItemIndex] = {
@@ -267,7 +326,8 @@ export const useGameStore = create<GameStore>()((set, get) => ({
         socket.emit('loadProgress', (data: any) => {
           if (data) {
             const loaded = data as Partial<PlayerState>;
-            const merged: PlayerState = { ...INITIAL_PLAYER, ...loaded, stats: { ...INITIAL_PLAYER.stats, ...(loaded.stats || {}) } };
+            const initial = buildInitialPlayer();
+            const merged: PlayerState = { ...initial, ...loaded, stats: { ...initial.stats, ...(loaded.stats || {}) } };
             set({ player: merged });
             console.log('Progress loaded via websocket proxy.');
           } else {
@@ -299,7 +359,8 @@ export const useGameStore = create<GameStore>()((set, get) => ({
 
     if (data && data.state) {
       const loaded = data.state as Partial<PlayerState>;
-      const merged: PlayerState = { ...INITIAL_PLAYER, ...loaded, stats: { ...INITIAL_PLAYER.stats, ...(loaded.stats || {}) } };
+      const initial = buildInitialPlayer();
+      const merged: PlayerState = { ...initial, ...loaded, stats: { ...initial.stats, ...(loaded.stats || {}) } };
       set({ player: merged });
       console.log('Progress loaded successfully');
     }

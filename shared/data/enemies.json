@@ -1,0 +1,59 @@
+{
+  "templates": [
+    {
+      "id": "poring",
+      "name": "Poring",
+      "level": 1,
+      "hp": 20,
+      "sprite": "poring",
+      "drops": [
+        { "itemId": "jellopy", "chance": 0.5, "minAmount": 1, "maxAmount": 1 }
+      ],
+      "expBase": 10,
+      "expJob": 5
+    },
+    {
+      "id": "fabre",
+      "name": "Fabre",
+      "level": 2,
+      "hp": 35,
+      "sprite": "fabre",
+      "drops": [
+        { "itemId": "jellopy", "chance": 0.4, "minAmount": 1, "maxAmount": 2 },
+        { "itemId": "plant_stem", "chance": 0.15, "minAmount": 1, "maxAmount": 1 }
+      ],
+      "expBase": 20,
+      "expJob": 10
+    },
+    {
+      "id": "pupa",
+      "name": "Pupa",
+      "level": 3,
+      "hp": 50,
+      "sprite": "pupa",
+      "drops": [
+        { "itemId": "jellopy", "chance": 0.6, "minAmount": 1, "maxAmount": 2 },
+        { "itemId": "silky_cocoon", "chance": 0.1, "minAmount": 1, "maxAmount": 1 }
+      ],
+      "expBase": 30,
+      "expJob": 15
+    }
+  ],
+  "spawns": [
+    {
+      "enemyId": "poring",
+      "spawnId": "enemy_1",
+      "position": { "x": 3, "y": 0.5, "z": -3 }
+    },
+    {
+      "enemyId": "fabre",
+      "spawnId": "enemy_2",
+      "position": { "x": -4, "y": 0.5, "z": 2 }
+    },
+    {
+      "enemyId": "pupa",
+      "spawnId": "enemy_3",
+      "position": { "x": 1, "y": 0.5, "z": -6 }
+    }
+  ]
+}

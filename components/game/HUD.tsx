@@ -9,6 +9,9 @@ import { JobChangeWindow } from './ui/JobChangeWindow';
 import { InventoryWindow } from './ui/InventoryWindow';
 import { StatsWindow } from './ui/StatsWindow';
 import { SkillsWindow } from './ui/SkillsWindow';
+import { gameData } from '@/shared/loader';
+
+const { balance, skills } = gameData;
 
 export function HUD() {
   const player = useGameStore((state) => state.player);
@@ -21,8 +24,10 @@ export function HUD() {
 
   const hpPct = player.maxHp > 0 ? (player.hp / player.maxHp) * 100 : 0;
   const spPct = player.maxSp > 0 ? (player.sp / player.maxSp) * 100 : 0;
-  const baseExpPct = player.baseLevel > 0 && player.baseLevel * 100 > 0 ? (player.baseExp / (player.baseLevel * 100)) * 100 : 0;
-  const jobExpPct = player.jobLevel > 0 && player.jobLevel * 50 > 0 ? (player.jobExp / (player.jobLevel * 50)) * 100 : 0;
+  const baseExpThreshold = player.baseLevel * balance.progression.baseLevelUpThreshold.multiplier;
+  const jobExpThreshold = player.jobLevel * balance.progression.jobLevelUpThreshold.multiplier;
+  const baseExpPct = player.baseLevel > 0 && baseExpThreshold > 0 ? (player.baseExp / baseExpThreshold) * 100 : 0;
+  const jobExpPct = player.jobLevel > 0 && jobExpThreshold > 0 ? (player.jobExp / jobExpThreshold) * 100 : 0;
 
   return (
     <div className="absolute inset-0 pointer-events-none flex flex-col justify-between p-4 z-10 w-full h-full">
@@ -43,10 +48,10 @@ export function HUD() {
               </div>
               {/* EXP Bars */}
               <div className="flex gap-1 w-full text-[8px] mt-0.5">
-                 <div className="h-1.5 w-full bg-slate-700 rounded-full overflow-hidden relative group">
-                    <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100">{player.baseExp}/{player.baseLevel * 100}</div>
-                    <div className="h-full bg-yellow-400" style={{ width: `${baseExpPct}%` }}></div>
-                 </div>
+                  <div className="h-1.5 w-full bg-slate-700 rounded-full overflow-hidden relative group">
+                     <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100">{player.baseExp}/{baseExpThreshold}</div>
+                     <div className="h-full bg-yellow-400" style={{ width: `${baseExpPct}%` }}></div>
+                  </div>
                  <div className="h-1 w-full bg-slate-700 rounded-full overflow-hidden relative group">
                     <div className="h-full bg-purple-400" style={{ width: `${jobExpPct}%` }}></div>
                  </div>
@@ -73,16 +78,20 @@ export function HUD() {
         </div>
         <div className="flex flex-col gap-2 pointer-events-auto items-end">
           {/* Quick Skill Bar */}
-          {player.unlockedSkills.includes('bash') && (
-            <div className="flex gap-2">
-              <button 
-                onClick={() => setActiveSkill(activeSkill === 'bash' ? null : 'bash')} 
-                className={`w-12 h-12 rounded-lg flex items-center justify-center border font-bold text-xs shadow-md transition-transform active:scale-95 ${activeSkill === 'bash' ? 'bg-red-600 text-white border-red-400 scale-110' : 'bg-slate-800 text-slate-300 border-slate-600 hover:bg-slate-700'}`}
-              >
-                BASH<br/>(5 SP)
-              </button>
-            </div>
-          )}
+          {player.unlockedSkills.map((skillId) => {
+            const skillDef = skills.find(s => s.id === skillId);
+            if (!skillDef) return null;
+            return (
+              <div className="flex gap-2" key={skillId}>
+                <button
+                  onClick={() => setActiveSkill(activeSkill === skillId ? null : skillId)}
+                  className={`w-12 h-12 rounded-lg flex items-center justify-center border font-bold text-xs shadow-md transition-transform active:scale-95 ${activeSkill === skillId ? 'bg-red-600 text-white border-red-400 scale-110' : 'bg-slate-800 text-slate-300 border-slate-600 hover:bg-slate-700'}`}
+                >
+                  {skillDef.name.split(' ')[0].toUpperCase()}<br/>({skillDef.spCost} SP)
+                </button>
+              </div>
+            );
+          })}
 
           <div className="flex gap-3 bg-slate-900/80 p-2 rounded-md border border-slate-700">
              <button onClick={() => toggleUI('isStatsOpen')} className={`w-12 h-12 rounded-lg flex items-center justify-center border hover:bg-slate-600 ${ui.isStatsOpen ? 'text-amber-400 border-amber-400 bg-slate-800' : 'text-slate-300 border-slate-600'}`}>

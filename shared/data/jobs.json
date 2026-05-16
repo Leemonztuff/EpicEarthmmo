@@ -1,0 +1,70 @@
+[
+  {
+    "id": "novice",
+    "name": "Novice",
+    "description": "A beginner just starting their adventure.",
+    "baseStatModifiers": {
+      "str": 0,
+      "agi": 0,
+      "vit": 0,
+      "int": 0,
+      "dex": 0,
+      "luk": 0
+    },
+    "bonusSkillPoints": 0
+  },
+  {
+    "id": "swordsman",
+    "name": "Swordsman",
+    "description": "A warrior skilled in melee combat.",
+    "requirements": {
+      "fromJob": "novice",
+      "minJobLevel": 10
+    },
+    "baseStatModifiers": {
+      "str": 2,
+      "agi": 0,
+      "vit": 1,
+      "int": 0,
+      "dex": 0,
+      "luk": 0
+    },
+    "bonusSkillPoints": 1
+  },
+  {
+    "id": "mage",
+    "name": "Mage",
+    "description": "A spellcaster who wields elemental magic.",
+    "requirements": {
+      "fromJob": "novice",
+      "minJobLevel": 10
+    },
+    "baseStatModifiers": {
+      "str": 0,
+      "agi": 0,
+      "vit": 0,
+      "int": 3,
+      "dex": 0,
+      "luk": 0
+    },
+    "bonusSkillPoints": 1
+  },
+  {
+    "id": "archer",
+    "name": "Archer",
+    "description": "A ranged fighter with exceptional dexterity.",
+    "requirements": {
+      "fromJob": "novice",
+      "minJobLevel": 10
+    },
+    "baseStatModifiers": {
+      "str": 0,
+      "agi": 1,
+      "vit": 0,
+      "int": 0,
+      "dex": 2,
+      "luk": 0
+    },
+    "bonusSkillPoints": 1
+  }
+]

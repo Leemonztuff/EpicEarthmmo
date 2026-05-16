@@ -1,7 +1,10 @@
 import { create } from 'zustand';
 import { io, Socket } from 'socket.io-client';
-import { PeerPlayerState, ChatMessage, TradeOffer, WorldSnapshot, PlayerInput } from '@/types/network';
-import { EnemyState } from '@/types/game';
+import type { PeerPlayerState, ChatMessage, TradeOffer, WorldSnapshot, PlayerInput } from '@/shared/types/network';
+import type { EnemyState } from '@/shared/schemas/gameState';
+import { gameData } from '@/shared/loader';
+
+const { balance } = gameData;
 
 interface NetworkStore {
   socket: Socket | null;
@@ -120,7 +123,7 @@ export const useNetworkStore = create<NetworkStore>()((set, get) => ({
             if (inp.dirX !== 0 || inp.dirZ !== 0) {
               const len = Math.sqrt(inp.dirX * inp.dirX + inp.dirZ * inp.dirZ);
               if (len > 0) {
-                const speed = 5;
+                const speed = balance.movement.playerSpeed;
                 reconciled.x += (inp.dirX / len) * speed * 0.05;
                 reconciled.z += (inp.dirZ / len) * speed * 0.05;
               }
