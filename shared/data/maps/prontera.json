@@ -7,7 +7,7 @@
     "height": 80
   },
   "spawnPoints": [
-    { "id": "main", "position": { "x": 0, "y": 0.5, "z": 12 }, "label": "main" },
+    { "id": "main", "position": { "x": 0, "y": 0.5, "z": 8 }, "label": "main" },
     { "id": "warp_from_fields", "position": { "x": 0, "y": 0.5, "z": -38 }, "label": "warp_from_fields" }
   ],
   "warps": [
