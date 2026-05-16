@@ -1,22 +1,31 @@
 'use client';
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { useGameStore } from '@/store/useGameStore';
 import { useNetworkStore } from '@/store/useNetworkStore';
 
+const INPUT_RATE_MS = 50;
+let inputSeq = 0;
+
 export function NetworkManager() {
   const initSocket = useNetworkStore(state => state.initSocket);
-  const position = useGameStore(state => state.position);
   const player = useGameStore(state => state.player);
 
   useEffect(() => {
     initSocket(player.name);
-  }, [initSocket, player.name]);
+    const inputRef = setInterval(() => {
+      const { inputDirection } = useGameStore.getState();
+      const { socket, sendInput } = useNetworkStore.getState();
+      if (!socket?.connected) return;
+      sendInput({ dirX: inputDirection.x, dirZ: inputDirection.z, seq: ++inputSeq });
+    }, INPUT_RATE_MS);
 
-  useEffect(() => {
-    const broadcastPosition = useNetworkStore.getState().broadcastPosition;
-    broadcastPosition({ x: position.x, y: position.y, z: position.z, name: player.name });
-  }, [position, player.name]);
+    return () => {
+      clearInterval(inputRef);
+      const s = useNetworkStore.getState().socket;
+      s?.disconnect();
+    };
+  }, [initSocket, player.name]);
 
   return null;
 }

@@ -1,19 +1,27 @@
 import React, { useRef, useMemo, useEffect, useState } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Vector3, Mesh, CanvasTexture } from 'three';
+import * as THREE from 'three';
 import { Billboard } from '@react-three/drei';
 import { useGameStore } from '@/store/useGameStore';
 import { useNetworkStore } from '@/store/useNetworkStore';
 import { RigidBody, RapierRigidBody } from '@react-three/rapier';
+import { touchInput } from '@/lib/touchInput';
+import { gameData } from '@/shared/loader';
+
+const { balance, skills } = gameData;
 
 export function Player() {
   const rigidBodyRef = useRef<RapierRigidBody>(null);
   const meshRef = useRef<Mesh>(null);
+  const planeRef = useRef<Mesh>(null);
   const flipX = useRef(1);
   
   const [initialPos] = useState(() => useGameStore.getState().position);
   const [lastAttackTime, setLastAttackTime] = useState(0);
   const keys = useRef<{ [key: string]: boolean }>({});
+  const lastTargetPosRef = useRef<string | null>(null);
+  const firstFrameRef = useRef(true);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => { keys.current[e.code] = true; };
@@ -31,14 +39,66 @@ export function Player() {
     const canvas = document.createElement('canvas');
     canvas.width = 64;
     canvas.height = 64;
-    const ctx = canvas.getContext('2d');
-    if (ctx) {
-      ctx.fillStyle = '#ff6b6b';
+    const ctx = canvas.getContext('2d')!;
+
+    // Hair
+    ctx.fillStyle = '#8B4513';
+    ctx.beginPath();
+    ctx.arc(32, 18, 11, 0, Math.PI * 2);
+    ctx.fill();
+    // Spiky hair
+    ctx.fillStyle = '#A0522D';
+    for (let i = 0; i < 5; i++) {
+      const angle = -Math.PI / 2 + (i - 2) * 0.3;
       ctx.beginPath();
-      ctx.arc(32, 20, 12, 0, Math.PI * 2);
+      ctx.arc(32 + Math.cos(angle) * 10, 18 + Math.sin(angle) * 10, 4, 0, Math.PI * 2);
       ctx.fill();
-      ctx.fillRect(20, 32, 24, 24);
     }
+
+    // Head
+    ctx.fillStyle = '#ffd5a0';
+    ctx.beginPath();
+    ctx.arc(32, 20, 9, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Eyes
+    ctx.fillStyle = '#333';
+    ctx.fillRect(27, 18, 3, 3);
+    ctx.fillRect(34, 18, 3, 3);
+
+    // Mouth
+    ctx.fillStyle = '#c97';
+    ctx.fillRect(30, 24, 4, 1);
+
+    // Body/tunic
+    ctx.fillStyle = '#2a7a9e';
+    ctx.beginPath();
+    ctx.moveTo(22, 26);
+    ctx.lineTo(42, 26);
+    ctx.lineTo(44, 42);
+    ctx.lineTo(20, 42);
+    ctx.closePath();
+    ctx.fill();
+
+    // Belt
+    ctx.fillStyle = '#8B4513';
+    ctx.fillRect(22, 37, 20, 2);
+
+    // Arms
+    ctx.fillStyle = '#ffd5a0';
+    ctx.fillRect(16, 28, 6, 4);
+    ctx.fillRect(42, 28, 6, 4);
+
+    // Legs
+    ctx.fillStyle = '#4a4a6a';
+    ctx.fillRect(24, 42, 6, 10);
+    ctx.fillRect(34, 42, 6, 10);
+
+    // Shoes
+    ctx.fillStyle = '#5a3a1a';
+    ctx.fillRect(23, 50, 8, 3);
+    ctx.fillRect(33, 50, 8, 3);
+
     return new CanvasTexture(canvas);
   }, []);
 
@@ -51,40 +111,74 @@ export function Player() {
   useFrame((state, delta) => {
     if (!rigidBodyRef.current) return;
 
+    if (firstFrameRef.current) {
+      firstFrameRef.current = false;
+      const pos = useGameStore.getState().position;
+      rigidBodyRef.current.setTranslation({ x: pos.x, y: pos.y, z: pos.z }, true);
+    }
+
     const gameStore = useGameStore.getState();
     const networkStore = useNetworkStore.getState();
     const { 
-      targetPosition, setPosition, setTargetPosition,
+      targetPosition, setTargetPosition, setInputDirection, position: storePos,
       selectedTargetId, enemies, player
     } = gameStore;
 
-    const SPEED = 5;
-    const ATTACK_RANGE = 1.5;
-    const ATTACK_COOLDOWN = Math.max(0.2, 1.0 - (player.stats.agi * 0.02)); // Faster with AGI
+    const SPEED = balance.movement.playerSpeed;
+    const ATTACK_RANGE = balance.combat.attackRange;
+    const ATTACK_COOLDOWN = Math.max(balance.combat.attackCooldownMs / 1000, balance.combat.attackCooldownMs / 1000 - (Math.max(0, player.stats.agi) * 0.005));
 
-    const pos = rigidBodyRef.current.translation();
+    let pos = rigidBodyRef.current.translation();
+
+    // Server reconciliation: smooth correction toward store position
+    const corrDx = storePos.x - pos.x;
+    const corrDz = storePos.z - pos.z;
+    const corrDistSq = corrDx * corrDx + corrDz * corrDz;
+    if (corrDistSq > 0.01) {
+      const corrSpeed = corrDistSq > 4.0 ? 1.0 : 0.15;
+      pos = {
+        x: pos.x + corrDx * corrSpeed,
+        y: pos.y,
+        z: pos.z + corrDz * corrSpeed,
+      };
+      rigidBodyRef.current.setTranslation(pos, true);
+    }
+
     const current = new Vector3(pos.x, pos.y, pos.z);
 
     let isMoving = false;
 
-    // Movement WASD override
+    // Compute input direction from keyboard
     const keyLeft = keys.current['KeyA'] || keys.current['ArrowLeft'];
     const keyRight = keys.current['KeyD'] || keys.current['ArrowRight'];
     const keyUp = keys.current['KeyW'] || keys.current['ArrowUp'];
     const keyDown = keys.current['KeyS'] || keys.current['ArrowDown'];
 
-    let inputDirection = new Vector3(0, 0, 0);
-    if (keyLeft) inputDirection.x -= 1;
-    if (keyRight) inputDirection.x += 1;
-    if (keyUp) inputDirection.z -= 1;
-    if (keyDown) inputDirection.z += 1;
+    let inputDir = { x: 0, z: 0 };
+    if (keyLeft) inputDir.x -= 1;
+    if (keyRight) inputDir.x += 1;
+    if (keyUp) inputDir.z -= 1;
+    if (keyDown) inputDir.z += 1;
 
-    if (inputDirection.lengthSq() > 0) {
-      inputDirection.normalize();
-      setTargetPosition(null); // Cancel click-to-move if using WASD
+    // Touch joystick input (only if no keyboard direction)
+    if (inputDir.x === 0 && inputDir.z === 0) {
+      if (Math.abs(touchInput.x) > 0.15 || Math.abs(touchInput.z) > 0.15) {
+        inputDir.x = touchInput.x;
+        inputDir.z = touchInput.z;
+        const len = Math.sqrt(inputDir.x * inputDir.x + inputDir.z * inputDir.z);
+        if (len > 1) { inputDir.x /= len; inputDir.z /= len; }
+      }
     }
 
-    // Combat Logic
+    // Normalize keyboard input
+    if (inputDir.x !== 0 || inputDir.z !== 0) {
+      const len = Math.sqrt(inputDir.x * inputDir.x + inputDir.z * inputDir.z);
+      inputDir.x /= len;
+      inputDir.z /= len;
+      setTargetPosition(null);
+    }
+
+    // Enemy targeting → generate movement direction
     if (selectedTargetId) {
       const enemy = enemies[selectedTargetId];
       if (enemy && !enemy.isDead) {
@@ -92,76 +186,70 @@ export function Player() {
         const distanceToEnemy = current.distanceTo(enemyObj);
 
         if (distanceToEnemy <= ATTACK_RANGE) {
-          // Attacking
           if (targetPosition) setTargetPosition(null);
-          
+
           const now = state.clock.getElapsedTime();
           if (now - lastAttackTime >= ATTACK_COOLDOWN) {
             setLastAttackTime(now);
-
-            // Emit attack via network
             networkStore.attackTarget(selectedTargetId);
-            
-            // Visual effect feedback
-            if (meshRef.current) {
-                const mat = (meshRef.current.children[0] as any).material;
-                if (mat) {
-                    mat.color.setHex(0xcccccc);
+
+            if (planeRef.current) {
+                const mat = planeRef.current.material;
+                if (mat && 'color' in mat) {
+                    (mat as THREE.MeshBasicMaterial).color.setHex(0xcccccc);
                     setTimeout(() => {
-                        if (meshRef.current) {
-                            const m2 = (meshRef.current.children[0] as any).material;
-                            if (m2) m2.color.setHex(0xffffff);
+                        if (planeRef.current) {
+                            const m2 = planeRef.current.material;
+                            if (m2 && 'color' in m2) (m2 as THREE.MeshBasicMaterial).color.setHex(0xffffff);
                         }
                     }, 100);
                 }
             }
           }
-        } else if (inputDirection.lengthSq() === 0) {
-          // Move towards enemy if no WASD input
-          setTargetPosition({ x: enemy.position.x, y: 0.5, z: enemy.position.z });
+        } else if (inputDir.x === 0 && inputDir.z === 0) {
+          // Move toward enemy
+          const dx = enemy.position.x - current.x;
+          const dz = enemy.position.z - current.z;
+          const dist = Math.sqrt(dx * dx + dz * dz);
+          if (dist > 0.1) {
+            inputDir.x = dx / dist;
+            inputDir.z = dz / dist;
+          }
         }
       }
     }
 
-    // Movement Physics
-    const targetVelocity = new Vector3(0, 0, 0);
-
-    if (inputDirection.lengthSq() > 0) {
-      targetVelocity.copy(inputDirection.multiplyScalar(SPEED));
-      isMoving = true;
-    } else if (targetPosition) {
-      const target = new Vector3(targetPosition.x, current.y, targetPosition.z);
-      const distance = current.distanceTo(target);
-      
-      if (distance > 0.1) {
-        const direction = target.clone().sub(current).normalize();
-        
-        // Stop a little short if targeting an enemy
-        if (selectedTargetId && distance <= ATTACK_RANGE) {
-          setTargetPosition(null);
-        } else {
-          targetVelocity.copy(direction.multiplyScalar(SPEED));
-          isMoving = true;
-        }
+    // Click-to-move fallback
+    if (inputDir.x === 0 && inputDir.z === 0 && targetPosition) {
+      const dx = targetPosition.x - current.x;
+      const dz = targetPosition.z - current.z;
+      const dist = Math.sqrt(dx * dx + dz * dz);
+      if (dist > 0.3) {
+        inputDir.x = dx / dist;
+        inputDir.z = dz / dist;
       } else {
         setTargetPosition(null);
       }
     }
 
-    // Smooth velocity interpolation for responsive and smooth movement
-    const currentLinvel = rigidBodyRef.current.linvel();
-    const lerpFactor = 15 * delta;
-    
-    rigidBodyRef.current.setLinvel({
-      x: currentLinvel.x + (targetVelocity.x - currentLinvel.x) * lerpFactor,
-      y: currentLinvel.y,
-      z: currentLinvel.z + (targetVelocity.z - currentLinvel.z) * lerpFactor
-    }, true);
+    // Store direction for network polling
+    setInputDirection({ x: inputDir.x, y: 0, z: inputDir.z });
 
-    if (targetVelocity.x < -0.1) flipX.current = -1;
-    else if (targetVelocity.x > 0.1) flipX.current = 1;
+    // Local movement prediction (server snapshot will correct)
+    isMoving = inputDir.x !== 0 || inputDir.z !== 0;
+    if (isMoving) {
+      rigidBodyRef.current.setTranslation({
+        x: pos.x + inputDir.x * SPEED * delta,
+        y: pos.y,
+        z: pos.z + inputDir.z * SPEED * delta,
+      }, true);
+    }
 
-    // Animations (Bobbing, idle breathing, and sprite flipping)
+    // Facing direction
+    if (inputDir.x < -0.1) flipX.current = -1;
+    else if (inputDir.x > 0.1) flipX.current = 1;
+
+    // Animations
     if (meshRef.current) {
         meshRef.current.scale.x = flipX.current;
 
@@ -174,8 +262,6 @@ export function Player() {
             meshRef.current.rotation.z = 0;
         }
     }
-
-    setPosition({ x: pos.x, y: pos.y, z: pos.z });
   });
 
   return (
@@ -186,16 +272,16 @@ export function Player() {
         lockY={false}
         lockZ={false}
       >
-         <group ref={meshRef}>
-          <mesh>
+          <group ref={meshRef}>
+           <mesh ref={planeRef}>
             <planeGeometry args={[1.5, 1.5]} />
             {texture ? (
               <meshBasicMaterial map={texture} transparent={true} />
             ) : (
               <meshBasicMaterial color="red" />
             )}
-          </mesh>
-         </group>
+           </mesh>
+          </group>
       </Billboard>
     </RigidBody>
   );
