@@ -13,6 +13,25 @@ import { RemotePlayers } from './RemotePlayers';
 import { QuarksRenderer } from './QuarksParticleSystem';
 import { VirtualJoystick } from './VirtualJoystick';
 import { OrientationLock } from './OrientationLock';
+import { useNetworkStore } from '@/store/useNetworkStore';
+
+const defaultMapData = {
+  mapId: 'prontera',
+  mapName: 'Prontera',
+  mapType: 'town',
+  dimensions: { width: 50, height: 50 },
+  warps: [],
+  safeZones: [],
+  decorations: [],
+  grassTuftCount: 100,
+  grassTexture: { baseColor: '#8ab860', repeatX: 15, repeatY: 15 },
+  floorColor: '#8ab860',
+};
+
+function DynamicMap() {
+  const mapData = useNetworkStore(state => state.currentMapData);
+  return <Map mapData={mapData || defaultMapData} />;
+}
 
 export default function GameScene() {
   return (
@@ -40,7 +59,7 @@ export default function GameScene() {
           <QuarksRenderer />
 
           <Physics debug={false}>
-             <Map />
+             <DynamicMap />
              <Player />
              <RemotePlayers />
           </Physics>
@@ -57,4 +76,3 @@ export default function GameScene() {
     </div>
   );
 }
-

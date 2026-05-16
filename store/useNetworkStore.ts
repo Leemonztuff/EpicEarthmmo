@@ -6,12 +6,26 @@ import { gameData } from '@/shared/loader';
 
 const { balance } = gameData;
 
+interface MapData {
+  mapId: string;
+  mapName: string;
+  mapType: string;
+  dimensions: { width: number; height: number };
+  warps: Array<{ id: string; name: string; position: { x: number; y: number; z: number }; targetMapName: string; visual: string }>;
+  safeZones: Array<{ id: string; center: { x: number; z: number }; radius: number; name?: string }>;
+  decorations: Array<{ position: [number, number, number]; type: string; scale: number }>;
+  grassTuftCount: number;
+  grassTexture: { baseColor: string; repeatX: number; repeatY: number };
+  floorColor: string;
+}
+
 interface NetworkStore {
   socket: Socket | null;
   socketId: string | null;
   remotePlayers: Record<string, PeerPlayerState>;
   chatMessages: ChatMessage[];
-  
+  currentMapData: MapData | null;
+
   // Trade system (Mock functionality over standard socket for now)
   tradeRequest: { from: string, name: string } | null;
   activeTrade: {
@@ -26,6 +40,7 @@ interface NetworkStore {
   sendChatMessage: (text: string) => void;
   addChatMessage: (msg: ChatMessage) => void;
   attackTarget: (targetId: string) => void;
+  requestWarp: (warpId: string) => void;
 
   // Trade actions
   requestTrade: (targetSocketId: string, myName: string) => void;
@@ -52,6 +67,7 @@ export const useNetworkStore = create<NetworkStore>()((set, get) => ({
   socketId: null,
   remotePlayers: {},
   chatMessages: [],
+  currentMapData: null,
   tradeRequest: null,
   activeTrade: null,
   initSocket: async (playerName: string) => {
@@ -79,13 +95,32 @@ export const useNetworkStore = create<NetworkStore>()((set, get) => ({
       });
     });
 
-    newSocket.on('init', (data: { id: string, players: Record<string, PeerPlayerState>, enemies: Record<string, EnemyState> }) => {
+    newSocket.on('init', (data: { id: string; mapId: string; mapName: string; mapType: string; players: Record<string, PeerPlayerState>; enemies: Record<string, EnemyState>; initData: any }) => {
        const others = { ...data.players };
        delete others[newSocket.id!];
        set({ remotePlayers: others });
-       
+
+       const gs = useGameStore.getState();
+       gs.setMap(data.mapId, data.mapName, data.mapType);
        if (data.enemies) {
-         useGameStore.getState().setEnemies(data.enemies);
+         gs.setEnemies(data.enemies);
+       }
+       if (data.initData) {
+         set({ currentMapData: data.initData });
+       }
+    });
+
+    newSocket.on('mapChange', (data: { mapId: string; mapName: string; mapType: string; spawnPosition: { x: number; y: number; z: number }; enemies: Record<string, EnemyState>; players: Record<string, PeerPlayerState>; initData: any }) => {
+       const gs = useGameStore.getState();
+       gs.setMap(data.mapId, data.mapName, data.mapType);
+       gs.setPosition(data.spawnPosition);
+       gs.setEnemies(data.enemies);
+
+       const others = { ...data.players };
+       delete others[newSocket.id!];
+       set({ remotePlayers: others });
+       if (data.initData) {
+         set({ currentMapData: data.initData });
        }
     });
 
@@ -333,6 +368,17 @@ export const useNetworkStore = create<NetworkStore>()((set, get) => ({
         skillId: gs.activeSkill,
         sp: gs.player.sp,
         position: gs.position,
+      });
+    }
+  },
+
+  requestWarp: (warpId: string) => {
+    const { socket } = get();
+    if (socket && socket.connected) {
+      socket.emit('requestWarp', { warpId }, (res: { success: boolean; error?: string }) => {
+        if (!res.success) {
+          console.warn('Warp failed:', res.error);
+        }
       });
     }
   },

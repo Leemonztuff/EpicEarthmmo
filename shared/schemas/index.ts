@@ -3,4 +3,5 @@ export { EnemyTemplateSchema, EnemySpawnSchema, EnemyDataSchema, DropEntrySchema
 export { SkillSchema, SkillTreeSchema, SkillEffectSchema, type SkillEffect, type Skill, type SkillTree } from './skills';
 export { ItemSchema, ItemDatabaseSchema, ItemEffectSchema, type ItemEffect, type Item, type ItemDatabase } from './items';
 export { JobClassSchema, JobDatabaseSchema, type JobClass, type JobDatabase } from './jobs';
-export { MapSchema, MapDecorationSchema, MapSpawnPointSchema, type MapDecoration, type MapSpawnPoint, type MapConfig } from './maps';
+export { MapSchema, MapDecorationSchema, MapSpawnPointSchema, WarpSchema, SafeZoneSchema, EnemyAreaSchema, MapTypeSchema, type MapDecoration, type MapSpawnPoint, type MapConfig, type Warp, type SafeZone, type EnemyArea, type MapType } from './maps';
+export { Vector3Schema, PlayerStatsSchema, DamageTextSchema, InventoryItemSchema, PlayerStateSchema, EnemyStateSchema, GameUIStateSchema, type Vector3, type Vector3State, type PlayerStats, type DamageText, type InventoryItem, type PlayerState, type EnemyState, type GameUIState } from './gameState';

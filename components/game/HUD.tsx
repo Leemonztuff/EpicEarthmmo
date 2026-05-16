@@ -9,6 +9,7 @@ import { JobChangeWindow } from './ui/JobChangeWindow';
 import { InventoryWindow } from './ui/InventoryWindow';
 import { StatsWindow } from './ui/StatsWindow';
 import { SkillsWindow } from './ui/SkillsWindow';
+import { MapNameDisplay } from './ui/MapNameDisplay';
 import { gameData } from '@/shared/loader';
 
 const { balance, skills } = gameData;
@@ -31,6 +32,7 @@ export function HUD() {
 
   return (
     <div className="absolute inset-0 pointer-events-none flex flex-col justify-between p-4 z-10 w-full h-full">
+      <MapNameDisplay />
       <div className="flex gap-2 items-start pointer-events-auto">
         <div className="bg-slate-900/80 border border-slate-700 p-2 rounded-md shadow-md text-white flex gap-3 w-64">
            <div className="w-12 h-12 bg-slate-700/50 rounded border border-slate-600"></div>

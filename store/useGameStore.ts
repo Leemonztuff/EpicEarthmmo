@@ -57,6 +57,9 @@ function buildInitialEnemies(): Record<string, EnemyState> {
 
 interface GameStore {
   player: PlayerState;
+  currentMapId: string;
+  currentMapName: string;
+  currentMapType: string;
   position: Vector3State;
   inputDirection: Vector3State;
   targetPosition: Vector3State | null;
@@ -65,6 +68,7 @@ interface GameStore {
   enemies: Record<string, EnemyState>;
   damages: Array<{ id: string; amount: number; position: Vector3State; timestamp: number; color: string }>;
   ui: GameUIState;
+  setMap: (mapId: string, mapName: string, mapType: string) => void;
   setTargetPosition: (pos: Vector3State | null) => void;
   setPosition: (pos: Vector3State) => void;
   setInputDirection: (dir: Vector3State) => void;
@@ -87,6 +91,9 @@ interface GameStore {
 
 export const useGameStore = create<GameStore>()((set, get) => ({
   player: buildInitialPlayer(),
+  currentMapId: 'prontera',
+  currentMapName: 'Prontera',
+  currentMapType: 'town',
   position: { x: balance.defaultPlayer.spawnPosition.x, y: balance.defaultPlayer.spawnPosition.y, z: balance.defaultPlayer.spawnPosition.z },
   inputDirection: { x: 0, y: 0, z: 0 },
   targetPosition: null,
@@ -95,6 +102,7 @@ export const useGameStore = create<GameStore>()((set, get) => ({
   enemies: buildInitialEnemies(),
   damages: [],
   ui: { isSkillsOpen: false, isStatsOpen: false, isInventoryOpen: false },
+  setMap: (mapId, mapName, mapType) => set({ currentMapId: mapId, currentMapName: mapName, currentMapType: mapType }),
   setTargetPosition: (pos) => set({ targetPosition: pos }),
   setPosition: (pos) => set({ position: pos }),
   setInputDirection: (dir) => set({ inputDirection: dir }),
