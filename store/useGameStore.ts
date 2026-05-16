@@ -8,7 +8,8 @@ import { INITIAL_PLAYER, INITIAL_ENEMIES } from '@/data/gameData';
 
 interface GameStore {
   player: PlayerState;
-  position: Vector3State; 
+  position: Vector3State;
+  inputDirection: Vector3State;
   targetPosition: Vector3State | null;
   selectedTargetId: string | null;
   activeSkill: string | null;
@@ -17,6 +18,7 @@ interface GameStore {
   ui: GameUIState;
   setTargetPosition: (pos: Vector3State | null) => void;
   setPosition: (pos: Vector3State) => void;
+  setInputDirection: (dir: Vector3State) => void;
   setSelectedTargetId: (id: string | null) => void;
   toggleUI: (window: keyof GameUIState) => void;
   allocateStat: (stat: keyof PlayerStats) => void;
@@ -37,6 +39,7 @@ interface GameStore {
 export const useGameStore = create<GameStore>()((set, get) => ({
   player: INITIAL_PLAYER,
   position: { x: 0, y: 0.5, z: 0 },
+  inputDirection: { x: 0, y: 0, z: 0 },
   targetPosition: null,
   selectedTargetId: null,
   activeSkill: null,
@@ -45,6 +48,7 @@ export const useGameStore = create<GameStore>()((set, get) => ({
   ui: { isSkillsOpen: false, isStatsOpen: false, isInventoryOpen: false },
   setTargetPosition: (pos) => set({ targetPosition: pos }),
   setPosition: (pos) => set({ position: pos }),
+  setInputDirection: (dir) => set({ inputDirection: dir }),
   setSelectedTargetId: (id) => set({ selectedTargetId: id }),
   setActiveSkill: (skillId) => set({ activeSkill: skillId }),
   setSp: (sp) => set(s => ({ player: { ...s.player, sp } })),
@@ -63,14 +67,19 @@ export const useGameStore = create<GameStore>()((set, get) => ({
   consumeItem: (itemId) => set((state) => {
     const itemIndex = state.player.inventory.findIndex(i => i.id === itemId);
     if (itemIndex === -1) return state;
-    
+
     const item = state.player.inventory[itemIndex];
     if (item.type !== 'usable' || item.amount <= 0) return state;
 
-    let { hp, maxHp } = state.player;
-    if (item.id === 'red_potion') {
-      hp = Math.min(maxHp, hp + 30);
-    }
+    let { hp, maxHp, sp, maxSp } = state.player;
+    const ITEM_EFFECTS: Record<string, () => void> = {
+      red_potion: () => { hp = Math.min(maxHp, hp + 30); },
+      blue_potion: () => { sp = Math.min(maxSp, sp + 15); },
+    };
+
+    const effect = ITEM_EFFECTS[item.id];
+    if (!effect) return state;
+    effect();
 
     const newInventory = [...state.player.inventory];
     if (item.amount > 1) {
@@ -79,69 +88,119 @@ export const useGameStore = create<GameStore>()((set, get) => ({
       newInventory.splice(itemIndex, 1);
     }
 
-    return { player: { ...state.player, hp, inventory: newInventory } };
+    return { player: { ...state.player, hp, sp, inventory: newInventory } };
   }),
-  changeJob: (newJob) => set((state) => {
-    if (state.player.jobLevel >= 10 && state.player.jobClass === 'Novice') {
-      return {
-         player: {
-             ...state.player,
-             jobClass: newJob,
-             jobLevel: 1, // Reset job level
-             jobExp: 0,
-         }
+  changeJob: async (newJob) => {
+    const state = get();
+    if (state.player.jobLevel < 10 || state.player.jobClass !== 'Novice') return;
+
+    const networkStore = (await import('./useNetworkStore')).useNetworkStore;
+    const socket = networkStore.getState().socket;
+    if (socket?.connected) {
+      socket.emit('changeJob', { newJob }, (res: { success: boolean; error?: string }) => {
+        if (res.success) {
+          set((s) => ({
+            player: {
+              ...s.player,
+              jobClass: newJob,
+              jobLevel: 1,
+              jobExp: 0,
+              unlockedSkills: [],
+              skillPoints: s.player.skillPoints + 1,
+            }
+          }));
+        } else {
+          console.warn('Server rejected job change:', res.error);
+        }
+      });
+    }
+  },
+  allocateStat: (stat) => {
+    const state = get();
+    if (stat === 'statPoints') return;
+    if (state.player.stats.statPoints <= 0) return;
+    if (state.player.stats[stat] >= 99) return;
+
+    const currentStatPoints = state.player.stats.statPoints;
+
+    // Optimistic update
+    set((s) => ({
+      player: { ...s.player, stats: { ...s.player.stats, [stat]: s.player.stats[stat] + 1, statPoints: s.player.stats.statPoints - 1 } }
+    }));
+
+    import('./useNetworkStore').then(({ useNetworkStore }) => {
+      const socket = useNetworkStore.getState().socket;
+      if (socket?.connected) {
+        socket.emit('allocateStat', { stat, statPoints: currentStatPoints }, (res: { success: boolean; stats?: PlayerStats; error?: string }) => {
+          if (!res.success) {
+            set((s) => ({
+              player: { ...s.player, stats: { ...s.player.stats, [stat]: s.player.stats[stat] - 1, statPoints: s.player.stats.statPoints + 1 } }
+            }));
+            console.warn('Server rejected stat allocation:', res.error);
+          }
+        });
       }
-    }
-    return state;
-  }),
-  allocateStat: (stat) => set((state) => {
-    if (stat === 'statPoints') return state;
-    if (state.player.stats.statPoints > 0) {
-      return { player: { ...state.player, stats: { ...state.player.stats, [stat]: state.player.stats[stat] + 1, statPoints: state.player.stats.statPoints - 1 } } };
-    }
-    return state;
-  }),
-  unlockSkill: (skillId, cost) => set((state) => {
-    if (state.player.skillPoints >= cost && !state.player.unlockedSkills.includes(skillId)) {
-      return { 
-        player: { 
-          ...state.player, 
-          skillPoints: state.player.skillPoints - cost, 
-          unlockedSkills: [...state.player.unlockedSkills, skillId] 
-        } 
-      };
-    }
-    return state;
-  }),
+    });
+  },
+  unlockSkill: (skillId, cost) => {
+    const state = get();
+    if (state.player.skillPoints < cost || state.player.unlockedSkills.includes(skillId)) return;
+
+    const currentSkillPoints = state.player.skillPoints;
+
+    // Optimistic update
+    set((s) => ({
+      player: {
+        ...s.player,
+        skillPoints: s.player.skillPoints - cost,
+        unlockedSkills: [...s.player.unlockedSkills, skillId]
+      }
+    }));
+
+    import('./useNetworkStore').then(({ useNetworkStore }) => {
+      const socket = useNetworkStore.getState().socket;
+      if (socket?.connected) {
+        socket.emit('unlockSkill', { skillId, skillPoints: currentSkillPoints }, (res: { success: boolean; error?: string }) => {
+          if (!res.success) {
+            set((s) => ({
+              player: {
+                ...s.player,
+                skillPoints: s.player.skillPoints + cost,
+                unlockedSkills: s.player.unlockedSkills.filter((s: string) => s !== skillId)
+              }
+            }));
+            console.warn('Server rejected skill unlock:', res.error);
+          }
+        });
+      }
+    });
+  },
   addDamageText: (amount, pos, color = 'white') => set((state) => {
     const id = Date.now() + Math.random().toString();
     const newDamage = { id, amount, position: pos, timestamp: Date.now(), color };
-    return { damages: [...state.damages, newDamage] };
+    const now = Date.now();
+    const damages = state.damages.filter(d => now - d.timestamp < 2000);
+    return { damages: [...damages, newDamage] };
   }),
   gainExp: (base, job) => set((state) => {
     let { baseExp, jobExp, baseLevel, jobLevel, stats, hp, maxHp, sp, maxSp, skillPoints } = state.player;
-    baseExp += base;
-    jobExp += job;
+    baseExp += Math.max(0, base);
+    jobExp += Math.max(0, job);
 
-    let leveledUp = false;
-
-    // Base level up
-    const baseExpNeeded = baseLevel * 100;
-    if (baseExp >= baseExpNeeded) {
-      baseExp -= baseExpNeeded;
+    // Base level up (multiple level-ups possible)
+    while (baseExp >= baseLevel * 100) {
+      baseExp -= baseLevel * 100;
       baseLevel += 1;
-      stats.statPoints += Math.floor(baseLevel / 5) + 3;
+      stats.statPoints += Math.floor((baseLevel - 1) / 5) + 3;
       maxHp += 15;
       maxSp += 3;
       hp = maxHp;
       sp = maxSp;
-      leveledUp = true;
     }
 
-    // Job level up
-    const jobExpNeeded = jobLevel * 50;
-    if (jobExp >= jobExpNeeded && jobLevel < 50) { // Max job level 50 for example
-      jobExp -= jobExpNeeded;
+    // Job level up (multiple level-ups possible)
+    while (jobExp >= jobLevel * 50 && jobLevel < 50) {
+      jobExp -= jobLevel * 50;
       jobLevel += 1;
       skillPoints += 1;
     }
@@ -156,17 +215,18 @@ export const useGameStore = create<GameStore>()((set, get) => ({
     };
   }),
   gainLoot: (items) => set((state) => {
+    const MAX_STACK = 99;
     const newInventory = [...state.player.inventory];
-    
+
     items.forEach(newItem => {
       const existingItemIndex = newInventory.findIndex(i => i.id === newItem.id);
       if (existingItemIndex > -1) {
         newInventory[existingItemIndex] = {
            ...newInventory[existingItemIndex],
-           amount: newInventory[existingItemIndex].amount + newItem.amount
+           amount: Math.min(MAX_STACK, newInventory[existingItemIndex].amount + newItem.amount)
         };
       } else {
-        newInventory.push(newItem);
+        newInventory.push({ ...newItem, amount: Math.min(MAX_STACK, newItem.amount) });
       }
     });
 
@@ -174,44 +234,73 @@ export const useGameStore = create<GameStore>()((set, get) => ({
   }),
   saveProgress: async () => {
     const { player } = get();
-    // Use the Network fallback if Supabase isn't configured here
     if (!supabase) {
-        const networkStore = (await import('./useNetworkStore')).useNetworkStore;
-        const socket = networkStore.getState().socket;
-        if (socket) {
-            socket.emit('saveProgress', player);
-            console.log('Save requested via websocket proxy.');
-            return;
-        }
-        console.warn('Supabase is not configured and socket is not ready.');
+      const networkStore = (await import('./useNetworkStore')).useNetworkStore;
+      const socket = networkStore.getState().socket;
+      if (socket) {
+        socket.emit('saveProgress', player);
+        console.log('Save requested via websocket proxy.');
         return;
+      }
+      console.warn('Supabase is not configured and socket is not ready.');
+      return;
     }
+
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+      console.error('Auth required to save:', authError);
+      return;
+    }
+
     const { error } = await supabase
       .from('characters')
-      .upsert({ name: player.name, state: player }, { onConflict: 'name' });
-      
+      .upsert({ user_id: user.id, name: player.name, state: player }, { onConflict: 'user_id' });
+
     if (error) console.error('Error saving:', error);
     else console.log('Progress saved successfully');
   },
   loadProgress: async () => {
-    const { player } = get();
     if (!supabase) {
-      console.warn('Supabase is not configured.');
+      const networkStore = (await import('./useNetworkStore')).useNetworkStore;
+      const socket = networkStore.getState().socket;
+      if (socket?.connected) {
+        socket.emit('loadProgress', (data: any) => {
+          if (data) {
+            const loaded = data as Partial<PlayerState>;
+            const merged: PlayerState = { ...INITIAL_PLAYER, ...loaded, stats: { ...INITIAL_PLAYER.stats, ...(loaded.stats || {}) } };
+            set({ player: merged });
+            console.log('Progress loaded via websocket proxy.');
+          } else {
+            console.warn('No saved progress found on server.');
+          }
+        });
+        return;
+      }
+      console.warn('Supabase is not configured and socket is not ready.');
       return;
     }
+
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+      console.error('Auth required to load:', authError);
+      return;
+    }
+
     const { data, error } = await supabase
       .from('characters')
       .select('state')
-      .eq('name', player.name)
+      .eq('user_id', user.id)
       .single();
-      
+
     if (error) {
-      console.error('Error loading:', error);
+      if (error.code !== 'PGRST116') console.error('Error loading:', error);
       return;
     }
-    
+
     if (data && data.state) {
-      set({ player: data.state });
+      const loaded = data.state as Partial<PlayerState>;
+      const merged: PlayerState = { ...INITIAL_PLAYER, ...loaded, stats: { ...INITIAL_PLAYER.stats, ...(loaded.stats || {}) } };
+      set({ player: merged });
       console.log('Progress loaded successfully');
     }
   },

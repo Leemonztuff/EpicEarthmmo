@@ -33,7 +33,7 @@ export function TradeManager() {
     // For mock, we just show UI
 
     return (
-      <div className="absolute top-10 left-10 w-[500px] bg-slate-200 border-2 border-slate-400 shadow-xl rounded-sm pointer-events-auto flex flex-col z-40">
+      <div className="absolute inset-4 bg-slate-200 border-2 border-slate-400 shadow-xl rounded-sm pointer-events-auto flex flex-col z-40 overflow-hidden">
         <div className="h-7 bg-gradient-to-b from-blue-700 to-blue-900 border-b border-slate-400 flex items-center justify-between px-2">
           <span className="text-xs font-bold text-white uppercase flex-1">Trade</span>
           <button onClick={cancelTrade} className="text-white hover:text-red-400 font-bold">&times;</button>
@@ -50,8 +50,10 @@ export function TradeManager() {
               <span className="text-xs font-bold">Zeny</span>
               <input 
                 type="number" 
+                min={0}
+                max={999999999}
                 value={myOffer.zeny}
-                onChange={e => updateTradeOffer({ zeny: parseInt(e.target.value) || 0 })}
+                onChange={e => updateTradeOffer({ zeny: Math.max(0, parseInt(e.target.value) || 0) })}
                 disabled={myOffer.locked}
                 className="w-20 text-right text-xs p-1 border rounded"
               />
