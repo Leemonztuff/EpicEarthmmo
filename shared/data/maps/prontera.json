@@ -3,18 +3,18 @@
   "name": "Prontera",
   "type": "town",
   "dimensions": {
-    "width": 50,
-    "height": 50
+    "width": 80,
+    "height": 80
   },
   "spawnPoints": [
-    { "id": "main", "position": { "x": 0, "y": 0.5, "z": 0 }, "label": "main" },
-    { "id": "warp_from_fields", "position": { "x": 23, "y": 0.5, "z": 0 }, "label": "warp_from_fields" }
+    { "id": "main", "position": { "x": 0, "y": 0.5, "z": 12 }, "label": "main" },
+    { "id": "warp_from_fields", "position": { "x": 0, "y": 0.5, "z": -38 }, "label": "warp_from_fields" }
   ],
   "warps": [
     {
       "id": "warp_to_fields",
       "name": "Prontera Fields",
-      "position": { "x": -23, "y": 0.5, "z": 0 },
+      "position": { "x": 0, "y": 0.5, "z": -35 },
       "targetMapId": "prontera_fields",
       "targetSpawnId": "warp_from_prontera",
       "visual": "portal"
@@ -22,36 +22,94 @@
   ],
   "safeZones": [
     {
-      "id": "town_center",
+      "id": "city_center",
       "center": { "x": 0, "z": 0 },
-      "radius": 20,
+      "radius": 35,
       "name": "Prontera City"
     }
   ],
   "enemyAreas": [],
   "decorations": [
-    { "position": [-15, 0, -15], "type": "building", "scale": 2.0 },
-    { "position": [15, 0, -15], "type": "building", "scale": 1.8 },
-    { "position": [-15, 0, 15], "type": "building", "scale": 1.5 },
-    { "position": [15, 0, 15], "type": "building", "scale": 1.6 },
-    { "position": [0, 0, -18], "type": "building", "scale": 2.2 },
-    { "position": [-8, 0, -5], "type": "well", "scale": 1.0 },
-    { "position": [8, 0, 5], "type": "sign", "scale": 0.8 },
-    { "position": [-5, 0, 8], "type": "tree", "scale": 1.2 },
-    { "position": [5, 0, -8], "type": "tree", "scale": 1.0 },
-    { "position": [-10, 0, 0], "type": "flower", "scale": 0.8 },
-    { "position": [10, 0, 0], "type": "flower", "scale": 0.8 },
-    { "position": [0, 0, 10], "type": "flower", "scale": 0.9 },
-    { "position": [-18, 0, -5], "type": "fence", "scale": 1.0 },
-    { "position": [18, 0, 5], "type": "fence", "scale": 1.0 }
+    {"position": [0, 0, -20], "type": "castle", "scale": 1.0},
+    {"position": [0, 0, -20], "type": "castle_tower_left", "scale": 1.0},
+    {"position": [0, 0, -20], "type": "castle_tower_right", "scale": 1.0},
+    {"position": [0, 0, -20], "type": "castle_gate", "scale": 1.0},
+
+    {"position": [-18, 0, -8], "type": "building_large", "scale": 1.0},
+    {"position": [18, 0, -8], "type": "building_large", "scale": 1.0},
+    {"position": [-18, 0, 8], "type": "building_medium", "scale": 1.0},
+    {"position": [18, 0, 8], "type": "building_medium", "scale": 1.0},
+    {"position": [-25, 0, 0], "type": "building_small", "scale": 1.0},
+    {"position": [25, 0, 0], "type": "building_small", "scale": 1.0},
+    {"position": [-12, 0, -28], "type": "building_small", "scale": 0.9},
+    {"position": [12, 0, -28], "type": "building_small", "scale": 0.9},
+
+    {"position": [0, 0, 5], "type": "fountain", "scale": 1.0},
+
+    {"position": [-6, 0, 0], "type": "stone_path", "scale": 1.0},
+    {"position": [6, 0, 0], "type": "stone_path", "scale": 1.0},
+    {"position": [-6, 0, -5], "type": "stone_path", "scale": 1.0},
+    {"position": [6, 0, -5], "type": "stone_path", "scale": 1.0},
+    {"position": [-6, 0, 5], "type": "stone_path", "scale": 1.0},
+    {"position": [6, 0, 5], "type": "stone_path", "scale": 1.0},
+    {"position": [-6, 0, -10], "type": "stone_path", "scale": 1.0},
+    {"position": [6, 0, -10], "type": "stone_path", "scale": 1.0},
+    {"position": [-6, 0, 10], "type": "stone_path", "scale": 1.0},
+    {"position": [6, 0, 10], "type": "stone_path", "scale": 1.0},
+    {"position": [-6, 0, -15], "type": "stone_path", "scale": 1.0},
+    {"position": [6, 0, -15], "type": "stone_path", "scale": 1.0},
+    {"position": [-6, 0, 15], "type": "stone_path", "scale": 1.0},
+    {"position": [6, 0, 15], "type": "stone_path", "scale": 1.0},
+
+    {"position": [-8, 0, 12], "type": "lamppost", "scale": 1.0},
+    {"position": [8, 0, 12], "type": "lamppost", "scale": 1.0},
+    {"position": [-8, 0, -12], "type": "lamppost", "scale": 1.0},
+    {"position": [8, 0, -12], "type": "lamppost", "scale": 1.0},
+    {"position": [-8, 0, 0], "type": "lamppost", "scale": 1.0},
+    {"position": [8, 0, 0], "type": "lamppost", "scale": 1.0},
+
+    {"position": [-10, 0, 18], "type": "bench", "scale": 1.0},
+    {"position": [10, 0, 18], "type": "bench", "scale": 1.0},
+    {"position": [-10, 0, -18], "type": "bench", "scale": 1.0},
+    {"position": [10, 0, -18], "type": "bench", "scale": 1.0},
+
+    {"position": [-14, 0, 15], "type": "tree_ornamental", "scale": 1.2},
+    {"position": [14, 0, 15], "type": "tree_ornamental", "scale": 1.2},
+    {"position": [-14, 0, -15], "type": "tree_ornamental", "scale": 1.2},
+    {"position": [14, 0, -15], "type": "tree_ornamental", "scale": 1.2},
+    {"position": [-20, 0, 10], "type": "tree_ornamental", "scale": 1.0},
+    {"position": [20, 0, 10], "type": "tree_ornamental", "scale": 1.0},
+    {"position": [-20, 0, -10], "type": "tree_ornamental", "scale": 1.0},
+    {"position": [20, 0, -10], "type": "tree_ornamental", "scale": 1.0},
+
+    {"position": [-3, 0, 18], "type": "flower", "scale": 0.8},
+    {"position": [3, 0, 18], "type": "flower", "scale": 0.8},
+    {"position": [-3, 0, -18], "type": "flower", "scale": 0.8},
+    {"position": [3, 0, -18], "type": "flower", "scale": 0.8},
+    {"position": [-22, 0, 5], "type": "flower", "scale": 0.7},
+    {"position": [22, 0, 5], "type": "flower", "scale": 0.7},
+    {"position": [-22, 0, -5], "type": "flower", "scale": 0.7},
+    {"position": [22, 0, -5], "type": "flower", "scale": 0.7},
+
+    {"position": [-30, 0, 20], "type": "sign", "scale": 1.0},
+    {"position": [30, 0, 20], "type": "sign", "scale": 1.0},
+    {"position": [-30, 0, -20], "type": "sign", "scale": 1.0},
+    {"position": [30, 0, -20], "type": "sign", "scale": 1.0},
+
+    {"position": [-32, 0, 0], "type": "fence", "scale": 1.0},
+    {"position": [32, 0, 0], "type": "fence", "scale": 1.0},
+    {"position": [-32, 0, 15], "type": "fence", "scale": 1.0},
+    {"position": [32, 0, 15], "type": "fence", "scale": 1.0},
+    {"position": [-32, 0, -15], "type": "fence", "scale": 1.0},
+    {"position": [32, 0, -15], "type": "fence", "scale": 1.0}
   ],
-  "grassTuftCount": 100,
+  "grassTuftCount": 50,
   "grassTexture": {
-    "baseColor": "#8ab860",
-    "repeatX": 15,
-    "repeatY": 15
+    "baseColor": "#c4a882",
+    "repeatX": 20,
+    "repeatY": 20
   },
   "ambientMusic": "prontera.ogg",
   "dayNightCycle": { "enabled": true, "cycleMinutes": 30 },
-  "floorColor": "#8ab860"
+  "floorColor": "#c4a882"
 }

@@ -19,13 +19,13 @@ const defaultMapData = {
   mapId: 'prontera',
   mapName: 'Prontera',
   mapType: 'town',
-  dimensions: { width: 50, height: 50 },
+  dimensions: { width: 80, height: 80 },
   warps: [],
   safeZones: [],
   decorations: [],
-  grassTuftCount: 100,
-  grassTexture: { baseColor: '#8ab860', repeatX: 15, repeatY: 15 },
-  floorColor: '#8ab860',
+  grassTuftCount: 50,
+  grassTexture: { baseColor: '#c4a882', repeatX: 20, repeatY: 20 },
+  floorColor: '#c4a882',
 };
 
 function DynamicMap() {
@@ -33,28 +33,67 @@ function DynamicMap() {
   return <Map mapData={mapData || defaultMapData} />;
 }
 
+function MapAtmosphere() {
+  const mapType = useNetworkStore(state => state.currentMapData?.mapType);
+
+  if (mapType === 'dungeon') {
+    return (
+      <>
+        <color attach="background" args={['#1a1a2e']} />
+        <fog attach="fog" args={['#1a1a2e', 5, 35]} />
+        <ambientLight intensity={0.15} />
+        <hemisphereLight args={['#2a2a3e', '#1a1a1a', 0.1]} />
+      </>
+    );
+  }
+
+  if (mapType === 'field') {
+    return (
+      <>
+        <color attach="background" args={['#87CEEB']} />
+        <fog attach="fog" args={['#c9e8f0', 25, 60]} />
+        <hemisphereLight args={['#87CEEB', '#3a7d3a', 0.7]} />
+        <ambientLight intensity={0.5} />
+      </>
+    );
+  }
+
+  return (
+    <>
+      <color attach="background" args={['#a8d8ea']} />
+      <fog attach="fog" args={['#d4e8f0', 20, 50]} />
+      <hemisphereLight args={['#a8d8ea', '#5a9d5a', 0.6]} />
+      <ambientLight intensity={0.4} />
+    </>
+  );
+}
+
 export default function GameScene() {
+  const mapType = useNetworkStore(state => state.currentMapData?.mapType);
+
   return (
     <div className="w-full h-full" style={{ touchAction: 'none' }}>
       <NetworkManager />
       <Canvas shadows orthographic={false} dpr={[1, 2]} camera={{ fov: 50, position: [0, 14, 16], near: 0.1, far: 100 }}>
         <Suspense fallback={null}>
-          <color attach="background" args={['#87CEEB']} />
-          <fog attach="fog" args={['#c9e8f0', 20, 50]} />
+          <MapAtmosphere />
 
-          <hemisphereLight args={['#87CEEB', '#3a7d3a', 0.6]} />
-          <ambientLight intensity={0.4} />
-          <directionalLight
-            castShadow
-            position={[15, 25, 10]}
-            intensity={1.2}
-            shadow-mapSize={[2048, 2048]}
-            shadow-camera-left={-20}
-            shadow-camera-right={20}
-            shadow-camera-top={20}
-            shadow-camera-bottom={-20}
-          />
-          <directionalLight position={[-10, 10, -10]} intensity={0.3} color="#b4d4ff" />
+          {mapType !== 'dungeon' && (
+            <directionalLight
+              castShadow
+              position={[15, 25, 10]}
+              intensity={mapType === 'field' ? 1.3 : 1.2}
+              shadow-mapSize={[2048, 2048]}
+              shadow-camera-left={-25}
+              shadow-camera-right={25}
+              shadow-camera-top={25}
+              shadow-camera-bottom={-25}
+            />
+          )}
+
+          {mapType !== 'dungeon' && (
+            <directionalLight position={[-10, 10, -10]} intensity={0.3} color="#b4d4ff" />
+          )}
 
           <QuarksRenderer />
 
@@ -67,7 +106,12 @@ export default function GameScene() {
           <CameraController />
 
           <EffectComposer>
-            <Bloom luminanceThreshold={0.8} luminanceSmoothing={0.7} height={300} intensity={0.5} />
+            <Bloom
+              luminanceThreshold={mapType === 'dungeon' ? 0.3 : 0.8}
+              luminanceSmoothing={0.7}
+              height={300}
+              intensity={mapType === 'dungeon' ? 0.8 : 0.5}
+            />
           </EffectComposer>
         </Suspense>
       </Canvas>
