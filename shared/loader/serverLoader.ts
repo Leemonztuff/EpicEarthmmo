@@ -33,7 +33,7 @@ function loadAndValidate<T>(filePath: string, schema: ZodSchema<T>): T {
 }
 
 export function loadGameData(dataDir?: string): LoadedGameData {
-  const baseDir = dataDir || path.join(__dirname, '..', 'data');
+  const baseDir = dataDir || path.resolve(__dirname, '../../shared/data');
 
   console.log(`[GameData] Loading from ${baseDir}`);
 
