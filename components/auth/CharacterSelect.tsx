@@ -30,7 +30,7 @@ export function CharacterSelect({ onSelect, onLogout }: CharacterSelectProps) {
 
   useEffect(() => {
     loadCharacters();
-  }, []);
+  }, [user]);
 
   const loadCharacters = async () => {
     if (!supabase || !user) return;
