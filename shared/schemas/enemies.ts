@@ -1,5 +1,8 @@
 import { z } from 'zod';
 
+export const MobBehaviorSchema = z.enum(['passive', 'aggressive', 'assist']);
+export type MobBehavior = z.infer<typeof MobBehaviorSchema>;
+
 export const DropEntrySchema = z.object({
   itemId: z.string(),
   chance: z.number().min(0).max(1),
@@ -16,6 +19,13 @@ export const EnemyTemplateSchema = z.object({
   drops: z.array(DropEntrySchema),
   expBase: z.number().int().nonnegative(),
   expJob: z.number().int().nonnegative(),
+  behavior: MobBehaviorSchema,
+  agroRange: z.number().positive(),
+  attackRange: z.number().positive(),
+  attackDamage: z.number().positive(),
+  attackCooldownMs: z.number().positive(),
+  moveSpeed: z.number().positive(),
+  patrolPauseMs: z.number().nonnegative(),
 });
 
 export const EnemySpawnSchema = z.object({

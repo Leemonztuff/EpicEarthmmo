@@ -158,6 +158,7 @@ io.on('connection', (socket) => {
     if (enemy.respawnTime && Date.now() - enemy.respawnTime < balance.enemy.respawnGraceMs) return;
 
     const now = Date.now();
+    mapManager.provokeEnemy(enemy, socket.id, now);
     if (now - player.lastAttackTime < balance.combat.attackCooldownMs) return;
     player.lastAttackTime = now;
 
@@ -581,6 +582,49 @@ function tick() {
       });
     });
 
+    // ── Mob AI ──
+    mapManager.tickMobAI(mapId, now, tickTimeSec, (enemy, playerSocketId) => {
+      const targetPlayer = instance.players.get(playerSocketId);
+      if (!targetPlayer) return;
+
+      const vitReduction = Math.floor((targetPlayer.stats.vit ?? 5) * 0.3);
+      const damage = Math.max(1, enemy.attackDamage - vitReduction + Math.floor(Math.random() * 3) - 1);
+
+      targetPlayer.hp = Math.max(0, targetPlayer.hp - damage);
+
+      io.to(playerSocketId).emit('playerDamaged', {
+        enemyId: enemy.id,
+        enemyName: enemy.name,
+        damage,
+        hp: targetPlayer.hp,
+        maxHp: targetPlayer.maxHp,
+        isDead: targetPlayer.hp === 0,
+      });
+
+      if (targetPlayer.hp === 0) {
+        const halfW = instance.config.dimensions.width / 4;
+        const halfH = instance.config.dimensions.height / 4;
+        const spawnPoint = instance.config.spawnPoints[0];
+        if (spawnPoint) {
+          targetPlayer.x = spawnPoint.position.x;
+          targetPlayer.y = spawnPoint.position.y;
+          targetPlayer.z = spawnPoint.position.z;
+        } else {
+          targetPlayer.x = (Math.random() - 0.5) * halfW;
+          targetPlayer.z = (Math.random() - 0.5) * halfH;
+        }
+        targetPlayer.hp = targetPlayer.maxHp;
+        targetPlayer.sp = targetPlayer.maxSp;
+
+        io.to(playerSocketId).emit('playerDied', {
+          respawnPosition: { x: targetPlayer.x, y: targetPlayer.y, z: targetPlayer.z },
+        });
+
+        enemy.aiState = 'return';
+        enemy.targetPlayerId = null;
+      }
+    });
+
     // ── Build snapshots ──
     const isFullTick = tickNum % balance.server.fullSnapshotInterval === 0;
 
@@ -592,7 +636,7 @@ function tick() {
         p.lastSentSnapshot = snap;
       }
       for (const [id, e] of instance.enemies) {
-        full.enemies[id] = { hp: e.hp, isDead: e.isDead, position: { x: e.position.x, y: e.position.y, z: e.position.z } };
+        full.enemies[id] = { hp: e.hp, maxHp: e.maxHp, isDead: e.isDead, position: { x: e.position.x, y: e.position.y, z: e.position.z }, name: e.name, level: e.level };
       }
       io.to(mapId).emit('worldSnapshot', full);
     } else {
@@ -616,7 +660,7 @@ function tick() {
         for (const [id, e] of instance.enemies) {
           if (e.isDead) continue;
           if (distSq(p, e.position) > balance.network.interestRange * balance.network.interestRange) continue;
-          snap.enemies[id] = { hp: e.hp, isDead: e.isDead, position: { x: e.position.x, y: e.position.y, z: e.position.z } };
+          snap.enemies[id] = { hp: e.hp, maxHp: e.maxHp, isDead: e.isDead, position: { x: e.position.x, y: e.position.y, z: e.position.z }, name: e.name, level: e.level };
         }
 
         io.to(socketId).emit('worldSnapshot', snap);

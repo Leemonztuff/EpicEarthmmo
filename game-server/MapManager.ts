@@ -1,6 +1,9 @@
 import type { MapConfig, Warp, EnemyArea, SafeZone, EnemyTemplate, MapSpawnPoint, MapDecoration, SafeZone as SafeZoneType } from '../shared/schemas';
 import type { ServerPlayer } from './types';
 
+export type MobAIState = 'idle' | 'patrol' | 'chase' | 'attack' | 'return';
+export type MobBehavior = 'passive' | 'aggressive' | 'assist';
+
 export interface RuntimeEnemy {
   id: string;
   spawnId: string;
@@ -16,6 +19,21 @@ export interface RuntimeEnemy {
   areaCenter: { x: number; z: number };
   areaRadius: number;
   respawnSeconds: number;
+  behavior: MobBehavior;
+  aiState: MobAIState;
+  targetPlayerId: string | null;
+  agroRange: number;
+  attackRange: number;
+  attackDamage: number;
+  attackCooldownMs: number;
+  lastAttackTime: number;
+  moveSpeed: number;
+  patrolTarget: { x: number; z: number } | null;
+  patrolPauseUntil: number;
+  patrolPauseMs: number;
+  homePosition: { x: number; z: number };
+  wasProvoked: boolean;
+  provokedUntil: number;
 }
 
 export interface MapInstance {
@@ -76,6 +94,21 @@ export class MapManager {
           areaCenter: { ...area.center },
           areaRadius: area.radius,
           respawnSeconds: area.respawnSeconds,
+          behavior: template.behavior,
+          aiState: 'idle',
+          targetPlayerId: null,
+          agroRange: template.agroRange,
+          attackRange: template.attackRange,
+          attackDamage: template.attackDamage,
+          attackCooldownMs: template.attackCooldownMs,
+          lastAttackTime: 0,
+          moveSpeed: template.moveSpeed,
+          patrolPauseMs: template.patrolPauseMs,
+          patrolTarget: null,
+          patrolPauseUntil: 0,
+          homePosition: { x: pos.x, z: pos.z },
+          wasProvoked: false,
+          provokedUntil: 0,
         });
       }
     }
@@ -260,16 +293,218 @@ export class MapManager {
           }
           enemy.isDead = false;
           enemy.respawnTime = now;
+          enemy.aiState = 'idle';
+          enemy.targetPlayerId = null;
+          enemy.wasProvoked = false;
+          enemy.provokedUntil = 0;
           delete enemy.deathTime;
 
           const newPos = this.randomPositionInCircle(enemy.areaCenter, enemy.areaRadius);
           enemy.position.x = newPos.x;
           enemy.position.z = newPos.z;
+          enemy.homePosition = { x: newPos.x, z: newPos.z };
 
           onEnemyRespawn(enemy);
         }
       }
     }
+  }
+
+  tickMobAI(mapId: string, now: number, tickTimeSec: number, onMobAttack: (enemy: RuntimeEnemy, playerSocketId: string) => void) {
+    const instance = this.maps.get(mapId);
+    if (!instance) return;
+
+    for (const enemy of instance.enemies.values()) {
+      if (enemy.isDead) continue;
+      if (enemy.respawnTime && now - enemy.respawnTime < 1000) continue;
+
+      const distFromHome = this.dist2D(enemy.position.x, enemy.position.z, enemy.homePosition.x, enemy.homePosition.z);
+      const deaggroRange = 20;
+
+      switch (enemy.aiState) {
+        case 'idle': {
+          if (now < enemy.patrolPauseUntil) break;
+
+          const newTarget = this.randomPositionInCircle(
+            { x: enemy.areaCenter.x, z: enemy.areaCenter.z },
+            enemy.areaRadius * 0.7
+          );
+          enemy.patrolTarget = newTarget;
+          enemy.aiState = 'patrol';
+          break;
+        }
+
+        case 'patrol': {
+          if (!enemy.patrolTarget) {
+            enemy.aiState = 'idle';
+            enemy.patrolPauseUntil = now + enemy.patrolPauseMs;
+            break;
+          }
+
+          const dx = enemy.patrolTarget.x - enemy.position.x;
+          const dz = enemy.patrolTarget.z - enemy.position.z;
+          const distToTarget = Math.sqrt(dx * dx + dz * dz);
+
+          if (distToTarget < 0.5) {
+            enemy.patrolTarget = null;
+            enemy.aiState = 'idle';
+            enemy.patrolPauseUntil = now + enemy.patrolPauseMs + Math.random() * 1000;
+            break;
+          }
+
+          const moveX = (dx / distToTarget) * enemy.moveSpeed * tickTimeSec;
+          const moveZ = (dz / distToTarget) * enemy.moveSpeed * tickTimeSec;
+          enemy.position.x += moveX;
+          enemy.position.z += moveZ;
+          enemy.position.x = Math.max(-instance.config.dimensions.width / 2, Math.min(instance.config.dimensions.width / 2, enemy.position.x));
+          enemy.position.z = Math.max(-instance.config.dimensions.height / 2, Math.min(instance.config.dimensions.height / 2, enemy.position.z));
+          break;
+        }
+
+        case 'chase': {
+          if (!enemy.targetPlayerId || !instance.players.has(enemy.targetPlayerId)) {
+            enemy.aiState = 'return';
+            enemy.targetPlayerId = null;
+            break;
+          }
+
+          const target = instance.players.get(enemy.targetPlayerId)!;
+
+          if (distFromHome > deaggroRange || this.isInSafeZone(mapId, target.x, target.z)) {
+            enemy.aiState = 'return';
+            enemy.targetPlayerId = null;
+            break;
+          }
+
+          const dx = target.x - enemy.position.x;
+          const dz = target.z - enemy.position.z;
+          const distToPlayer = Math.sqrt(dx * dx + dz * dz);
+
+          if (distToPlayer <= enemy.attackRange) {
+            enemy.aiState = 'attack';
+            break;
+          }
+
+          const moveX = (dx / distToPlayer) * enemy.moveSpeed * tickTimeSec;
+          const moveZ = (dz / distToPlayer) * enemy.moveSpeed * tickTimeSec;
+          enemy.position.x += moveX;
+          enemy.position.z += moveZ;
+          enemy.position.x = Math.max(-instance.config.dimensions.width / 2, Math.min(instance.config.dimensions.width / 2, enemy.position.x));
+          enemy.position.z = Math.max(-instance.config.dimensions.height / 2, Math.min(instance.config.dimensions.height / 2, enemy.position.z));
+          break;
+        }
+
+        case 'attack': {
+          if (!enemy.targetPlayerId || !instance.players.has(enemy.targetPlayerId)) {
+            enemy.aiState = 'return';
+            enemy.targetPlayerId = null;
+            break;
+          }
+
+          const target = instance.players.get(enemy.targetPlayerId)!;
+
+          if (distFromHome > deaggroRange || this.isInSafeZone(mapId, target.x, target.z)) {
+            enemy.aiState = 'return';
+            enemy.targetPlayerId = null;
+            break;
+          }
+
+          const dx = target.x - enemy.position.x;
+          const dz = target.z - enemy.position.z;
+          const distToPlayer = Math.sqrt(dx * dx + dz * dz);
+
+          if (distToPlayer > enemy.attackRange * 1.5) {
+            enemy.aiState = 'chase';
+            break;
+          }
+
+          if (now - enemy.lastAttackTime >= enemy.attackCooldownMs) {
+            enemy.lastAttackTime = now;
+            onMobAttack(enemy, enemy.targetPlayerId);
+          }
+          break;
+        }
+
+        case 'return': {
+          const dx = enemy.homePosition.x - enemy.position.x;
+          const dz = enemy.homePosition.z - enemy.position.z;
+          const distToHome = Math.sqrt(dx * dx + dz * dz);
+
+          if (distToHome < 1.0) {
+            enemy.aiState = 'idle';
+            enemy.patrolPauseUntil = now + 1000;
+            break;
+          }
+
+          const returnSpeed = enemy.moveSpeed * 1.5;
+          const moveX = (dx / distToHome) * returnSpeed * tickTimeSec;
+          const moveZ = (dz / distToHome) * returnSpeed * tickTimeSec;
+          enemy.position.x += moveX;
+          enemy.position.z += moveZ;
+          break;
+        }
+      }
+
+      if (enemy.aiState !== 'chase' && enemy.aiState !== 'attack' && enemy.aiState !== 'return') {
+        this.checkAgro(enemy, instance, now, mapId);
+      }
+    }
+  }
+
+  private checkAgro(enemy: RuntimeEnemy, instance: MapInstance, now: number, mapId: string) {
+    if (enemy.behavior === 'passive' && !enemy.wasProvoked) return;
+    if (enemy.wasProvoked && now > enemy.provokedUntil) {
+      enemy.wasProvoked = false;
+    }
+
+    let closestPlayer: { socketId: string; dist: number } | null = null;
+
+    for (const [socketId, player] of instance.players) {
+      if (this.isInSafeZone(mapId, player.x, player.z)) continue;
+
+      const dx = player.x - enemy.position.x;
+      const dz = player.z - enemy.position.z;
+      const dist = Math.sqrt(dx * dx + dz * dz);
+
+      let effectiveAgro = enemy.agroRange;
+
+      if (enemy.behavior === 'assist') {
+        for (const otherEnemy of instance.enemies.values()) {
+          if (otherEnemy.id === enemy.id || otherEnemy.isDead) continue;
+          if (otherEnemy.templateId !== enemy.templateId) continue;
+          if (otherEnemy.aiState === 'chase' || otherEnemy.aiState === 'attack') {
+            const distToOther = this.dist2D(enemy.position.x, enemy.position.z, otherEnemy.position.x, otherEnemy.position.z);
+            if (distToOther < 8) {
+              effectiveAgro = Math.max(effectiveAgro, 12);
+            }
+          }
+        }
+      }
+
+      if (dist <= effectiveAgro) {
+        if (!closestPlayer || dist < closestPlayer.dist) {
+          closestPlayer = { socketId, dist };
+        }
+      }
+    }
+
+    if (closestPlayer) {
+      enemy.targetPlayerId = closestPlayer.socketId;
+      enemy.aiState = 'chase';
+    }
+  }
+
+  provokeEnemy(enemy: RuntimeEnemy, playerSocketId: string, now: number) {
+    enemy.wasProvoked = true;
+    enemy.provokedUntil = now + 8000;
+    enemy.targetPlayerId = playerSocketId;
+    enemy.aiState = 'chase';
+  }
+
+  private dist2D(x1: number, z1: number, x2: number, z2: number): number {
+    const dx = x1 - x2;
+    const dz = z1 - z2;
+    return Math.sqrt(dx * dx + dz * dz);
   }
 
   getEnemy(mapId: string, enemyId: string): RuntimeEnemy | undefined {

@@ -35,8 +35,11 @@ export interface SnapshotPlayer {
 
 export interface SnapshotEnemy {
   hp: number;
+  maxHp: number;
   isDead: boolean;
   position: { x: number; y: number; z: number };
+  name?: string;
+  level?: number;
 }
 
 export interface WorldSnapshot {

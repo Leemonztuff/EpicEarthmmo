@@ -27,6 +27,13 @@ export const BalanceSchema = z.object({
   enemy: z.object({
     respawnMs: z.number().positive(),
     respawnGraceMs: z.number().positive(),
+    defaultAgroRange: z.number().positive(),
+    defaultAttackRange: z.number().positive(),
+    defaultAttackCooldownMs: z.number().positive(),
+    defaultMoveSpeed: z.number().positive(),
+    defaultPatrolPauseMs: z.number().nonnegative(),
+    deaggroRange: z.number().positive(),
+    returnSpeedMultiplier: z.number().positive(),
   }),
   stats: z.object({
     cap: z.number().int().positive(),
