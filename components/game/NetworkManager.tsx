@@ -8,6 +8,7 @@ const INPUT_RATE_MS = 50;
 
 export function NetworkManager({ playerName }: { playerName: string }) {
   const initSocket = useNetworkStore(state => state.initSocket);
+  const inputSeqRef = useRef(0);
 
   useEffect(() => {
     inputSeqRef.current = 0;
@@ -25,7 +26,7 @@ export function NetworkManager({ playerName }: { playerName: string }) {
       const s = useNetworkStore.getState().socket;
       s?.disconnect();
     };
-  }, [initSocket, player.name]);
+  }, [initSocket, playerName]);
 
   return null;
 }

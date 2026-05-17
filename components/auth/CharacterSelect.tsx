@@ -77,7 +77,7 @@ export function CharacterSelect({ onSelect, onLogout }: CharacterSelectProps) {
           jobClass: 'novice',
           stats: { str: 5, agi: 5, vit: 5, int: 5, dex: 5, luk: 5, statPoints: 0 },
           skillPoints: 5,
-          unlockedSkills: [],
+          unlockedSkills: ['basic_attack'],
           inventory: [
             { id: 'red_potion', name: 'Red Potion', type: 'usable', amount: 10, description: 'Restores 30 HP.' },
             { id: 'iron_sword', name: 'Iron Sword', type: 'equip', amount: 1, description: 'A basic sword. +2 STR' },

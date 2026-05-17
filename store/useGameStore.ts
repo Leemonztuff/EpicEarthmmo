@@ -29,7 +29,7 @@ function buildInitialPlayer(): PlayerState {
       statPoints: 0,
     },
     skillPoints: defaultPlayer.skillPoints,
-    unlockedSkills: [],
+    unlockedSkills: ['basic_attack'],
     inventory: [
       { id: 'red_potion', name: 'Red Potion', type: 'usable', amount: 10, description: 'Restores 30 HP.' },
       { id: 'jellopy', name: 'Jellopy', type: 'misc', amount: 5, description: 'A gelatinous substance dropped by Porings.' },
@@ -222,6 +222,9 @@ export const useGameStore = create<GameStore>()((set, get) => ({
     const skillDef = skills.find(s => s.id === skillId);
     if (!skillDef) return;
     if (state.player.skillPoints < skillDef.skillPointCost || state.player.unlockedSkills.includes(skillId)) return;
+
+    const meetsReqs = skillDef.requirements.every(r => state.player.unlockedSkills.includes(r) || r === 'basic_attack');
+    if (!meetsReqs) return;
 
     const currentSkillPoints = state.player.skillPoints;
 

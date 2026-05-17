@@ -155,7 +155,10 @@ io.on('connection', (socket) => {
     }
 
     const enemy = mapManager.getEnemy(player.currentMapId, data.targetId);
-    if (!enemy || enemy.isDead) return;
+    if (!enemy || enemy.isDead) {
+      console.log(`[Attack] Enemy not found or dead: ${data.targetId}`);
+      return;
+    }
 
     if (enemy.respawnTime && Date.now() - enemy.respawnTime < balance.enemy.respawnGraceMs) return;
 
@@ -164,15 +167,25 @@ io.on('connection', (socket) => {
     if (now - player.lastAttackTime < balance.combat.attackCooldownMs) return;
     player.lastAttackTime = now;
 
-    if (distSq(player, enemy.position) > balance.combat.attackRange * balance.combat.attackRange) return;
+    const dist = Math.sqrt(distSq(player, enemy.position));
+    if (distSq(player, enemy.position) > balance.combat.attackRange * balance.combat.attackRange) {
+      console.log(`[Attack] Out of range: dist=${dist.toFixed(1)}, range=${balance.combat.attackRange}, player=(${player.x.toFixed(1)},${player.z.toFixed(1)}), enemy=(${enemy.position.x.toFixed(1)},${enemy.position.z.toFixed(1)})`);
+      return;
+    }
 
     let usedSkill = false;
     let skillSpCost = 0;
     if (data.skillId) {
-      if (!isSkillUnlocked(player, data.skillId)) return;
+      if (!isSkillUnlocked(player, data.skillId)) {
+        console.log(`[Attack] Skill not unlocked: ${data.skillId}`);
+        return;
+      }
       skillSpCost = getSkillSpCost(skills, data.skillId);
     }
-    if (player.sp < skillSpCost) return;
+    if (player.sp < skillSpCost) {
+      console.log(`[Attack] Not enough SP: ${player.sp} < ${skillSpCost}`);
+      return;
+    }
     player.sp -= skillSpCost;
     if (skillSpCost > 0) usedSkill = true;
 
@@ -189,6 +202,7 @@ io.on('connection', (socket) => {
     }
 
     const damage = calculateDamage(statValue, skillMultiplier, balance);
+    console.log(`[Attack] Hit ${enemy.name} for ${damage} damage (str=${statValue}, mult=${skillMultiplier}, skill=${data.skillId || 'basic'})`);
 
     enemy.hp = Math.max(0, enemy.hp - damage);
 
