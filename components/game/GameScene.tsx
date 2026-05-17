@@ -13,6 +13,7 @@ import { RemotePlayers } from './RemotePlayers';
 import { QuarksRenderer } from './QuarksParticleSystem';
 import { VirtualJoystick } from './VirtualJoystick';
 import { OrientationLock } from './OrientationLock';
+import { ScreenShake } from './ScreenShake';
 import { useNetworkStore } from '@/store/useNetworkStore';
 
 const defaultMapData = {
@@ -104,6 +105,7 @@ export default function GameScene() {
           </Physics>
 
           <CameraController />
+          <ScreenShake />
 
           <EffectComposer>
             <Bloom

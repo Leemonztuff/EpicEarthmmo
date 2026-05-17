@@ -3,8 +3,15 @@
 import React from 'react';
 import { useGameStore } from '@/store/useGameStore';
 import { gameData } from '@/shared/loader';
+import { ProgressBar, ThinBar, Avatar, StatusEffectBar, StatusEffect } from '@/components/ui';
+import { Heart, Zap, Shield, Sword } from 'lucide-react';
 
 const { balance } = gameData;
+
+const mockStatusEffects = [
+  { icon: <Heart size={16} />, name: 'HP Regen', duration: 15000, variant: 'buff' as const, size: 'sm' as const },
+  { icon: <Zap size={16} />, name: 'SP Regen', duration: 12000, variant: 'buff' as const, size: 'sm' as const },
+];
 
 export function PlayerFrame() {
   const player = useGameStore((state) => state.player);
@@ -18,44 +25,30 @@ export function PlayerFrame() {
 
   return (
     <div className="pointer-events-auto select-none">
-      <div className="flex items-center gap-2 mb-1">
-        <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-600 to-blue-800 border-2 border-blue-400 flex items-center justify-center shadow-lg">
-          <span className="text-white font-bold text-sm">{player.name.charAt(0).toUpperCase()}</span>
-        </div>
+      <div className="flex items-center gap-2 mb-1.5">
+        <Avatar
+          name={player.name}
+          level={player.baseLevel}
+          size="sm"
+          ringColor="gradient"
+        />
         <div className="flex-1 min-w-0">
-          <div className="text-white font-bold text-sm truncate drop-shadow-md">{player.name}</div>
-          <div className="text-slate-300 text-[10px] font-medium">
-            Lv.{player.baseLevel} {player.jobClass}
+          <div className="flex items-baseline gap-1.5">
+            <span className="text-white font-bold text-sm truncate drop-shadow-md">{player.name}</span>
+            <span className="text-slate-400 text-[10px] font-medium">{player.jobClass}</span>
+          </div>
+          <div className="flex gap-1 mt-0.5">
+            <ProgressBar value={player.hp} max={player.maxHp} color="hp" size="sm" className="flex-1" />
+            <ProgressBar value={player.sp} max={player.maxSp} color="sp" size="sm" className="flex-1" />
+          </div>
+          <div className="flex gap-0.5 mt-0.5">
+            <ThinBar value={baseExpPct} color="exp" className="flex-1" />
+            <ThinBar value={jobExpPct} color="jobExp" className="flex-1" />
           </div>
         </div>
       </div>
 
-      <div className="space-y-0.5">
-        <Bar value={hpPct} color="from-green-500 to-green-600" label={`${Math.ceil(player.hp)}/${player.maxHp}`} />
-        <Bar value={spPct} color="from-blue-500 to-blue-600" label={`${Math.ceil(player.sp)}/${player.maxSp}`} />
-        <div className="flex gap-0.5">
-          <div className="flex-1 h-1 bg-slate-800/80 rounded-full overflow-hidden">
-            <div className="h-full bg-yellow-400 rounded-full transition-all duration-300" style={{ width: `${baseExpPct}%` }} />
-          </div>
-          <div className="flex-1 h-1 bg-slate-800/80 rounded-full overflow-hidden">
-            <div className="h-full bg-purple-400 rounded-full transition-all duration-300" style={{ width: `${jobExpPct}%` }} />
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function Bar({ value, color, label }: { value: number; color: string; label: string }) {
-  return (
-    <div className="relative h-3 bg-slate-800/80 rounded-full overflow-hidden border border-slate-700/50">
-      <div
-        className={`h-full bg-gradient-to-r ${color} rounded-full transition-all duration-300`}
-        style={{ width: `${Math.min(100, value)}%` }}
-      />
-      <div className="absolute inset-0 flex items-center justify-center">
-        <span className="text-[8px] font-bold text-white drop-shadow-md">{label}</span>
-      </div>
+      <StatusEffectBar effects={mockStatusEffects} />
     </div>
   );
 }

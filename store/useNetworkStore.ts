@@ -4,6 +4,9 @@ import type { PeerPlayerState, ChatMessage, TradeOffer, WorldSnapshot, PlayerInp
 import type { EnemyState } from '@/shared/schemas/gameState';
 import { gameData } from '@/shared/loader';
 import { addCombatLog } from '@/components/game/hud/CombatLog';
+import { showToast } from '@/components/ui';
+import { triggerShake } from '@/components/game/ScreenShake';
+import { showExpGain } from '@/components/game/ExpPopups';
 
 const { balance } = gameData;
 
@@ -88,6 +91,8 @@ export const useNetworkStore = create<NetworkStore>()((set, get) => ({
 
     newSocket.on('connect', () => {
       console.log('Connected to MMO server:', newSocket.id);
+      predictedStates.length = 0;
+      lastReconciledPos = { x: 0, y: 0.5, z: 0 };
       set({ socketId: newSocket.id });
       // Join game
       newSocket.emit('join', { 
@@ -109,11 +114,14 @@ export const useNetworkStore = create<NetworkStore>()((set, get) => ({
        if (data.initData) {
          set({ currentMapData: data.initData });
        }
+       showToast(`Welcome to ${data.mapName}!`, 'success');
     });
 
     newSocket.on('mapChange', (data: { mapId: string; mapName: string; mapType: string; spawnPosition: { x: number; y: number; z: number }; enemies: Record<string, EnemyState>; players: Record<string, PeerPlayerState>; initData: any }) => {
        const gs = useGameStore.getState();
        gs.setMap(data.mapId, data.mapName, data.mapType);
+       gs.setEnemies(data.enemies);
+       showToast(`Arrived at ${data.mapName}`, 'info');
        gs.setPosition(data.spawnPosition);
        gs.setEnemies(data.enemies);
 
@@ -129,6 +137,7 @@ export const useNetworkStore = create<NetworkStore>()((set, get) => ({
       set((s) => ({
         remotePlayers: { ...s.remotePlayers, [player.id]: player }
       }));
+      showToast(`${player.name} joined the map`, 'info');
     });
 
     newSocket.on('worldSnapshot', (snapshot: WorldSnapshot) => {
@@ -189,7 +198,9 @@ export const useNetworkStore = create<NetworkStore>()((set, get) => ({
     newSocket.on('playerLeft', (id: string) => {
       set((s) => {
         const newPlayers = { ...s.remotePlayers };
+        const name = newPlayers[id]?.name;
         delete newPlayers[id];
+        if (name) showToast(`${name} left the map`, 'warning');
         return { remotePlayers: newPlayers };
       });
     });
@@ -240,6 +251,8 @@ export const useNetworkStore = create<NetworkStore>()((set, get) => ({
       gs.setSp(data.newSp);
       gs.updateEnemyState(data.targetId, { hp: data.hp, isDead: data.isDead });
       gs.gainExp(data.expBase, data.expJob);
+      showExpGain(data.expBase, 'base');
+      showExpGain(data.expJob, 'job');
       if (data.loot.length > 0) {
         gs.gainLoot(data.loot);
         const lootNames = data.loot.map(l => `${l.name} x${l.amount}`).join(', ');
@@ -253,6 +266,7 @@ export const useNetworkStore = create<NetworkStore>()((set, get) => ({
       const gs = useGameStore.getState();
       gs.updatePlayerHp(data.hp);
       addCombatLog(`${data.enemyName} hits you for ${data.damage} damage!`, 'text-red-400');
+      triggerShake(data.damage > 10 ? 0.15 : 0.08, 0.2);
 
       const pos = {
         x: gs.position.x + (Math.random() * 0.5 - 0.25),

@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNetworkStore } from '@/store/useNetworkStore';
-import { BottomSheet } from './hud/BottomSheet';
+import { Modal, Button, IconBox, Text, Badge, Section } from '@/components/ui';
 import { Check, X, Lock, Coins } from 'lucide-react';
 
 export function TradeManager() {
@@ -19,24 +19,21 @@ export function TradeManager() {
         <div className="absolute inset-0 bg-black/50" />
         <div className="relative bg-slate-900/95 backdrop-blur-md border border-blue-500/40 rounded-2xl p-5 shadow-2xl pointer-events-auto max-w-xs w-full mx-4 animate-slide-up">
           <div className="text-center">
-            <div className="w-14 h-14 rounded-full bg-blue-600/30 border-2 border-blue-500/50 flex items-center justify-center mx-auto mb-3">
-              <Coins size={24} className="text-blue-400" />
-            </div>
-            <p className="text-white text-sm mb-1">Trade Request</p>
-            <p className="text-amber-400 font-bold text-base mb-4">{tradeRequest.name}</p>
+            <IconBox
+              icon={<Coins size={24} />}
+              size="lg"
+              color="blue"
+              className="mx-auto mb-3"
+            />
+            <Text variant="body" className="mb-1">Trade Request</Text>
+            <Text variant="value" className="text-amber-400 text-base mb-4">{tradeRequest.name}</Text>
             <div className="flex gap-3">
-              <button
-                onClick={acceptTradeRequest}
-                className="flex-1 py-2.5 bg-green-600 hover:bg-green-500 text-white font-bold rounded-xl flex items-center justify-center gap-2 touch-manipulation active:scale-95 transition-all"
-              >
+              <Button variant="success" size="md" onClick={acceptTradeRequest} className="flex-1">
                 <Check size={16} /> Accept
-              </button>
-              <button
-                onClick={declineTradeRequest}
-                className="flex-1 py-2.5 bg-red-600 hover:bg-red-500 text-white font-bold rounded-xl flex items-center justify-center gap-2 touch-manipulation active:scale-95 transition-all"
-              >
+              </Button>
+              <Button variant="danger" size="md" onClick={declineTradeRequest} className="flex-1">
                 <X size={16} /> Decline
-              </button>
+              </Button>
             </div>
           </div>
         </div>
@@ -49,17 +46,16 @@ export function TradeManager() {
     const canAccept = myOffer.locked && theirOffer.locked;
 
     return (
-      <BottomSheet title="Trade" onClose={cancelTrade}>
+      <Modal isOpen onClose={cancelTrade} title="Trade">
         <div className="grid grid-cols-2 gap-3">
-          {/* My Side */}
-          <div className="space-y-2">
-            <h3 className="text-blue-400 font-bold text-xs text-center uppercase tracking-wider">Your Offer</h3>
+          <Section>
+            <Text variant="label" className="text-center uppercase tracking-wider text-blue-400">Your Offer</Text>
             <div className="h-24 border-2 border-dashed border-slate-700 rounded-xl bg-slate-800/30 flex items-center justify-center">
-              <span className="text-xs text-slate-500">Items (TBA)</span>
+              <Text variant="caption">Items (TBA)</Text>
             </div>
             <div className="flex items-center gap-2 bg-slate-800/50 rounded-lg px-3 py-2">
               <Coins size={14} className="text-yellow-400" />
-              <span className="text-slate-300 text-xs flex-1">Zeny</span>
+              <Text variant="body" className="flex-1">Zeny</Text>
               <input
                 type="number"
                 min={0}
@@ -70,51 +66,50 @@ export function TradeManager() {
                 className="w-20 text-right text-xs bg-slate-700/50 text-white rounded px-2 py-1 border border-slate-600/50 disabled:opacity-50"
               />
             </div>
-            <button
-              onClick={lockTrade}
+            <Button
+              variant={myOffer.locked ? 'secondary' : 'primary'}
+              size="md"
               disabled={myOffer.locked}
-              className={`w-full py-2 text-xs font-bold rounded-lg flex items-center justify-center gap-1.5 touch-manipulation active:scale-95 transition-all ${
-                myOffer.locked ? 'bg-slate-700/50 text-slate-500' : 'bg-blue-600 hover:bg-blue-500 text-white'
-              }`}
+              onClick={lockTrade}
+              className="w-full"
             >
               <Lock size={12} /> {myOffer.locked ? 'Locked' : 'Lock Offer'}
-            </button>
-          </div>
+            </Button>
+          </Section>
 
-          {/* Their Side */}
-          <div className="space-y-2 relative">
-            <h3 className="text-red-400 font-bold text-xs text-center uppercase tracking-wider">Their Offer</h3>
+          <Section>
+            <Text variant="label" className="text-center uppercase tracking-wider text-red-400">Their Offer</Text>
             <div className="h-24 border-2 border-slate-700/50 rounded-xl bg-slate-800/30 flex items-center justify-center relative overflow-hidden">
               {theirOffer.locked && (
                 <div className="absolute text-2xl text-green-500/40 font-black rotate-12">LOCKED</div>
               )}
-              <span className="text-xs text-slate-500">Their items</span>
+              <Text variant="caption">Their items</Text>
             </div>
             <div className="flex items-center gap-2 bg-slate-800/50 rounded-lg px-3 py-2">
               <Coins size={14} className="text-yellow-400" />
-              <span className="text-slate-300 text-xs flex-1">Zeny</span>
-              <span className="text-xs font-bold text-yellow-400">{theirOffer.zeny}Z</span>
+              <Text variant="body" className="flex-1">Zeny</Text>
+              <Text variant="value" className="text-yellow-400 text-xs">{theirOffer.zeny}Z</Text>
             </div>
-            <div className={`py-2 text-xs font-bold text-center rounded-lg flex items-center justify-center gap-1.5 ${
-              theirOffer.locked ? 'bg-green-600/20 text-green-400 border border-green-500/30' : 'bg-slate-800/50 text-slate-500'
-            }`}>
-              <Check size={12} /> {theirOffer.locked ? 'Ready' : 'Waiting...'}
-            </div>
-          </div>
+            <Badge
+              variant={theirOffer.locked ? 'success' : 'default'}
+              size="md"
+              className="w-full text-center justify-center"
+            >
+              <Check size={12} className="inline mr-1" /> {theirOffer.locked ? 'Ready' : 'Waiting...'}
+            </Badge>
+          </Section>
         </div>
 
-        <button
-          onClick={acceptTrade}
+        <Button
+          variant="success"
+          size="lg"
           disabled={!canAccept || myOffer.accepted}
-          className={`w-full mt-4 py-3 font-bold text-sm rounded-xl flex items-center justify-center gap-2 touch-manipulation active:scale-95 transition-all ${
-            canAccept && !myOffer.accepted
-              ? 'bg-green-600 hover:bg-green-500 text-white shadow-lg shadow-green-900/30'
-              : 'bg-slate-800/50 text-slate-500'
-          }`}
+          onClick={acceptTrade}
+          className="w-full mt-4"
         >
           <Check size={16} /> {myOffer.accepted ? 'Accepted' : 'Complete Trade'}
-        </button>
-      </BottomSheet>
+        </Button>
+      </Modal>
     );
   }
 

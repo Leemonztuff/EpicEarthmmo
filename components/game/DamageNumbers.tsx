@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useRef, useMemo } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Text } from '@react-three/drei';
 import { useGameStore } from '@/store/useGameStore';
@@ -7,37 +7,65 @@ import { DamageText } from '@/types/game';
 function DamageNumber({ damage }: { damage: DamageText }) {
   const ref = useRef<any>(null);
   const startTime = useRef(0);
+  const initialPos = useRef({ x: damage.position.x, y: damage.position.y, z: damage.position.z });
+
+  const isCritical = damage.amount >= 15;
+  const isHeal = damage.color.includes('green') || damage.color.includes('4ade80');
+  const isPlayerDamage = damage.color.includes('ff4444') || damage.color.includes('red');
+
+  const fontSize = useMemo(() => {
+    if (isCritical) return 0.7;
+    if (isHeal) return 0.55;
+    return 0.45;
+  }, [isCritical, isHeal]);
 
   useFrame((state) => {
     if (!ref.current) return;
     if (startTime.current === 0) startTime.current = state.clock.elapsedTime;
     const elapsed = state.clock.elapsedTime - startTime.current;
 
-    ref.current.position.y = damage.position.y + elapsed * 2;
-    ref.current.material.opacity = Math.max(0, 1 - elapsed * 1.5);
+    const floatSpeed = isCritical ? 2.5 : 1.8;
+    const fadeStart = isCritical ? 0.5 : 0.8;
+    const fadeDuration = isCritical ? 0.8 : 0.6;
+
+    ref.current.position.y = initialPos.current.y + elapsed * floatSpeed;
+    ref.current.position.x = initialPos.current.x + Math.sin(elapsed * 3) * 0.05;
+
+    const opacity = elapsed < fadeStart ? 1 : Math.max(0, 1 - (elapsed - fadeStart) / fadeDuration);
+    ref.current.material.opacity = opacity;
+
+    if (isCritical) {
+      const scale = 1 + Math.sin(elapsed * 10) * 0.1 * Math.max(0, 1 - elapsed * 2);
+      ref.current.scale.setScalar(scale);
+    }
   });
+
+  const displayColor = isCritical ? '#ffcc00' : damage.color;
+  const outlineColor = isCritical ? '#8B4513' : 'black';
+  const outlineWidth = isCritical ? 0.08 : 0.04;
 
   return (
     <Text
       ref={ref}
-      position={[damage.position.x, damage.position.y, damage.position.z]}
-      fontSize={0.5}
-      color={damage.color}
-      outlineWidth={0.05}
-      outlineColor="black"
-      fontWeight="bold"
+      position={[initialPos.current.x, initialPos.current.y, initialPos.current.z]}
+      fontSize={fontSize}
+      color={displayColor}
+      outlineWidth={outlineWidth}
+      outlineColor={outlineColor}
+      fontWeight={isCritical ? '900' : 'bold'}
+      anchorX="center"
+      anchorY="middle"
       material-transparent
     >
-      {damage.amount}
+      {isCritical ? `💥 ${damage.amount}` : damage.amount}
     </Text>
   );
 }
 
 export function DamageNumbers() {
   const damages = useGameStore((state) => state.damages);
-  
-  // Only render damages from the last 1.5 seconds
-  const activeDamages = damages.filter(d => Date.now() - d.timestamp < 1500);
+
+  const activeDamages = damages.filter(d => Date.now() - d.timestamp < 2000);
 
   return (
     <group>

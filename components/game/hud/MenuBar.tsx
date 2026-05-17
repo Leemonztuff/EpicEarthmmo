@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { useGameStore } from '@/store/useGameStore';
+import { Button } from '@/components/ui';
 import { User, Backpack, Swords, Settings, MessageSquare } from 'lucide-react';
 
 interface MenuBarProps {
@@ -14,45 +15,38 @@ export function MenuBar({ onToggleChat, onOpenSettings }: MenuBarProps) {
   const toggleUI = useGameStore((state) => state.toggleUI);
 
   const buttons = [
-    { id: 'isStatsOpen' as const, icon: User, label: 'Stats', color: 'text-amber-400' },
-    { id: 'isInventoryOpen' as const, icon: Backpack, label: 'Items', color: 'text-emerald-400' },
-    { id: 'isSkillsOpen' as const, icon: Swords, label: 'Skills', color: 'text-purple-400' },
+    { id: 'isStatsOpen' as const, icon: User, color: 'text-amber-400' },
+    { id: 'isInventoryOpen' as const, icon: Backpack, color: 'text-emerald-400' },
+    { id: 'isSkillsOpen' as const, icon: Swords, color: 'text-purple-400' },
   ];
 
   return (
     <div className="pointer-events-auto select-none">
       <div className="flex items-center gap-1.5">
-        <button
-          onClick={onToggleChat}
-          className="w-10 h-10 rounded-xl bg-slate-900/80 border border-slate-700/60 flex items-center justify-center text-slate-300 hover:text-white hover:bg-slate-800/80 touch-manipulation active:scale-95 transition-all shadow-lg"
-        >
+        <Button variant="icon" size="icon" onClick={onToggleChat}>
           <MessageSquare size={18} />
-        </button>
+        </Button>
 
         {buttons.map(btn => {
           const isOpen = ui[btn.id];
           const Icon = btn.icon;
           return (
-            <button
+            <Button
               key={btn.id}
+              variant="icon"
+              size="icon"
+              active={isOpen}
               onClick={() => toggleUI(btn.id)}
-              className={`w-10 h-10 rounded-xl border flex items-center justify-center touch-manipulation active:scale-95 transition-all shadow-lg ${
-                isOpen
-                  ? `${btn.color} border-current bg-slate-800/90`
-                  : 'text-slate-400 border-slate-700/60 bg-slate-900/80 hover:text-white hover:bg-slate-800/80'
-              }`}
+              className={isOpen ? btn.color : ''}
             >
               <Icon size={18} />
-            </button>
+            </Button>
           );
         })}
 
-        <button
-          onClick={onOpenSettings}
-          className="w-10 h-10 rounded-xl bg-slate-900/80 border border-slate-700/60 flex items-center justify-center text-slate-300 hover:text-white hover:bg-slate-800/80 touch-manipulation active:scale-95 transition-all shadow-lg"
-        >
+        <Button variant="icon" size="icon" onClick={onOpenSettings}>
           <Settings size={18} />
-        </button>
+        </Button>
       </div>
     </div>
   );

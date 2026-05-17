@@ -5,19 +5,21 @@ import { useGameStore } from '@/store/useGameStore';
 import { useNetworkStore } from '@/store/useNetworkStore';
 
 const INPUT_RATE_MS = 50;
-let inputSeq = 0;
 
 export function NetworkManager() {
   const initSocket = useNetworkStore(state => state.initSocket);
   const player = useGameStore(state => state.player);
+  const inputSeqRef = useRef(0);
 
   useEffect(() => {
+    inputSeqRef.current = 0;
     initSocket(player.name);
     const inputRef = setInterval(() => {
       const { inputDirection } = useGameStore.getState();
       const { socket, sendInput } = useNetworkStore.getState();
       if (!socket?.connected) return;
-      sendInput({ dirX: inputDirection.x, dirZ: inputDirection.z, seq: ++inputSeq });
+      inputSeqRef.current++;
+      sendInput({ dirX: inputDirection.x, dirZ: inputDirection.z, seq: inputSeqRef.current });
     }, INPUT_RATE_MS);
 
     return () => {
