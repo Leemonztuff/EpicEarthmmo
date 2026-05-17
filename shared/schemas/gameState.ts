@@ -32,6 +32,18 @@ export const InventoryItemSchema = z.object({
   description: z.string(),
 });
 
+export const EquipmentSlotSchema = z.enum(['weapon', 'armor', 'shield', 'headTop', 'shoes', 'accessory1']);
+export type EquipmentSlot = z.infer<typeof EquipmentSlotSchema>;
+
+export const EquippedItemsSchema = z.object({
+  weapon: z.string().optional(),
+  armor: z.string().optional(),
+  shield: z.string().optional(),
+  headTop: z.string().optional(),
+  shoes: z.string().optional(),
+  accessory1: z.string().optional(),
+});
+
 export const PlayerStateSchema = z.object({
   name: z.string(),
   baseLevel: z.number(),
@@ -48,6 +60,7 @@ export const PlayerStateSchema = z.object({
   skillPoints: z.number(),
   unlockedSkills: z.array(z.string()),
   inventory: z.array(InventoryItemSchema),
+  equippedItems: EquippedItemsSchema.optional(),
 });
 
 export const EnemyStateSchema = z.object({

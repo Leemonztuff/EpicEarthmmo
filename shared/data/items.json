@@ -91,5 +91,93 @@
       "value": 15
     },
     "maxStack": 99
+  },
+  {
+    "id": "iron_sword",
+    "name": "Iron Sword",
+    "type": "equip",
+    "description": "A basic sword forged from iron.",
+    "equipStats": { "str": 2, "dex": 1 },
+    "maxStack": 1
+  },
+  {
+    "id": "steel_sword",
+    "name": "Steel Sword",
+    "type": "equip",
+    "description": "A well-crafted steel sword.",
+    "equipStats": { "str": 4, "dex": 2 },
+    "maxStack": 1
+  },
+  {
+    "id": "cotton_shirt",
+    "name": "Cotton Shirt",
+    "type": "equip",
+    "description": "A light cotton shirt.",
+    "equipStats": { "vit": 1 },
+    "maxStack": 1
+  },
+  {
+    "id": "chain_mail",
+    "name": "Chain Mail",
+    "type": "equip",
+    "description": "Armor made of interlocking metal rings.",
+    "equipStats": { "vit": 3, "agi": -1 },
+    "maxStack": 1
+  },
+  {
+    "id": "wooden_shield",
+    "name": "Wooden Shield",
+    "type": "equip",
+    "description": "A sturdy wooden shield.",
+    "equipStats": { "vit": 2 },
+    "maxStack": 1
+  },
+  {
+    "id": "iron_shield",
+    "name": "Iron Shield",
+    "type": "equip",
+    "description": "A heavy iron shield.",
+    "equipStats": { "vit": 4, "agi": -2 },
+    "maxStack": 1
+  },
+  {
+    "id": "leather_boots",
+    "name": "Leather Boots",
+    "type": "equip",
+    "description": "Comfortable leather boots.",
+    "equipStats": { "agi": 2 },
+    "maxStack": 1
+  },
+  {
+    "id": "steel_boots",
+    "name": "Steel Boots",
+    "type": "equip",
+    "description": "Heavy steel boots.",
+    "equipStats": { "vit": 2, "agi": 1 },
+    "maxStack": 1
+  },
+  {
+    "id": "silver_tiara",
+    "name": "Silver Tiara",
+    "type": "equip",
+    "description": "A delicate silver tiara.",
+    "equipStats": { "int": 3, "luk": 1 },
+    "maxStack": 1
+  },
+  {
+    "id": "gold_ring",
+    "name": "Gold Ring",
+    "type": "equip",
+    "description": "A simple gold ring.",
+    "equipStats": { "luk": 3, "dex": 1 },
+    "maxStack": 1
+  },
+  {
+    "id": "magic_staff",
+    "name": "Magic Staff",
+    "type": "equip",
+    "description": "A staff imbued with magic.",
+    "equipStats": { "int": 5, "dex": 2 },
+    "maxStack": 1
   }
 ]

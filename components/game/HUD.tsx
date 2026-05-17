@@ -13,6 +13,7 @@ import { StatsWindow } from './ui/StatsWindow';
 import { SkillsWindow } from './ui/SkillsWindow';
 import { InventoryWindow } from './ui/InventoryWindow';
 import { JobChangeWindow } from './ui/JobChangeWindow';
+import { EquipmentWindow } from './ui/EquipmentWindow';
 import { TradeManager } from './TradeManager';
 import { MapNameDisplay } from './ui/MapNameDisplay';
 import { ChatBox } from './ChatBox';
@@ -20,12 +21,13 @@ import { ToastContainer } from '@/components/ui';
 import { LoadingScreen } from './LoadingScreen';
 import { ExpPopups } from './ExpPopups';
 
-export function HUD() {
+export function HUD({ characterName }: { characterName?: string }) {
   const player = useGameStore((state) => state.player);
   const ui = useGameStore((state) => state.ui);
   const toggleUI = useGameStore((state) => state.toggleUI);
   const [chatOpen, setChatOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [equipmentOpen, setEquipmentOpen] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -35,6 +37,7 @@ export function HUD() {
 
   const handleToggleChat = () => setChatOpen(prev => !prev);
   const handleOpenSettings = () => setSettingsOpen(true);
+  const handleOpenEquipment = () => setEquipmentOpen(true);
 
   if (loading) {
     return <LoadingScreen />;
@@ -61,6 +64,7 @@ export function HUD() {
         {ui.isStatsOpen && <StatsWindow onClose={() => toggleUI('isStatsOpen')} />}
         {ui.isSkillsOpen && <SkillsWindow onClose={() => toggleUI('isSkillsOpen')} />}
         {ui.isInventoryOpen && <InventoryWindow onClose={() => toggleUI('isInventoryOpen')} />}
+        {equipmentOpen && <EquipmentWindow onClose={() => setEquipmentOpen(false)} />}
         {player.jobClass === 'Novice' && player.jobLevel >= 10 && <JobChangeWindow />}
         <TradeManager />
         {settingsOpen && <SettingsPanel onClose={() => setSettingsOpen(false)} />}
@@ -77,7 +81,7 @@ export function HUD() {
           </div>
           <div className="flex flex-col items-end gap-2">
             <Hotbar />
-            <MenuBar onToggleChat={handleToggleChat} onOpenSettings={handleOpenSettings} />
+            <MenuBar onToggleChat={handleToggleChat} onOpenSettings={handleOpenSettings} onOpenEquipment={handleOpenEquipment} />
           </div>
         </div>
       </div>
