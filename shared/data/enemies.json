@@ -10,7 +10,14 @@
         { "itemId": "jellopy", "chance": 0.5, "minAmount": 1, "maxAmount": 1 }
       ],
       "expBase": 10,
-      "expJob": 5
+      "expJob": 5,
+      "behavior": "passive",
+      "agroRange": 6,
+      "attackRange": 2.0,
+      "attackDamage": 3,
+      "attackCooldownMs": 2000,
+      "moveSpeed": 2,
+      "patrolPauseMs": 3000
     },
     {
       "id": "fabre",
@@ -23,7 +30,14 @@
         { "itemId": "plant_stem", "chance": 0.15, "minAmount": 1, "maxAmount": 1 }
       ],
       "expBase": 20,
-      "expJob": 10
+      "expJob": 10,
+      "behavior": "aggressive",
+      "agroRange": 8,
+      "attackRange": 2.5,
+      "attackDamage": 5,
+      "attackCooldownMs": 1500,
+      "moveSpeed": 3,
+      "patrolPauseMs": 1500
     },
     {
       "id": "pupa",
@@ -36,7 +50,74 @@
         { "itemId": "silky_cocoon", "chance": 0.1, "minAmount": 1, "maxAmount": 1 }
       ],
       "expBase": 30,
-      "expJob": 15
+      "expJob": 15,
+      "behavior": "passive",
+      "agroRange": 5,
+      "attackRange": 2.0,
+      "attackDamage": 8,
+      "attackCooldownMs": 2500,
+      "moveSpeed": 1.5,
+      "patrolPauseMs": 4000
+    },
+    {
+      "id": "lunatic",
+      "name": "Lunatic",
+      "level": 2,
+      "hp": 25,
+      "sprite": "lunatic",
+      "drops": [
+        { "itemId": "jellopy", "chance": 0.3, "minAmount": 1, "maxAmount": 1 },
+        { "itemId": "rabbit_tail", "chance": 0.08, "minAmount": 1, "maxAmount": 1 }
+      ],
+      "expBase": 15,
+      "expJob": 8,
+      "behavior": "passive",
+      "agroRange": 4,
+      "attackRange": 1.8,
+      "attackDamage": 4,
+      "attackCooldownMs": 1800,
+      "moveSpeed": 4,
+      "patrolPauseMs": 1000
+    },
+    {
+      "id": "wolf",
+      "name": "Wolf",
+      "level": 5,
+      "hp": 60,
+      "sprite": "wolf",
+      "drops": [
+        { "itemId": "wolf_claw", "chance": 0.25, "minAmount": 1, "maxAmount": 1 },
+        { "itemId": "wolf_fur", "chance": 0.15, "minAmount": 1, "maxAmount": 1 }
+      ],
+      "expBase": 50,
+      "expJob": 25,
+      "behavior": "aggressive",
+      "agroRange": 10,
+      "attackRange": 2.5,
+      "attackDamage": 12,
+      "attackCooldownMs": 1200,
+      "moveSpeed": 5,
+      "patrolPauseMs": 800
+    },
+    {
+      "id": "spore",
+      "name": "Spore",
+      "level": 4,
+      "hp": 40,
+      "sprite": "spore",
+      "drops": [
+        { "itemId": "spore_dust", "chance": 0.35, "minAmount": 1, "maxAmount": 2 },
+        { "itemId": "mushroom_cap", "chance": 0.12, "minAmount": 1, "maxAmount": 1 }
+      ],
+      "expBase": 35,
+      "expJob": 18,
+      "behavior": "assist",
+      "agroRange": 7,
+      "attackRange": 2.0,
+      "attackDamage": 7,
+      "attackCooldownMs": 1800,
+      "moveSpeed": 2.5,
+      "patrolPauseMs": 2500
     }
   ],
   "spawns": [

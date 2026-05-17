@@ -85,6 +85,7 @@ interface GameStore {
   changeJob: (newJob: string) => void;
   setActiveSkill: (skillId: string | null) => void;
   setSp: (sp: number) => void;
+  updatePlayerHp: (hp: number) => void;
   saveProgress: () => Promise<void>;
   loadProgress: () => Promise<void>;
 }
@@ -109,6 +110,7 @@ export const useGameStore = create<GameStore>()((set, get) => ({
   setSelectedTargetId: (id) => set({ selectedTargetId: id }),
   setActiveSkill: (skillId) => set({ activeSkill: skillId }),
   setSp: (sp) => set(s => ({ player: { ...s.player, sp } })),
+  updatePlayerHp: (hp) => set(s => ({ player: { ...s.player, hp } })),
   toggleUI: (window) => set((state) => ({ ui: { ...state.ui, [window]: !state.ui[window] } })),
   updateEnemyState: (id, partialState) => set((state) => {
     const enemy = state.enemies[id];

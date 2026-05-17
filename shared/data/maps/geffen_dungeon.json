@@ -56,6 +56,20 @@
       "radius": 7,
       "count": 4,
       "respawnSeconds": 28
+    },
+    {
+      "enemyId": "spore",
+      "center": { "x": 15, "z": 5 },
+      "radius": 6,
+      "count": 4,
+      "respawnSeconds": 22
+    },
+    {
+      "enemyId": "wolf",
+      "center": { "x": -5, "z": -20 },
+      "radius": 8,
+      "count": 2,
+      "respawnSeconds": 40
     }
   ],
   "decorations": [

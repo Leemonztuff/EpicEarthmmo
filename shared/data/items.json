@@ -52,5 +52,44 @@
     "type": "misc",
     "description": "A delicate cocoon spun by a Pupa.",
     "maxStack": 99
+  },
+  {
+    "id": "rabbit_tail",
+    "name": "Rabbit Tail",
+    "type": "misc",
+    "description": "A fluffy tail from a Lunatic.",
+    "maxStack": 99
+  },
+  {
+    "id": "wolf_claw",
+    "name": "Wolf Claw",
+    "type": "misc",
+    "description": "A sharp claw from a Wolf.",
+    "maxStack": 99
+  },
+  {
+    "id": "wolf_fur",
+    "name": "Wolf Fur",
+    "type": "misc",
+    "description": "Thick fur from a Wolf.",
+    "maxStack": 99
+  },
+  {
+    "id": "spore_dust",
+    "name": "Spore Dust",
+    "type": "misc",
+    "description": "Irritating dust from a Spore.",
+    "maxStack": 99
+  },
+  {
+    "id": "mushroom_cap",
+    "name": "Mushroom Cap",
+    "type": "usable",
+    "description": "Restores 15 HP but may cause confusion.",
+    "effect": {
+      "type": "restore_hp",
+      "value": 15
+    },
+    "maxStack": 99
   }
 ]

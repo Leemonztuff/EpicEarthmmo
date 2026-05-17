@@ -21,7 +21,14 @@
   },
   "enemy": {
     "respawnMs": 5000,
-    "respawnGraceMs": 200
+    "respawnGraceMs": 200,
+    "defaultAgroRange": 8,
+    "defaultAttackRange": 2.5,
+    "defaultAttackCooldownMs": 1500,
+    "defaultMoveSpeed": 3,
+    "defaultPatrolPauseMs": 2000,
+    "deaggroRange": 20,
+    "returnSpeedMultiplier": 1.5
   },
   "stats": {
     "cap": 99

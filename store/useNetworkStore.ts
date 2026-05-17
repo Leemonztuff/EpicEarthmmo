@@ -245,6 +245,26 @@ export const useNetworkStore = create<NetworkStore>()((set, get) => ({
       gs.setSelectedTargetId(null);
     });
 
+    newSocket.on('playerDamaged', (data: { enemyId: string; enemyName: string; damage: number; hp: number; maxHp: number; isDead: boolean }) => {
+      const gs = useGameStore.getState();
+      gs.updatePlayerHp(data.hp);
+
+      const pos = {
+        x: gs.position.x + (Math.random() * 0.5 - 0.25),
+        y: gs.position.y + 1.2,
+        z: gs.position.z,
+      };
+      gs.addDamageText(data.damage, pos, '#ff4444');
+    });
+
+    newSocket.on('playerDied', (data: { respawnPosition: { x: number; y: number; z: number } }) => {
+      const gs = useGameStore.getState();
+      gs.setPosition(data.respawnPosition);
+      gs.updatePlayerHp(gs.player.maxHp);
+      gs.setSp(gs.player.maxSp);
+      gs.setSelectedTargetId(null);
+    });
+
     // ── Trade Events ────────────────────────────────
     newSocket.on('tradeRequested', (data: { from: string; name: string }) => {
       set({ tradeRequest: { from: data.from, name: data.name } });
