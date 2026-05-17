@@ -3,9 +3,15 @@
 import React from 'react';
 import { useGameStore } from '@/store/useGameStore';
 import { gameData } from '@/shared/loader';
-import { ProgressBar, ThinBar, Avatar } from '@/components/ui';
+import { ProgressBar, ThinBar, Avatar, StatusEffectBar, StatusEffect } from '@/components/ui';
+import { Heart, Zap, Shield, Sword } from 'lucide-react';
 
 const { balance } = gameData;
+
+const mockStatusEffects = [
+  { icon: <Heart size={16} />, name: 'HP Regen', duration: 15000, variant: 'buff' as const, size: 'sm' as const },
+  { icon: <Zap size={16} />, name: 'SP Regen', duration: 12000, variant: 'buff' as const, size: 'sm' as const },
+];
 
 export function PlayerFrame() {
   const player = useGameStore((state) => state.player);
@@ -41,6 +47,8 @@ export function PlayerFrame() {
           </div>
         </div>
       </div>
+
+      <StatusEffectBar effects={mockStatusEffects} />
     </div>
   );
 }

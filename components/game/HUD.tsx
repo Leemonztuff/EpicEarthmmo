@@ -18,6 +18,7 @@ import { MapNameDisplay } from './ui/MapNameDisplay';
 import { ChatBox } from './ChatBox';
 import { ToastContainer } from '@/components/ui';
 import { LoadingScreen } from './LoadingScreen';
+import { ExpPopups } from './ExpPopups';
 
 export function HUD() {
   const player = useGameStore((state) => state.player);
@@ -42,6 +43,7 @@ export function HUD() {
   return (
     <div className="absolute inset-0 pointer-events-none z-10 w-full h-full flex flex-col">
       <ToastContainer />
+      <ExpPopups />
       <MapNameDisplay />
 
       <div className="flex items-start justify-between px-3 pt-2 pointer-events-auto">

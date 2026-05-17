@@ -5,6 +5,8 @@ import type { EnemyState } from '@/shared/schemas/gameState';
 import { gameData } from '@/shared/loader';
 import { addCombatLog } from '@/components/game/hud/CombatLog';
 import { showToast } from '@/components/ui';
+import { triggerShake } from '@/components/game/ScreenShake';
+import { showExpGain } from '@/components/game/ExpPopups';
 
 const { balance } = gameData;
 
@@ -247,6 +249,8 @@ export const useNetworkStore = create<NetworkStore>()((set, get) => ({
       gs.setSp(data.newSp);
       gs.updateEnemyState(data.targetId, { hp: data.hp, isDead: data.isDead });
       gs.gainExp(data.expBase, data.expJob);
+      showExpGain(data.expBase, 'base');
+      showExpGain(data.expJob, 'job');
       if (data.loot.length > 0) {
         gs.gainLoot(data.loot);
         const lootNames = data.loot.map(l => `${l.name} x${l.amount}`).join(', ');
@@ -260,6 +264,7 @@ export const useNetworkStore = create<NetworkStore>()((set, get) => ({
       const gs = useGameStore.getState();
       gs.updatePlayerHp(data.hp);
       addCombatLog(`${data.enemyName} hits you for ${data.damage} damage!`, 'text-red-400');
+      triggerShake(data.damage > 10 ? 0.15 : 0.08, 0.2);
 
       const pos = {
         x: gs.position.x + (Math.random() * 0.5 - 0.25),
