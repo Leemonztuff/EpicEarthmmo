@@ -18,3 +18,18 @@ html, body {
   -webkit-overflow-scrolling: none;
   padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
 }
+
+@keyframes slide-up {
+  from {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.animate-slide-up {
+  animation: slide-up 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}

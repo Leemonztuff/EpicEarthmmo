@@ -1,113 +1,93 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import { useGameStore } from '@/store/useGameStore';
-import { User, Backpack, Swords } from 'lucide-react';
-import { ChatBox } from './ChatBox';
-import { TradeManager } from './TradeManager';
-import { JobChangeWindow } from './ui/JobChangeWindow';
-import { InventoryWindow } from './ui/InventoryWindow';
+import { PlayerFrame } from './hud/PlayerFrame';
+import { TargetFrame } from './hud/TargetFrame';
+import { Minimap } from './hud/Minimap';
+import { Hotbar } from './hud/Hotbar';
+import { MenuBar } from './hud/MenuBar';
+import { CombatLog, addCombatLog } from './hud/CombatLog';
+import { SettingsPanel } from './hud/SettingsPanel';
 import { StatsWindow } from './ui/StatsWindow';
 import { SkillsWindow } from './ui/SkillsWindow';
+import { InventoryWindow } from './ui/InventoryWindow';
+import { JobChangeWindow } from './ui/JobChangeWindow';
+import { TradeManager } from './TradeManager';
 import { MapNameDisplay } from './ui/MapNameDisplay';
-import { gameData } from '@/shared/loader';
-
-const { balance, skills } = gameData;
+import { ChatBox } from './ChatBox';
 
 export function HUD() {
   const player = useGameStore((state) => state.player);
   const ui = useGameStore((state) => state.ui);
   const toggleUI = useGameStore((state) => state.toggleUI);
-  const activeSkill = useGameStore((state) => state.activeSkill);
-  const setActiveSkill = useGameStore((state) => state.setActiveSkill);
-  const saveProgress = useGameStore((state) => state.saveProgress);
-  const loadProgress = useGameStore((state) => state.loadProgress);
+  const [chatOpen, setChatOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
-  const hpPct = player.maxHp > 0 ? (player.hp / player.maxHp) * 100 : 0;
-  const spPct = player.maxSp > 0 ? (player.sp / player.maxSp) * 100 : 0;
-  const baseExpThreshold = player.baseLevel * balance.progression.baseLevelUpThreshold.multiplier;
-  const jobExpThreshold = player.jobLevel * balance.progression.jobLevelUpThreshold.multiplier;
-  const baseExpPct = player.baseLevel > 0 && baseExpThreshold > 0 ? (player.baseExp / baseExpThreshold) * 100 : 0;
-  const jobExpPct = player.jobLevel > 0 && jobExpThreshold > 0 ? (player.jobExp / jobExpThreshold) * 100 : 0;
+  const handleToggleChat = () => setChatOpen(prev => !prev);
+  const handleOpenSettings = () => setSettingsOpen(true);
 
   return (
-    <div className="absolute inset-0 pointer-events-none flex flex-col justify-between p-4 z-10 w-full h-full">
+    <div className="absolute inset-0 pointer-events-none z-10 w-full h-full flex flex-col">
       <MapNameDisplay />
-      <div className="flex gap-2 items-start pointer-events-auto">
-        <div className="bg-slate-900/80 border border-slate-700 p-2 rounded-md shadow-md text-white flex gap-3 w-64">
-           <div className="w-12 h-12 bg-slate-700/50 rounded border border-slate-600"></div>
-           <div className="flex flex-col gap-1 flex-1">
-              <div className="font-bold text-sm">{player.name}</div>
-              <div className="text-xs text-slate-300">Lv. {player.baseLevel} {player.jobClass} (Job {player.jobLevel})</div>
-              {/* HP/SP Bars */}
-              <div className="flex gap-1 w-full mt-1">
-                 <div className="h-2.5 w-full bg-slate-700 rounded-full overflow-hidden">
-                    <div className="h-full bg-green-500" style={{ width: `${hpPct}%` }}></div>
-                 </div>
-                 <div className="h-2.5 w-full bg-slate-700 rounded-full overflow-hidden">
-                    <div className="h-full bg-blue-500" style={{ width: `${spPct}%` }}></div>
-                 </div>
-              </div>
-              {/* EXP Bars */}
-              <div className="flex gap-1 w-full text-[8px] mt-0.5">
-                  <div className="h-1.5 w-full bg-slate-700 rounded-full overflow-hidden relative group">
-                     <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100">{player.baseExp}/{baseExpThreshold}</div>
-                     <div className="h-full bg-yellow-400" style={{ width: `${baseExpPct}%` }}></div>
-                  </div>
-                 <div className="h-1 w-full bg-slate-700 rounded-full overflow-hidden relative group">
-                    <div className="h-full bg-purple-400" style={{ width: `${jobExpPct}%` }}></div>
-                 </div>
-              </div>
-           </div>
+
+      {/* Top Bar */}
+      <div className="flex items-start justify-between px-3 pt-2 pointer-events-auto">
+        <div className="flex items-start gap-2">
+          <PlayerFrame />
         </div>
-        <div className="flex flex-col gap-1">
-          <button onClick={saveProgress} className="bg-blue-600 hover:bg-blue-500 text-white text-xs px-2 py-1 rounded shadow-sm">Save</button>
-          <button onClick={loadProgress} className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs px-2 py-1 rounded shadow-sm">Load</button>
-        </div>
+        <Minimap />
       </div>
 
-      <div className="flex-1 relative w-full h-full my-4 pointer-events-none">
-         {ui.isStatsOpen && <StatsWindow onClose={() => toggleUI('isStatsOpen')} />}
-         {ui.isSkillsOpen && <SkillsWindow onClose={() => toggleUI('isSkillsOpen')} />}
-         {ui.isInventoryOpen && <InventoryWindow onClose={() => toggleUI('isInventoryOpen')} />}
-         {player.jobClass === 'Novice' && player.jobLevel >= 10 && <JobChangeWindow />}
-         <TradeManager />
+      {/* Target Frame */}
+      <div className="px-3 pt-1 pointer-events-auto">
+        <TargetFrame />
       </div>
 
-      <div className="flex justify-between items-end gap-2 pointer-events-none w-full">
-        <div className="flex flex-col justify-end">
-          <ChatBox />
-        </div>
-        <div className="flex flex-col gap-2 pointer-events-auto items-end">
-          {/* Quick Skill Bar */}
-          {player.unlockedSkills.map((skillId) => {
-            const skillDef = skills.find(s => s.id === skillId);
-            if (!skillDef) return null;
-            return (
-              <div className="flex gap-2" key={skillId}>
-                <button
-                  onClick={() => setActiveSkill(activeSkill === skillId ? null : skillId)}
-                  className={`w-12 h-12 rounded-lg flex items-center justify-center border font-bold text-xs shadow-md transition-transform active:scale-95 ${activeSkill === skillId ? 'bg-red-600 text-white border-red-400 scale-110' : 'bg-slate-800 text-slate-300 border-slate-600 hover:bg-slate-700'}`}
-                >
-                  {skillDef.name.split(' ')[0].toUpperCase()}<br/>({skillDef.spCost} SP)
-                </button>
-              </div>
-            );
-          })}
+      {/* Middle Area - Windows */}
+      <div className="flex-1 relative w-full h-full">
+        {ui.isStatsOpen && <StatsWindow onClose={() => toggleUI('isStatsOpen')} />}
+        {ui.isSkillsOpen && <SkillsWindow onClose={() => toggleUI('isSkillsOpen')} />}
+        {ui.isInventoryOpen && <InventoryWindow onClose={() => toggleUI('isInventoryOpen')} />}
+        {player.jobClass === 'Novice' && player.jobLevel >= 10 && <JobChangeWindow />}
+        <TradeManager />
+        {settingsOpen && <SettingsPanel onClose={() => setSettingsOpen(false)} />}
+      </div>
 
-          <div className="flex gap-3 bg-slate-900/80 p-2 rounded-md border border-slate-700">
-             <button onClick={() => toggleUI('isStatsOpen')} className={`w-12 h-12 rounded-lg flex items-center justify-center border hover:bg-slate-600 ${ui.isStatsOpen ? 'text-amber-400 border-amber-400 bg-slate-800' : 'text-slate-300 border-slate-600'}`}>
-                <User size={24} />
-             </button>
-             <button onClick={() => toggleUI('isInventoryOpen')} className={`w-12 h-12 rounded-lg flex items-center justify-center border hover:bg-slate-600 ${ui.isInventoryOpen ? 'text-amber-400 border-amber-400 bg-slate-800' : 'text-slate-300 border-slate-600'}`}>
-                <Backpack size={24} />
-             </button>
-             <button onClick={() => toggleUI('isSkillsOpen')} className={`w-12 h-12 rounded-lg flex items-center justify-center border hover:bg-slate-600 ${ui.isSkillsOpen ? 'text-amber-400 border-amber-400 bg-slate-800' : 'text-slate-300 border-slate-600'}`}>
-                <Swords size={24} />
-             </button>
+      {/* Bottom Bar */}
+      <div className="px-3 pb-3 space-y-2">
+        {/* Combat Log */}
+        <div className="flex justify-start pointer-events-auto">
+          <CombatLog />
+        </div>
+
+        {/* Hotbar + Menu */}
+        <div className="flex items-end justify-between">
+          <div className="pointer-events-auto">
+            <ChatBoxWrapper isOpen={chatOpen} onToggle={handleToggleChat} />
+          </div>
+          <div className="flex flex-col items-end gap-2">
+            <Hotbar />
+            <MenuBar onToggleChat={handleToggleChat} onOpenSettings={handleOpenSettings} />
           </div>
         </div>
       </div>
     </div>
   );
+}
+
+function ChatBoxWrapper({ isOpen, onToggle }: { isOpen: boolean; onToggle: () => void }) {
+  if (!isOpen) {
+    return (
+      <button
+        onClick={onToggle}
+        className="w-10 h-10 rounded-xl bg-slate-900/80 border border-slate-700/60 flex items-center justify-center text-slate-300 hover:text-white hover:bg-slate-800/80 touch-manipulation active:scale-95 transition-all shadow-lg"
+      >
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+        </svg>
+      </button>
+    );
+  }
+  return <ChatBox />;
 }

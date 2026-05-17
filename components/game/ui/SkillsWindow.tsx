@@ -1,8 +1,8 @@
 import React from 'react';
 import { useGameStore } from '@/store/useGameStore';
-import { Check, Lock } from 'lucide-react';
+import { Check, Lock, Zap } from 'lucide-react';
 import { gameData } from '@/shared/loader';
-import { WindowFrame } from './WindowFrame';
+import { BottomSheet } from '../hud/BottomSheet';
 
 const { skills } = gameData;
 
@@ -11,13 +11,8 @@ export function SkillsWindow({ onClose }: { onClose: () => void }) {
   const unlockSkill = useGameStore((state) => state.unlockSkill);
 
   return (
-    <WindowFrame title="Arbol de Habilidades" onClose={onClose} style={{ right: '10px', top: '10px', width: 'min(90vw, 320px)', height: 'min(60dvh, 400px)' }}>
-      <div className="flex justify-between items-center bg-blue-100 border border-blue-200 p-2 rounded-sm mb-2 font-sans font-medium text-sm">
-        <span>Puntos de Hab. (SP):</span>
-        <span className="text-blue-700 font-bold">{player.skillPoints}</span>
-      </div>
-
-      <div className="flex-1 overflow-y-auto pr-1 space-y-2 font-sans">
+    <BottomSheet title="Skills" onClose={onClose} subtitle={`Skill Points: ${player.skillPoints}`}>
+      <div className="space-y-2">
         {skills.map((skill) => {
           const isUnlocked = player.unlockedSkills.includes(skill.id) || skill.skillPointCost === 0;
           const meetsReqs = skill.requirements.every(r => player.unlockedSkills.includes(r) || r === 'basic_attack');
@@ -26,33 +21,37 @@ export function SkillsWindow({ onClose }: { onClose: () => void }) {
           return (
             <div
               key={skill.id}
-              className={`p-2 border rounded-md relative overflow-hidden transition-all duration-200 ${
+              className={`p-3 rounded-xl border transition-all ${
                 isUnlocked
-                  ? 'bg-green-50 border-green-300 shadow-sm'
+                  ? 'bg-green-900/20 border-green-500/30'
                   : meetsReqs
-                    ? 'bg-white border-slate-300'
-                    : 'bg-slate-100 border-slate-200 opacity-60'
+                    ? 'bg-slate-800/50 border-slate-700/50'
+                    : 'bg-slate-800/30 border-slate-700/30 opacity-60'
               }`}
             >
-              <div className="flex justify-between items-start mb-1">
-                <div className="font-bold text-sm text-slate-800 flex items-center gap-1.5">
-                  {isUnlocked ? <Check size={14} className="text-green-600" /> : (!meetsReqs && <Lock size={12} className="text-slate-400" />)}
-                  {skill.name}
+              <div className="flex justify-between items-start mb-1.5">
+                <div className="flex items-center gap-2">
+                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+                    isUnlocked ? 'bg-green-600/30' : 'bg-slate-700/50'
+                  }`}>
+                    {isUnlocked ? <Check size={14} className="text-green-400" /> : <Lock size={12} className="text-slate-500" />}
+                  </div>
+                  <div>
+                    <div className="text-white font-bold text-sm">{skill.name}</div>
+                    <div className="text-slate-400 text-[10px]">{skill.description}</div>
+                  </div>
                 </div>
                 {!isUnlocked && (
-                  <div className="text-[10px] font-bold text-blue-600 bg-blue-100 px-1.5 py-0.5 rounded uppercase">
-                    Costo: {skill.skillPointCost} SP
+                  <div className="flex items-center gap-1 bg-blue-600/20 text-blue-400 px-2 py-0.5 rounded-md text-[10px] font-bold">
+                    <Zap size={10} />
+                    {skill.skillPointCost}
                   </div>
                 )}
               </div>
 
-              <div className="text-[11px] text-slate-600 mb-2 leading-tight">
-                {skill.description}
-              </div>
-
               {skill.requirements.length > 0 && !meetsReqs && (
-                <div className="text-[10px] text-red-500 font-medium mb-1">
-                  Requisito: {skill.requirements.map(r => skills.find(s => s.id === r)?.name).join(', ')}
+                <div className="text-[10px] text-red-400 font-medium mb-2 ml-10">
+                  Requires: {skill.requirements.map(r => skills.find(s => s.id === r)?.name).join(', ')}
                 </div>
               )}
 
@@ -60,19 +59,23 @@ export function SkillsWindow({ onClose }: { onClose: () => void }) {
                 <button
                   onClick={() => unlockSkill(skill.id, skill.skillPointCost)}
                   disabled={!canUnlock}
-                  className={`w-full py-1.5 rounded text-[11px] font-bold tracking-wide uppercase transition-colors ${
+                  className={`w-full mt-2 py-2 rounded-lg text-xs font-bold tracking-wide uppercase transition-all touch-manipulation active:scale-95 ${
                     canUnlock
-                      ? 'bg-blue-600 text-white hover:bg-blue-500 shadow-sm active:translate-y-px'
-                      : 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                      ? 'bg-blue-600 text-white hover:bg-blue-500 shadow-lg shadow-blue-900/30'
+                      : 'bg-slate-700/50 text-slate-500 cursor-not-allowed'
                   }`}
                 >
-                  {canUnlock ? 'Desbloquear Hab.' : 'No tienes suficiente SP'}
+                  {canUnlock ? 'Unlock Skill' : 'Not enough SP'}
                 </button>
+              )}
+
+              {isUnlocked && (
+                <div className="mt-2 ml-10 text-[10px] text-green-400 font-medium">Unlocked</div>
               )}
             </div>
           );
         })}
       </div>
-    </WindowFrame>
+    </BottomSheet>
   );
 }
