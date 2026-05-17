@@ -69,12 +69,12 @@ function MapAtmosphere() {
   );
 }
 
-export default function GameScene() {
+export default function GameScene({ characterName }: { characterName?: string }) {
   const mapType = useNetworkStore(state => state.currentMapData?.mapType);
 
   return (
     <div className="w-full h-full" style={{ touchAction: 'none' }}>
-      <NetworkManager />
+      <NetworkManager playerName={characterName || 'Player'} />
       <Canvas shadows orthographic={false} dpr={[1, 2]} camera={{ fov: 50, position: [0, 14, 16], near: 0.1, far: 100 }}>
         <Suspense fallback={null}>
           <MapAtmosphere />

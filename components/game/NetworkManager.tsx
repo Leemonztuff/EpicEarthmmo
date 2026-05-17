@@ -6,14 +6,12 @@ import { useNetworkStore } from '@/store/useNetworkStore';
 
 const INPUT_RATE_MS = 50;
 
-export function NetworkManager() {
+export function NetworkManager({ playerName }: { playerName: string }) {
   const initSocket = useNetworkStore(state => state.initSocket);
-  const player = useGameStore(state => state.player);
-  const inputSeqRef = useRef(0);
 
   useEffect(() => {
     inputSeqRef.current = 0;
-    initSocket(player.name);
+    initSocket(playerName);
     const inputRef = setInterval(() => {
       const { inputDirection } = useGameStore.getState();
       const { socket, sendInput } = useNetworkStore.getState();

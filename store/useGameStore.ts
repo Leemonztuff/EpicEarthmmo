@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { supabase } from '@/lib/supabase';
 import { gameData, applyItemEffect, findItemById, processLevelUp } from '@/shared/loader';
-import type { PlayerStats, InventoryItem, PlayerState, EnemyState, Vector3State, GameUIState } from '@/shared/schemas/gameState';
+import type { PlayerStats, InventoryItem, PlayerState, EnemyState, Vector3State, GameUIState, EquipmentSlot } from '@/shared/schemas/gameState';
 
 const { balance, enemies: enemyData, skills, items, jobs } = gameData;
 
@@ -88,6 +88,10 @@ interface GameStore {
   updatePlayerHp: (hp: number) => void;
   saveProgress: () => Promise<void>;
   loadProgress: () => Promise<void>;
+  loadCharacter: (state: PlayerState) => void;
+  equipItem: (itemId: string, slot: EquipmentSlot) => void;
+  unequipItem: (slot: EquipmentSlot) => void;
+  getEquippedStats: () => PlayerStats;
 }
 
 export const useGameStore = create<GameStore>()((set, get) => ({
@@ -374,5 +378,72 @@ export const useGameStore = create<GameStore>()((set, get) => ({
       set({ player: merged });
       console.log('Progress loaded successfully');
     }
+  },
+  loadCharacter: (state) => set({ player: state }),
+  equipItem: (itemId, slot) => set((s) => {
+    const itemIndex = s.player.inventory.findIndex(i => i.id === itemId);
+    if (itemIndex === -1) return s;
+    const item = s.player.inventory[itemIndex];
+    if (item.type !== 'equip') return s;
+
+    const equippedItems = { ...s.player.equippedItems };
+    const prevEquipped = equippedItems[slot];
+
+    if (prevEquipped) {
+      const prevIndex = s.player.inventory.findIndex(i => i.id === prevEquipped);
+      if (prevIndex !== -1) {
+        const newInv = [...s.player.inventory];
+        newInv[prevIndex] = { ...newInv[prevIndex], amount: (newInv[prevIndex].amount || 0) + 1 };
+        equippedItems[slot] = itemId;
+        return { player: { ...s.player, inventory: newInv, equippedItems } };
+      }
+    }
+
+    const newInv = [...s.player.inventory];
+    if (item.amount > 1) {
+      newInv[itemIndex] = { ...item, amount: item.amount - 1 };
+    } else {
+      newInv.splice(itemIndex, 1);
+    }
+    equippedItems[slot] = itemId;
+
+    return { player: { ...s.player, inventory: newInv, equippedItems } };
+  }),
+  unequipItem: (slot) => set((s) => {
+    const equippedItems = { ...s.player.equippedItems };
+    const itemId = equippedItems[slot];
+    if (!itemId) return s;
+
+    const existingIndex = s.player.inventory.findIndex(i => i.id === itemId);
+    const newInv = [...s.player.inventory];
+    if (existingIndex !== -1) {
+      newInv[existingIndex] = { ...newInv[existingIndex], amount: (newInv[existingIndex].amount || 0) + 1 };
+    } else {
+      const itemDef = items.find(i => i.id === itemId);
+      if (itemDef) {
+        newInv.push({ id: itemDef.id, name: itemDef.name, type: 'equip', amount: 1, description: itemDef.description });
+      }
+    }
+
+    delete equippedItems[slot];
+    return { player: { ...s.player, inventory: newInv, equippedItems } };
+  }),
+  getEquippedStats: () => {
+    const s = get();
+    const stats: PlayerStats = { str: 0, agi: 0, vit: 0, int: 0, dex: 0, luk: 0, statPoints: 0 };
+    const equippedItems = s.player.equippedItems || {};
+
+    for (const itemId of Object.values(equippedItems)) {
+      const itemDef = items.find(i => i.id === itemId);
+      if (itemDef?.equipStats) {
+        stats.str += itemDef.equipStats.str || 0;
+        stats.agi += itemDef.equipStats.agi || 0;
+        stats.vit += itemDef.equipStats.vit || 0;
+        stats.int += itemDef.equipStats.int || 0;
+        stats.dex += itemDef.equipStats.dex || 0;
+        stats.luk += itemDef.equipStats.luk || 0;
+      }
+    }
+    return stats;
   },
 }));

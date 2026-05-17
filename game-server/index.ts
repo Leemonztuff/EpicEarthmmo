@@ -59,6 +59,7 @@ function createDefaultPlayer(id: string, name: string): ServerPlayer {
     lastSentSnapshot: null,
     currentMapId: 'prontera',
     warpCooldownUntil: 0,
+    equippedItems: {},
   };
 }
 
@@ -99,10 +100,11 @@ let tickNum = 0;
 io.on('connection', (socket) => {
   let player: ServerPlayer | null = null;
 
-  socket.on('join', (data: { name?: string; stats?: any; unlockedSkills?: string[] }) => {
+  socket.on('join', (data: { name?: string; stats?: any; unlockedSkills?: string[]; equippedItems?: any }) => {
     player = createDefaultPlayer(socket.id, data.name || 'Player');
     if (data.stats) player.stats = data.stats;
     if (data.unlockedSkills) player.unlockedSkills = data.unlockedSkills;
+    if (data.equippedItems) player.equippedItems = data.equippedItems;
 
     const defaultMapId = 'prontera';
     mapManager.addPlayerToMap(socket.id, player, defaultMapId);
@@ -175,7 +177,17 @@ io.on('connection', (socket) => {
     if (skillSpCost > 0) usedSkill = true;
 
     const skillMultiplier = getSkillMultiplier(skills, data.skillId || 'basic_attack');
-    const statValue = player.stats.str ?? balance.defaultPlayer.baseStats.str;
+    let statValue = player.stats.str ?? balance.defaultPlayer.baseStats.str;
+
+    if (player.equippedItems) {
+      for (const itemId of Object.values(player.equippedItems)) {
+        const itemDef = items.find(i => i.id === itemId);
+        if (itemDef?.equipStats?.str) {
+          statValue += itemDef.equipStats.str;
+        }
+      }
+    }
+
     const damage = calculateDamage(statValue, skillMultiplier, balance);
 
     enemy.hp = Math.max(0, enemy.hp - damage);

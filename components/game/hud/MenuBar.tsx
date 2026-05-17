@@ -3,14 +3,15 @@
 import React from 'react';
 import { useGameStore } from '@/store/useGameStore';
 import { Button } from '@/components/ui';
-import { User, Backpack, Swords, Settings, MessageSquare } from 'lucide-react';
+import { User, Backpack, Swords, Settings, MessageSquare, Shield } from 'lucide-react';
 
 interface MenuBarProps {
   onToggleChat: () => void;
   onOpenSettings: () => void;
+  onOpenEquipment: () => void;
 }
 
-export function MenuBar({ onToggleChat, onOpenSettings }: MenuBarProps) {
+export function MenuBar({ onToggleChat, onOpenSettings, onOpenEquipment }: MenuBarProps) {
   const ui = useGameStore((state) => state.ui);
   const toggleUI = useGameStore((state) => state.toggleUI);
 
@@ -23,30 +24,44 @@ export function MenuBar({ onToggleChat, onOpenSettings }: MenuBarProps) {
   return (
     <div className="pointer-events-auto select-none">
       <div className="flex items-center gap-1.5">
-        <Button variant="icon" size="icon" onClick={onToggleChat}>
+        <button
+          onClick={onToggleChat}
+          className="w-10 h-10 rounded-xl bg-slate-900/80 border border-slate-700/60 flex items-center justify-center text-slate-300 hover:text-white hover:bg-slate-800/80 touch-manipulation active:scale-95 transition-all shadow-lg"
+        >
           <MessageSquare size={18} />
-        </Button>
+        </button>
 
         {buttons.map(btn => {
           const isOpen = ui[btn.id];
           const Icon = btn.icon;
           return (
-            <Button
+            <button
               key={btn.id}
-              variant="icon"
-              size="icon"
-              active={isOpen}
               onClick={() => toggleUI(btn.id)}
-              className={isOpen ? btn.color : ''}
+              className={`w-10 h-10 rounded-xl border flex items-center justify-center touch-manipulation active:scale-95 transition-all shadow-lg ${
+                isOpen
+                  ? `${btn.color} border-current bg-slate-800/90`
+                  : 'text-slate-400 border-slate-700/60 bg-slate-900/80 hover:text-white hover:bg-slate-800/80'
+              }`}
             >
               <Icon size={18} />
-            </Button>
+            </button>
           );
         })}
 
-        <Button variant="icon" size="icon" onClick={onOpenSettings}>
+        <button
+          onClick={onOpenEquipment}
+          className="w-10 h-10 rounded-xl bg-slate-900/80 border border-slate-700/60 flex items-center justify-center text-slate-300 hover:text-white hover:bg-slate-800/80 touch-manipulation active:scale-95 transition-all shadow-lg"
+        >
+          <Shield size={18} />
+        </button>
+
+        <button
+          onClick={onOpenSettings}
+          className="w-10 h-10 rounded-xl bg-slate-900/80 border border-slate-700/60 flex items-center justify-center text-slate-300 hover:text-white hover:bg-slate-800/80 touch-manipulation active:scale-95 transition-all shadow-lg"
+        >
           <Settings size={18} />
-        </Button>
+        </button>
       </div>
     </div>
   );

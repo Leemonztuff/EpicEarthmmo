@@ -97,7 +97,8 @@ export const useNetworkStore = create<NetworkStore>()((set, get) => ({
       // Join game
       newSocket.emit('join', { 
         name: playerName, 
-        stats: useGameStore.getState().player.stats
+        stats: useGameStore.getState().player.stats,
+        equippedItems: useGameStore.getState().player.equippedItems,
       });
     });
 

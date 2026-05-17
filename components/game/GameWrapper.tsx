@@ -8,6 +8,6 @@ const GameSceneNoSSR = dynamic(
   { ssr: false }
 );
 
-export function GameWrapper() {
-  return <GameSceneNoSSR />;
+export function GameWrapper({ characterName }: { characterName?: string }) {
+  return <GameSceneNoSSR characterName={characterName} />;
 }

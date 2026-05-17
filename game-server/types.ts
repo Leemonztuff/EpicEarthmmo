@@ -1,4 +1,4 @@
-import type { PlayerStats } from '../shared/schemas/gameState';
+import type { PlayerStats, EquipmentSlot } from '../shared/schemas/gameState';
 import type { PlayerInput } from '../shared/types/network';
 
 export interface SnapshotPlayer {
@@ -26,4 +26,5 @@ export interface ServerPlayer {
   lastSentSnapshot: SnapshotPlayer | null;
   currentMapId: string;
   warpCooldownUntil: number;
+  equippedItems: Partial<Record<EquipmentSlot, string>>;
 }
