@@ -3,6 +3,7 @@ import { io, Socket } from 'socket.io-client';
 import type { PeerPlayerState, ChatMessage, TradeOffer, WorldSnapshot, PlayerInput } from '@/shared/types/network';
 import type { EnemyState } from '@/shared/schemas/gameState';
 import { gameData } from '@/shared/loader';
+import { addCombatLog } from '@/components/game/hud/CombatLog';
 
 const { balance } = gameData;
 
@@ -241,13 +242,17 @@ export const useNetworkStore = create<NetworkStore>()((set, get) => ({
       gs.gainExp(data.expBase, data.expJob);
       if (data.loot.length > 0) {
         gs.gainLoot(data.loot);
+        const lootNames = data.loot.map(l => `${l.name} x${l.amount}`).join(', ');
+        addCombatLog(`Loot: ${lootNames}`, 'text-yellow-400');
       }
+      addCombatLog(`Enemy defeated! +${data.expBase} EXP`, 'text-green-400');
       gs.setSelectedTargetId(null);
     });
 
     newSocket.on('playerDamaged', (data: { enemyId: string; enemyName: string; damage: number; hp: number; maxHp: number; isDead: boolean }) => {
       const gs = useGameStore.getState();
       gs.updatePlayerHp(data.hp);
+      addCombatLog(`${data.enemyName} hits you for ${data.damage} damage!`, 'text-red-400');
 
       const pos = {
         x: gs.position.x + (Math.random() * 0.5 - 0.25),

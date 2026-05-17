@@ -79,19 +79,21 @@ export function VirtualJoystick() {
       onTouchCancel={reset}
       style={{
         position: 'fixed',
-        bottom: 100,
-        left: 24,
+        bottom: 140,
+        left: 20,
         width: STICK_SIZE,
         height: STICK_SIZE,
         borderRadius: '50%',
-        background: 'rgba(255,255,255,0.08)',
-        border: '2px solid rgba(255,255,255,0.15)',
+        background: 'rgba(15, 23, 42, 0.5)',
+        border: '2px solid rgba(100, 116, 139, 0.3)',
         touchAction: 'none',
         zIndex: 50,
         pointerEvents: 'auto',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
+        backdropFilter: 'blur(4px)',
+        boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
       }}
     >
       <div
@@ -100,8 +102,8 @@ export function VirtualJoystick() {
           width: THUMB_SIZE,
           height: THUMB_SIZE,
           borderRadius: '50%',
-          background: 'rgba(255,255,255,0.25)',
-          border: '2px solid rgba(255,255,255,0.4)',
+          background: 'rgba(148, 163, 184, 0.3)',
+          border: '2px solid rgba(148, 163, 184, 0.5)',
           transition: 'none',
         }}
       />
