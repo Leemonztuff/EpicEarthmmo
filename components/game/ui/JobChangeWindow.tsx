@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useGameStore } from '@/store/useGameStore';
 import { gameData } from '@/shared/loader';
-import { BottomSheet } from '../hud/BottomSheet';
+import { Modal, Button, Text } from '@/components/ui';
 
 const { jobs } = gameData;
 const availableJobs = jobs.filter(j => j.requirements);
@@ -13,21 +13,23 @@ export function JobChangeWindow() {
   if (dismissed) return null;
 
   return (
-    <BottomSheet title="Job Change" onClose={() => setDismissed(true)} subtitle="You've reached Job Level 10!">
+    <Modal isOpen onClose={() => setDismissed(true)} title="Job Change" subtitle="You've reached Job Level 10!">
       <div className="text-center mb-4">
-        <p className="text-slate-300 text-sm">Congratulations! Choose your new class:</p>
+        <Text variant="body">Congratulations! Choose your new class:</Text>
       </div>
       <div className="space-y-2">
         {availableJobs.map(job => (
-          <button
+          <Button
             key={job.id}
+            variant="primary"
+            size="lg"
             onClick={() => { changeJob(job.id); setDismissed(true); }}
-            className="w-full py-3 px-4 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl touch-manipulation active:scale-95 transition-all shadow-lg shadow-blue-900/30"
+            className="w-full"
           >
             {job.name}
-          </button>
+          </Button>
         ))}
       </div>
-    </BottomSheet>
+    </Modal>
   );
 }

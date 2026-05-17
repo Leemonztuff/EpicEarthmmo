@@ -1,13 +1,13 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useGameStore } from '@/store/useGameStore';
 import { PlayerFrame } from './hud/PlayerFrame';
 import { TargetFrame } from './hud/TargetFrame';
 import { Minimap } from './hud/Minimap';
 import { Hotbar } from './hud/Hotbar';
 import { MenuBar } from './hud/MenuBar';
-import { CombatLog, addCombatLog } from './hud/CombatLog';
+import { CombatLog } from './hud/CombatLog';
 import { SettingsPanel } from './hud/SettingsPanel';
 import { StatsWindow } from './ui/StatsWindow';
 import { SkillsWindow } from './ui/SkillsWindow';
@@ -16,6 +16,8 @@ import { JobChangeWindow } from './ui/JobChangeWindow';
 import { TradeManager } from './TradeManager';
 import { MapNameDisplay } from './ui/MapNameDisplay';
 import { ChatBox } from './ChatBox';
+import { ToastContainer } from '@/components/ui';
+import { LoadingScreen } from './LoadingScreen';
 
 export function HUD() {
   const player = useGameStore((state) => state.player);
@@ -23,15 +25,25 @@ export function HUD() {
   const toggleUI = useGameStore((state) => state.toggleUI);
   const [chatOpen, setChatOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setLoading(false), 1500);
+    return () => clearTimeout(timer);
+  }, []);
 
   const handleToggleChat = () => setChatOpen(prev => !prev);
   const handleOpenSettings = () => setSettingsOpen(true);
 
+  if (loading) {
+    return <LoadingScreen />;
+  }
+
   return (
     <div className="absolute inset-0 pointer-events-none z-10 w-full h-full flex flex-col">
+      <ToastContainer />
       <MapNameDisplay />
 
-      {/* Top Bar */}
       <div className="flex items-start justify-between px-3 pt-2 pointer-events-auto">
         <div className="flex items-start gap-2">
           <PlayerFrame />
@@ -39,12 +51,10 @@ export function HUD() {
         <Minimap />
       </div>
 
-      {/* Target Frame */}
       <div className="px-3 pt-1 pointer-events-auto">
         <TargetFrame />
       </div>
 
-      {/* Middle Area - Windows */}
       <div className="flex-1 relative w-full h-full">
         {ui.isStatsOpen && <StatsWindow onClose={() => toggleUI('isStatsOpen')} />}
         {ui.isSkillsOpen && <SkillsWindow onClose={() => toggleUI('isSkillsOpen')} />}
@@ -54,14 +64,11 @@ export function HUD() {
         {settingsOpen && <SettingsPanel onClose={() => setSettingsOpen(false)} />}
       </div>
 
-      {/* Bottom Bar */}
       <div className="px-3 pb-3 space-y-2">
-        {/* Combat Log */}
         <div className="flex justify-start pointer-events-auto">
           <CombatLog />
         </div>
 
-        {/* Hotbar + Menu */}
         <div className="flex items-end justify-between">
           <div className="pointer-events-auto">
             <ChatBoxWrapper isOpen={chatOpen} onToggle={handleToggleChat} />

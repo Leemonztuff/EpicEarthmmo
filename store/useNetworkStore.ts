@@ -4,6 +4,7 @@ import type { PeerPlayerState, ChatMessage, TradeOffer, WorldSnapshot, PlayerInp
 import type { EnemyState } from '@/shared/schemas/gameState';
 import { gameData } from '@/shared/loader';
 import { addCombatLog } from '@/components/game/hud/CombatLog';
+import { showToast } from '@/components/ui';
 
 const { balance } = gameData;
 
@@ -109,11 +110,14 @@ export const useNetworkStore = create<NetworkStore>()((set, get) => ({
        if (data.initData) {
          set({ currentMapData: data.initData });
        }
+       showToast(`Welcome to ${data.mapName}!`, 'success');
     });
 
     newSocket.on('mapChange', (data: { mapId: string; mapName: string; mapType: string; spawnPosition: { x: number; y: number; z: number }; enemies: Record<string, EnemyState>; players: Record<string, PeerPlayerState>; initData: any }) => {
        const gs = useGameStore.getState();
        gs.setMap(data.mapId, data.mapName, data.mapType);
+       gs.setEnemies(data.enemies);
+       showToast(`Arrived at ${data.mapName}`, 'info');
        gs.setPosition(data.spawnPosition);
        gs.setEnemies(data.enemies);
 
@@ -129,6 +133,7 @@ export const useNetworkStore = create<NetworkStore>()((set, get) => ({
       set((s) => ({
         remotePlayers: { ...s.remotePlayers, [player.id]: player }
       }));
+      showToast(`${player.name} joined the map`, 'info');
     });
 
     newSocket.on('worldSnapshot', (snapshot: WorldSnapshot) => {
@@ -189,7 +194,9 @@ export const useNetworkStore = create<NetworkStore>()((set, get) => ({
     newSocket.on('playerLeft', (id: string) => {
       set((s) => {
         const newPlayers = { ...s.remotePlayers };
+        const name = newPlayers[id]?.name;
         delete newPlayers[id];
+        if (name) showToast(`${name} left the map`, 'warning');
         return { remotePlayers: newPlayers };
       });
     });
