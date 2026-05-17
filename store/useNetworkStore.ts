@@ -91,6 +91,8 @@ export const useNetworkStore = create<NetworkStore>()((set, get) => ({
 
     newSocket.on('connect', () => {
       console.log('Connected to MMO server:', newSocket.id);
+      predictedStates.length = 0;
+      lastReconciledPos = { x: 0, y: 0.5, z: 0 };
       set({ socketId: newSocket.id });
       // Join game
       newSocket.emit('join', { 

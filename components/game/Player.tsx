@@ -16,12 +16,12 @@ export function Player() {
   const meshRef = useRef<Mesh>(null);
   const planeRef = useRef<Mesh>(null);
   const flipX = useRef(1);
-  
+
   const [initialPos] = useState(() => useGameStore.getState().position);
-  const [lastAttackTime, setLastAttackTime] = useState(0);
+  const lastAttackTimeRef = useRef(0);
   const keys = useRef<{ [key: string]: boolean }>({});
-  const lastTargetPosRef = useRef<string | null>(null);
   const firstFrameRef = useRef(true);
+  const prevInputRef = useRef({ x: 0, z: 0 });
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => { keys.current[e.code] = true; };
@@ -41,12 +41,10 @@ export function Player() {
     canvas.height = 64;
     const ctx = canvas.getContext('2d')!;
 
-    // Hair
     ctx.fillStyle = '#8B4513';
     ctx.beginPath();
     ctx.arc(32, 18, 11, 0, Math.PI * 2);
     ctx.fill();
-    // Spiky hair
     ctx.fillStyle = '#A0522D';
     for (let i = 0; i < 5; i++) {
       const angle = -Math.PI / 2 + (i - 2) * 0.3;
@@ -54,23 +52,15 @@ export function Player() {
       ctx.arc(32 + Math.cos(angle) * 10, 18 + Math.sin(angle) * 10, 4, 0, Math.PI * 2);
       ctx.fill();
     }
-
-    // Head
     ctx.fillStyle = '#ffd5a0';
     ctx.beginPath();
     ctx.arc(32, 20, 9, 0, Math.PI * 2);
     ctx.fill();
-
-    // Eyes
     ctx.fillStyle = '#333';
     ctx.fillRect(27, 18, 3, 3);
     ctx.fillRect(34, 18, 3, 3);
-
-    // Mouth
     ctx.fillStyle = '#c97';
     ctx.fillRect(30, 24, 4, 1);
-
-    // Body/tunic
     ctx.fillStyle = '#2a7a9e';
     ctx.beginPath();
     ctx.moveTo(22, 26);
@@ -79,22 +69,14 @@ export function Player() {
     ctx.lineTo(20, 42);
     ctx.closePath();
     ctx.fill();
-
-    // Belt
     ctx.fillStyle = '#8B4513';
     ctx.fillRect(22, 37, 20, 2);
-
-    // Arms
     ctx.fillStyle = '#ffd5a0';
     ctx.fillRect(16, 28, 6, 4);
     ctx.fillRect(42, 28, 6, 4);
-
-    // Legs
     ctx.fillStyle = '#4a4a6a';
     ctx.fillRect(24, 42, 6, 10);
     ctx.fillRect(34, 42, 6, 10);
-
-    // Shoes
     ctx.fillStyle = '#5a3a1a';
     ctx.fillRect(23, 50, 8, 3);
     ctx.fillRect(33, 50, 8, 3);
@@ -119,23 +101,23 @@ export function Player() {
 
     const gameStore = useGameStore.getState();
     const networkStore = useNetworkStore.getState();
-    const { 
+    const {
       targetPosition, setTargetPosition, setInputDirection, position: storePos,
       selectedTargetId, enemies, player
     } = gameStore;
 
     const SPEED = balance.movement.playerSpeed;
     const ATTACK_RANGE = balance.combat.attackRange;
-    const ATTACK_COOLDOWN = Math.max(balance.combat.attackCooldownMs / 1000, balance.combat.attackCooldownMs / 1000 - (Math.max(0, player.stats.agi) * 0.005));
+    const AGI_COOLDOWN_REDUCTION = Math.max(0, player.stats.agi) * 0.005;
+    const ATTACK_COOLDOWN = Math.max(0.1, (balance.combat.attackCooldownMs / 1000) - AGI_COOLDOWN_REDUCTION);
 
     let pos = rigidBodyRef.current.translation();
 
-    // Server reconciliation: smooth correction toward store position
     const corrDx = storePos.x - pos.x;
     const corrDz = storePos.z - pos.z;
     const corrDistSq = corrDx * corrDx + corrDz * corrDz;
-    if (corrDistSq > 0.01) {
-      const corrSpeed = corrDistSq > 4.0 ? 1.0 : 0.15;
+    if (corrDistSq > 0.1) {
+      const corrSpeed = corrDistSq > 9.0 ? 1.0 : 0.08;
       pos = {
         x: pos.x + corrDx * corrSpeed,
         y: pos.y,
@@ -146,39 +128,38 @@ export function Player() {
 
     const current = new Vector3(pos.x, pos.y, pos.z);
 
-    let isMoving = false;
-
-    // Compute input direction from keyboard
     const keyLeft = keys.current['KeyA'] || keys.current['ArrowLeft'];
     const keyRight = keys.current['KeyD'] || keys.current['ArrowRight'];
     const keyUp = keys.current['KeyW'] || keys.current['ArrowUp'];
     const keyDown = keys.current['KeyS'] || keys.current['ArrowDown'];
 
     let inputDir = { x: 0, z: 0 };
-    if (keyLeft) inputDir.x -= 1;
-    if (keyRight) inputDir.x += 1;
-    if (keyUp) inputDir.z -= 1;
-    if (keyDown) inputDir.z += 1;
+    let hasKeyboardInput = false;
 
-    // Touch joystick input (only if no keyboard direction)
-    if (inputDir.x === 0 && inputDir.z === 0) {
-      if (Math.abs(touchInput.x) > 0.15 || Math.abs(touchInput.z) > 0.15) {
-        inputDir.x = touchInput.x;
-        inputDir.z = touchInput.z;
-        const len = Math.sqrt(inputDir.x * inputDir.x + inputDir.z * inputDir.z);
-        if (len > 1) { inputDir.x /= len; inputDir.z /= len; }
+    if (keyLeft) { inputDir.x -= 1; hasKeyboardInput = true; }
+    if (keyRight) { inputDir.x += 1; hasKeyboardInput = true; }
+    if (keyUp) { inputDir.z -= 1; hasKeyboardInput = true; }
+    if (keyDown) { inputDir.z += 1; hasKeyboardInput = true; }
+
+    if (!hasKeyboardInput) {
+      const joyX = touchInput.x;
+      const joyZ = touchInput.z;
+      if (Math.abs(joyX) > 0.1 || Math.abs(joyZ) > 0.1) {
+        inputDir.x = joyX;
+        inputDir.z = joyZ;
       }
     }
 
-    // Normalize keyboard input
     if (inputDir.x !== 0 || inputDir.z !== 0) {
       const len = Math.sqrt(inputDir.x * inputDir.x + inputDir.z * inputDir.z);
-      inputDir.x /= len;
-      inputDir.z /= len;
-      setTargetPosition(null);
+      if (len > 0) {
+        inputDir.x /= len;
+        inputDir.z /= len;
+      }
     }
 
-    // Enemy targeting → generate movement direction
+    let isAttacking = false;
+
     if (selectedTargetId) {
       const enemy = enemies[selectedTargetId];
       if (enemy && !enemy.isDead) {
@@ -188,26 +169,26 @@ export function Player() {
         if (distanceToEnemy <= ATTACK_RANGE) {
           if (targetPosition) setTargetPosition(null);
 
-          const now = state.clock.getElapsedTime();
-          if (now - lastAttackTime >= ATTACK_COOLDOWN) {
-            setLastAttackTime(now);
+          const now = state.clock.elapsedTime;
+          if (now - lastAttackTimeRef.current >= ATTACK_COOLDOWN) {
+            lastAttackTimeRef.current = now;
+            isAttacking = true;
             networkStore.attackTarget(selectedTargetId);
 
             if (planeRef.current) {
-                const mat = planeRef.current.material;
-                if (mat && 'color' in mat) {
-                    (mat as THREE.MeshBasicMaterial).color.setHex(0xcccccc);
-                    setTimeout(() => {
-                        if (planeRef.current) {
-                            const m2 = planeRef.current.material;
-                            if (m2 && 'color' in m2) (m2 as THREE.MeshBasicMaterial).color.setHex(0xffffff);
-                        }
-                    }, 100);
-                }
+              const mat = planeRef.current.material;
+              if (mat && 'color' in mat) {
+                (mat as THREE.MeshBasicMaterial).color.setHex(0xffcccc);
+                setTimeout(() => {
+                  if (planeRef.current) {
+                    const m2 = planeRef.current.material;
+                    if (m2 && 'color' in m2) (m2 as THREE.MeshBasicMaterial).color.setHex(0xffffff);
+                  }
+                }, 80);
+              }
             }
           }
-        } else if (inputDir.x === 0 && inputDir.z === 0) {
-          // Move toward enemy
+        } else {
           const dx = enemy.position.x - current.x;
           const dz = enemy.position.z - current.z;
           const dist = Math.sqrt(dx * dx + dz * dz);
@@ -219,7 +200,6 @@ export function Player() {
       }
     }
 
-    // Click-to-move fallback
     if (inputDir.x === 0 && inputDir.z === 0 && targetPosition) {
       const dx = targetPosition.x - current.x;
       const dz = targetPosition.z - current.z;
@@ -232,11 +212,9 @@ export function Player() {
       }
     }
 
-    // Store direction for network polling
     setInputDirection({ x: inputDir.x, y: 0, z: inputDir.z });
 
-    // Local movement prediction (server snapshot will correct)
-    isMoving = inputDir.x !== 0 || inputDir.z !== 0;
+    const isMoving = inputDir.x !== 0 || inputDir.z !== 0;
     if (isMoving) {
       rigidBodyRef.current.setTranslation({
         x: pos.x + inputDir.x * SPEED * delta,
@@ -245,43 +223,45 @@ export function Player() {
       }, true);
     }
 
-    // Facing direction
     if (inputDir.x < -0.1) flipX.current = -1;
     else if (inputDir.x > 0.1) flipX.current = 1;
 
-    // Animations
     if (meshRef.current) {
-        meshRef.current.scale.x = flipX.current;
+      meshRef.current.scale.x = flipX.current;
 
-        if (isMoving) {
-            const bob = Math.sin(state.clock.elapsedTime * 15);
-            meshRef.current.position.y = Math.abs(bob) * 0.15;
-            meshRef.current.rotation.z = bob * 0.05 * flipX.current;
-        } else {
-            meshRef.current.position.y = Math.sin(state.clock.elapsedTime * 3) * 0.05;
-            meshRef.current.rotation.z = 0;
-        }
+      if (isMoving) {
+        const bob = Math.sin(state.clock.elapsedTime * 15);
+        meshRef.current.position.y = Math.abs(bob) * 0.15;
+        meshRef.current.rotation.z = bob * 0.05 * flipX.current;
+      } else {
+        meshRef.current.position.y = Math.sin(state.clock.elapsedTime * 3) * 0.05;
+        meshRef.current.rotation.z = 0;
+      }
+
+      if (isAttacking) {
+        meshRef.current.position.x = flipX.current * 0.15;
+        setTimeout(() => {
+          if (meshRef.current) meshRef.current.position.x = 0;
+        }, 80);
+      }
     }
+
+    prevInputRef.current = { x: inputDir.x, z: inputDir.z };
   });
 
   return (
     <RigidBody ref={rigidBodyRef} position={[initialPos.x, initialPos.y, initialPos.z]} enabledRotations={[false, false, false]}>
-      <Billboard
-        follow={true}
-        lockX={false}
-        lockY={false}
-        lockZ={false}
-      >
-          <group ref={meshRef}>
-           <mesh ref={planeRef}>
+      <Billboard follow={true} lockX={false} lockY={false} lockZ={false}>
+        <group ref={meshRef}>
+          <mesh ref={planeRef}>
             <planeGeometry args={[1.5, 1.5]} />
             {texture ? (
               <meshBasicMaterial map={texture} transparent={true} />
             ) : (
               <meshBasicMaterial color="red" />
             )}
-           </mesh>
-          </group>
+          </mesh>
+        </group>
       </Billboard>
     </RigidBody>
   );

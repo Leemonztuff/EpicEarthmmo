@@ -99,13 +99,13 @@ export default function GameScene() {
           <QuarksRenderer />
 
           <Physics debug={false}>
-             <ScreenShake />
              <DynamicMap />
              <Player />
              <RemotePlayers />
           </Physics>
 
           <CameraController />
+          <ScreenShake />
 
           <EffectComposer>
             <Bloom
