@@ -1,5 +1,6 @@
 import React from 'react';
 import { cn } from '@/lib/cn';
+import { motion } from 'framer-motion';
 
 export interface ListItemProps extends Omit<React.HTMLAttributes<HTMLDivElement>, 'title'> {
   icon?: React.ReactNode;
@@ -25,34 +26,48 @@ export function ListItem({
   ...props
 }: ListItemProps) {
   const variantClasses = {
-    default: 'bg-slate-800/50 border-slate-700/40',
-    clickable: 'bg-slate-800/50 border-slate-700/40 hover:bg-slate-700/50 cursor-pointer active:bg-slate-700/70',
-    selected: 'bg-blue-900/20 border-blue-500/30',
-    disabled: 'bg-slate-800/30 border-slate-700/30 opacity-60',
+    default: 'bg-slate-800/40 border-slate-700/30',
+    clickable: 'bg-slate-800/40 border-slate-700/30 hover:bg-slate-700/50 cursor-pointer active:scale-[0.98]',
+    selected: 'bg-blue-600/20 border-blue-500/40 shadow-[0_0_15px_-5px_rgba(59,130,246,0.4)]',
+    disabled: 'bg-slate-900/30 border-slate-800/30 opacity-40',
   };
 
   const paddingClasses = {
-    sm: 'p-2',
-    md: 'p-3',
+    sm: 'p-2.5',
+    md: 'p-4',
   };
 
   return (
     <div
       className={cn(
-        'flex items-center gap-3 rounded-xl border transition-all',
+        'flex items-center gap-3.5 rounded-2xl border transition-all duration-200 group',
         variantClasses[variant],
         paddingClasses[padding],
         className
       )}
       {...props}
     >
-      {icon && <div className="flex-shrink-0">{icon}</div>}
+      {icon && (
+        <div className="flex-shrink-0 transition-transform duration-200 group-hover:scale-110">
+          {icon}
+        </div>
+      )}
       <div className="min-w-0 flex-1">
-        <div className="text-white font-bold text-sm truncate">{title}</div>
-        {description && <div className="text-slate-500 text-[10px] truncate">{description}</div>}
+        <div className="text-slate-100 font-bold text-sm tracking-tight group-hover:text-white transition-colors">
+          {title}
+        </div>
+        {description && (
+          <div className="text-slate-500 text-[11px] font-medium leading-tight mt-0.5 line-clamp-2">
+            {description}
+          </div>
+        )}
       </div>
-      {badge && <div className="flex-shrink-0">{badge}</div>}
-      {action && <div className="flex-shrink-0">{action}</div>}
+      {(badge || action) && (
+        <div className="flex flex-shrink-0 items-center gap-2">
+          {badge && <div>{badge}</div>}
+          {action && <div>{action}</div>}
+        </div>
+      )}
       {children}
     </div>
   );

@@ -1,84 +1,76 @@
 'use client';
 
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { useGameStore } from '@/store/useGameStore';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Terminal } from 'lucide-react';
 
-interface LogEntry {
-  id: string;
-  text: string;
-  color: string;
-  timestamp: number;
-}
-
-const logEntries: LogEntry[] = [];
-let listeners: (() => void)[] = [];
-
-export function addCombatLog(text: string, color: string = 'text-slate-300') {
-  logEntries.push({ id: Date.now().toString() + Math.random(), text, color, timestamp: Date.now() });
-  if (logEntries.length > 50) logEntries.shift();
-  listeners.forEach(fn => fn());
-}
-
-export function useCombatLog() {
-  const [, setTick] = useState(0);
-  useEffect(() => {
-    const fn = () => setTick(t => t + 1);
-    listeners.push(fn);
-    return () => { listeners = listeners.filter(l => l !== fn); };
-  }, []);
-  return logEntries;
+export function addCombatLog(message: string, color?: string) {
+  const gs = useGameStore.getState();
+  gs.addCombatLog?.(message);
 }
 
 export function CombatLog() {
-  const entries = useCombatLog();
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [collapsed, setCollapsed] = useState(true);
+  const combatLog = useGameStore((state) => state.combatLog);
+  const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (containerRef.current) {
-      containerRef.current.scrollTop = containerRef.current.scrollHeight;
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [entries.length]);
+  }, [combatLog]);
 
-  const recentEntries = entries.slice(-8);
+  if (combatLog.length === 0) return null;
 
   return (
-    <div className="pointer-events-auto select-none">
-      {collapsed ? (
-        <button
-          onClick={() => setCollapsed(false)}
-          className="w-8 h-8 rounded-lg bg-slate-900/70 border border-slate-700/50 flex items-center justify-center text-slate-400 hover:text-white touch-manipulation active:scale-95 transition-all"
-        >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-          </svg>
-        </button>
-      ) : (
-        <div className="w-[200px] sm:w-[260px]">
-          <div className="bg-slate-900/80 backdrop-blur-sm border border-slate-700/50 rounded-lg overflow-hidden shadow-lg">
-            <div className="flex items-center justify-between px-2 py-1.5 border-b border-slate-700/40">
-              <span className="text-white text-xs font-bold">Combat Log</span>
-              <button
-                onClick={() => setCollapsed(true)}
-                className="w-6 h-6 rounded flex items-center justify-center text-slate-400 hover:text-white touch-manipulation active:scale-95"
-              >
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-                </svg>
-              </button>
-            </div>
-            <div ref={containerRef} className="h-[80px] overflow-y-auto px-2 py-1 space-y-0.5">
-              {recentEntries.map(entry => (
-                <div key={entry.id} className={`text-[10px] leading-tight ${entry.color}`}>
-                  {entry.text}
-                </div>
-              ))}
-              {recentEntries.length === 0 && (
-                <div className="text-[10px] text-slate-500 italic">No combat events yet</div>
-              )}
-            </div>
-          </div>
+    <motion.div
+      initial={{ opacity: 0, x: -20 }}
+      animate={{ opacity: 1, x: 0 }}
+      className="w-full max-w-[240px] sm:max-w-[300px]"
+    >
+      <div className="bg-slate-950/40 backdrop-blur-md rounded-2xl border border-slate-800/60 overflow-hidden shadow-2xl">
+        <div className="px-3 py-1.5 border-b border-slate-800/60 flex items-center gap-2 bg-slate-900/40">
+           <Terminal size={10} className="text-blue-400" />
+           <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Combat Log</span>
         </div>
-      )}
-    </div>
+
+        <div
+          ref={scrollRef}
+          className="h-24 sm:h-32 overflow-y-auto px-3 py-2 space-y-1 custom-scrollbar text-[11px] font-medium"
+        >
+          <AnimatePresence initial={false}>
+            {combatLog.map((log, i) => {
+              const isDamage = log.includes('Damage') || log.includes('Hit');
+              const isHeal = log.includes('Heal') || log.includes('Restored');
+              const isExp = log.includes('EXP');
+
+              return (
+                <motion.div
+                  key={`${i}-${log}`}
+                  initial={{ opacity: 0, x: -5 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  className="flex items-start gap-2"
+                >
+                  <span className="text-slate-600 font-mono text-[9px] mt-0.5">[{new Date().toLocaleTimeString([], { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' })}]</span>
+                  <p className={cn(
+                    "leading-relaxed",
+                    isDamage ? "text-red-400/90" :
+                    isHeal ? "text-emerald-400/90" :
+                    isExp ? "text-amber-400/90" :
+                    "text-slate-300"
+                  )}>
+                    {log}
+                  </p>
+                </motion.div>
+              );
+            })}
+          </AnimatePresence>
+        </div>
+      </div>
+    </motion.div>
   );
+}
+
+function cn(...classes: any[]) {
+  return classes.filter(Boolean).join(' ');
 }

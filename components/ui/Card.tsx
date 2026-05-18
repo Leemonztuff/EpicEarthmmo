@@ -2,18 +2,18 @@ import React from 'react';
 import { cn } from '@/lib/cn';
 
 const cardVariants = {
-  default: 'bg-slate-800/50 border-slate-700/40',
-  elevated: 'bg-slate-900/90 border-slate-700/60 shadow-lg',
-  glass: 'bg-slate-900/60 backdrop-blur-sm border-slate-700/40',
-  outline: 'bg-transparent border-slate-600/50',
-  danger: 'bg-red-900/20 border-red-500/30',
-  success: 'bg-green-900/20 border-green-500/30',
+  default: 'bg-slate-800/40 border-slate-700/40 backdrop-blur-sm',
+  elevated: 'bg-slate-900/90 border-slate-700/60 shadow-[0_8px_30px_rgb(0,0,0,0.5)]',
+  glass: 'bg-slate-950/40 backdrop-blur-md border-slate-800/60',
+  outline: 'bg-transparent border-slate-700/50',
+  danger: 'bg-red-950/20 border-red-500/30 shadow-[inset_0_0_20px_rgba(239,68,68,0.05)]',
+  success: 'bg-emerald-950/20 border-emerald-500/30 shadow-[inset_0_0_20px_rgba(16,185,129,0.05)]',
 };
 
 export interface CardProps extends React.HTMLAttributes<HTMLDivElement> {
   variant?: keyof typeof cardVariants;
-  padding?: 'none' | 'sm' | 'md' | 'lg';
-  rounded?: 'none' | 'sm' | 'md' | 'lg' | 'xl' | '2xl';
+  padding?: 'none' | 'xs' | 'sm' | 'md' | 'lg';
+  rounded?: 'none' | 'sm' | 'md' | 'lg' | 'xl' | '2xl' | '3xl';
   children: React.ReactNode;
 }
 
@@ -27,9 +27,10 @@ export function Card({
 }: CardProps) {
   const paddingClass = {
     none: '',
-    sm: 'p-2',
-    md: 'p-3',
-    lg: 'p-4',
+    xs: 'p-1.5',
+    sm: 'p-3',
+    md: 'p-4',
+    lg: 'p-6',
   }[padding];
 
   const roundedClass = {
@@ -39,12 +40,13 @@ export function Card({
     lg: 'rounded-2xl',
     xl: 'rounded-2xl',
     '2xl': 'rounded-3xl',
+    '3xl': 'rounded-[2rem]',
   }[rounded];
 
   return (
     <div
       className={cn(
-        'border',
+        'border transition-colors duration-200',
         cardVariants[variant],
         paddingClass,
         roundedClass,

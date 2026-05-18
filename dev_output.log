@@ -1,0 +1,14 @@
+
+> ro-clone@0.1.0 dev
+> tsx server.ts
+
+> Web server listening on http://localhost:3000
+> Game server should be running on port 3001
+ ○ Compiling / ...
+ ✓ Compiled / in 24.5s (3076 modules)
+ ⚠ Unsupported metadata viewport is configured in metadata export in /. Please move it to viewport export instead.
+Read more: https://nextjs.org/docs/app/api-reference/functions/generate-viewport
+ GET / 200 in 26164ms
+ ⚠ Unsupported metadata viewport is configured in metadata export in /. Please move it to viewport export instead.
+Read more: https://nextjs.org/docs/app/api-reference/functions/generate-viewport
+ GET / 200 in 51ms
