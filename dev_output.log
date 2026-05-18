@@ -220,3 +220,10 @@ Import trace for requested module:
 Read more: https://nextjs.org/docs/app/api-reference/functions/generate-viewport
  Particle system powered by three.quarks. https://quarks.art/
  GET / 200 in 787ms
+ ✓ Compiled in 13.1s (1514 modules)
+ ✓ Compiled in 11.1s (3071 modules)
+ ✓ Compiled in 3.9s (3071 modules)
+ ✓ Compiled in 9.8s (3073 modules)
+ ✓ Compiled in 1046ms (1515 modules)
+ ✓ Compiled in 8.3s (1515 modules)
+ ✓ Compiled in 1378ms (1515 modules)

@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '@/lib/auth';
 import { Button, Input, Card, Text, Spinner, showToast } from '@/components/ui';
-import { Sword, Mail, Lock, Eye, EyeOff, Sparkles } from 'lucide-react';
+import { Sword, Mail, Lock, Eye, EyeOff, Sparkles, AlertCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export function AuthForm() {
@@ -15,19 +15,45 @@ export function AuthForm() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
+  const validateEmail = (email: string) => {
+    return /\S+@\S+\.\S+/.test(email);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+
+    if (!validateEmail(email)) {
+      setError('Please enter a valid email address');
+      return;
+    }
+
+    if (password.length < 6) {
+      setError('Password must be at least 6 characters');
+      return;
+    }
+
     setLoading(true);
 
-    const { error: err } = isSignUp ? await signUp(email, password) : await signIn(email, password);
+    try {
+      const { error: err } = isSignUp ? await signUp(email, password) : await signIn(email, password);
 
-    setLoading(false);
-
-    if (err) {
-      setError(err);
-    } else {
-      showToast(isSignUp ? 'Account created! Please check your email.' : 'Welcome back!', 'success');
+      if (err) {
+        // Map common Supabase errors to user-friendly messages
+        if (err.includes('Invalid login credentials')) {
+          setError('Invalid email or password');
+        } else if (err.includes('User already registered')) {
+          setError('An account with this email already exists');
+        } else {
+          setError(err);
+        }
+      } else {
+        showToast(isSignUp ? 'Account created! Please check your email.' : 'Welcome back, Hero!', 'success');
+      }
+    } catch (e: any) {
+      setError('An unexpected error occurred. Please try again.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -72,7 +98,7 @@ export function AuthForm() {
                 label="Email Address"
                 type="email"
                 value={email}
-                onChange={e => setEmail(e.target.value)}
+                onChange={e => { setEmail(e.target.value); setError(''); }}
                 placeholder="you@example.com"
                 icon={<Mail size={18} />}
                 required
@@ -87,7 +113,7 @@ export function AuthForm() {
                   label="Password"
                   type={showPassword ? 'text' : 'password'}
                   value={password}
-                  onChange={e => setPassword(e.target.value)}
+                  onChange={e => { setPassword(e.target.value); setError(''); }}
                   placeholder="••••••••"
                   icon={<Lock size={18} />}
                   required
@@ -98,25 +124,23 @@ export function AuthForm() {
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-4 top-[38px] text-slate-500 hover:text-white transition-colors cursor-pointer"
+                  className="absolute right-4 top-[38px] text-slate-500 hover:text-white transition-colors cursor-pointer z-10"
                 >
                   {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
               </div>
             </div>
 
-            <AnimatePresence>
+            <AnimatePresence mode="wait">
               {error && (
                 <motion.div
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: 'auto' }}
-                  exit={{ opacity: 0, height: 0 }}
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
                   className="bg-red-500/10 border border-red-500/20 rounded-2xl px-4 py-3 flex items-center gap-3"
                 >
-                  <div className="w-6 h-6 rounded-full bg-red-500/20 flex items-center justify-center flex-shrink-0">
-                     <AlertIcon />
-                  </div>
-                  <Text variant="error" className="text-red-400 text-xs font-bold">{error}</Text>
+                  <AlertCircle size={16} className="text-red-400 flex-shrink-0" />
+                  <span className="text-red-400 text-xs font-bold">{error}</span>
                 </motion.div>
               )}
             </AnimatePresence>
@@ -152,15 +176,5 @@ export function AuthForm() {
         </p>
       </motion.div>
     </div>
-  );
-}
-
-function AlertIcon() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
-       <circle cx="12" cy="12" r="10" />
-       <line x1="12" y1="8" x2="12" y2="12" />
-       <line x1="12" y1="16" x2="12.01" y2="16" />
-    </svg>
   );
 }
