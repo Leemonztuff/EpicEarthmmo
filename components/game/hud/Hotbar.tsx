@@ -26,7 +26,9 @@ export function Hotbar() {
   const attackTarget = useNetworkStore((state) => state.attackTarget);
   const consumeItem = useGameStore((state) => state.consumeItem);
 
-  const quickItems = (player?.inventory || []).filter(i => i.type === 'usable' && i.amount > 0).slice(0, 3);
+  if (!player) return null;
+
+  const quickItems = (player.inventory || []).filter(i => i.type === 'usable' && i.amount > 0).slice(0, 3);
 
   const handleAttack = () => {
     if (selectedTargetId) {
@@ -97,7 +99,7 @@ export function Hotbar() {
 
           {/* Active Skills */}
           <div className="flex gap-2">
-            {(player?.unlockedSkills || []).slice(0, 4).map((skillId) => {
+            {(player.unlockedSkills || []).slice(0, 4).map((skillId) => {
               const skillDef = skills.find(s => s.id === skillId);
               if (!skillDef) return null;
               const isActive = activeSkill === skillId;

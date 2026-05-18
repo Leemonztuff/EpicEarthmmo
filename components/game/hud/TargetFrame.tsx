@@ -2,14 +2,14 @@
 
 import React from 'react';
 import { useGameStore } from '@/store/useGameStore';
-import { ProgressBar, Avatar, Button, Card } from '@/components/ui';
-import { X, Crosshair, Skull } from 'lucide-react';
+import { ProgressBar, Avatar, Card } from '@/components/ui';
+import { X, Skull } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export function TargetFrame() {
   const selectedTargetId = useGameStore((state) => state.selectedTargetId);
   const setSelectedTargetId = useGameStore((state) => state.setSelectedTargetId);
-  const enemies = useGameStore((state) => state.enemies);
+  const enemies = useGameStore((state) => state.enemies || {});
 
   const enemy = selectedTargetId ? enemies[selectedTargetId] : null;
 
@@ -44,20 +44,19 @@ export function TargetFrame() {
                   </div>
                   <div className="flex items-center gap-1">
                      <Badge variant="danger" size="xs" className="px-1 py-0 h-auto text-[8px]">LVL {enemy.level}</Badge>
-                     <Text variant="caption" className="text-red-400/60 text-[9px] font-bold uppercase">Aggressive</Text>
                   </div>
                 </div>
               </div>
               <button
                 onClick={() => setSelectedTargetId(null)}
-                className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-500 hover:text-white hover:bg-white/10 transition-colors"
+                className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-500 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
               >
                 <X size={16} />
               </button>
             </div>
             <ProgressBar
-              value={enemy.hp}
-              max={enemy.maxHp}
+              value={enemy.hp || 0}
+              max={enemy.maxHp || 100}
               color="red"
               size="md"
               className="shadow-inner"
@@ -74,7 +73,7 @@ function Badge({ children, variant, size, className }: any) {
      danger: 'bg-red-500/20 text-red-500 border-red-500/30'
    };
    return (
-     <span className={`border rounded font-black ${variants[variant]} ${className}`}>
+     <span className={`border rounded font-black text-[9px] px-1 ${variants[variant]} ${className}`}>
         {children}
      </span>
    );

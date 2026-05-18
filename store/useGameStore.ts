@@ -8,28 +8,26 @@ import { showToast } from '@/components/ui';
 
 const { balance, items, skills, enemies: enemyTemplates } = gameData;
 
-function buildInitialPlayer(): PlayerState {
-  return {
-    name: 'Novice',
-    baseLevel: 1,
-    jobLevel: 1,
-    baseExp: 0,
-    jobExp: 0,
-    hp: 50,
-    maxHp: 50,
-    sp: 10,
-    maxSp: 10,
-    zeny: 0,
-    jobClass: 'Novice',
-    stats: { str: 5, agi: 5, vit: 5, int: 5, dex: 5, luk: 5, statPoints: 0 },
-    skillPoints: 5,
-    unlockedSkills: ['basic_attack'],
-    inventory: [
-      { id: 'red_potion', name: 'Red Potion', type: 'usable', amount: 10, description: 'Restores 30 HP.' },
-    ],
-    equippedItems: {},
-  };
-}
+const INITIAL_PLAYER_STATE: PlayerState = {
+  name: 'Novice',
+  baseLevel: 1,
+  jobLevel: 1,
+  baseExp: 0,
+  jobExp: 0,
+  hp: 50,
+  maxHp: 50,
+  sp: 10,
+  maxSp: 10,
+  zeny: 0,
+  jobClass: 'Novice',
+  stats: { str: 5, agi: 5, vit: 5, int: 5, dex: 5, luk: 5, statPoints: 0 },
+  skillPoints: 5,
+  unlockedSkills: ['basic_attack'],
+  inventory: [
+    { id: 'red_potion', name: 'Red Potion', type: 'usable', amount: 10, description: 'Restores 30 HP.' },
+  ],
+  equippedItems: {},
+};
 
 function buildInitialEnemies(): Record<string, EnemyState> {
   const result: Record<string, EnemyState> = {};
@@ -87,7 +85,7 @@ interface GameStore {
   gainLoot: (items: any[]) => void;
   saveProgress: () => Promise<void>;
   loadProgress: () => Promise<void>;
-  loadCharacter: (state: PlayerState) => void;
+  loadCharacter: (state: any) => void;
   equipItem: (itemId: string, slot: string) => void;
   unequipItem: (slot: string) => void;
   getEquippedStats: () => PlayerStats;
@@ -96,7 +94,7 @@ interface GameStore {
 }
 
 export const useGameStore = create<GameStore>((set, get) => ({
-  player: buildInitialPlayer(),
+  player: INITIAL_PLAYER_STATE,
   position: { x: 0, y: 0.5, z: 8 },
   inputDirection: { x: 0, z: 0 },
   currentMapId: 'prontera',
@@ -139,12 +137,12 @@ export const useGameStore = create<GameStore>((set, get) => ({
                 jobClass: jobDef.name,
                 stats: {
                   ...s.player.stats,
-                  str: s.player.stats.str + jobDef.baseStatModifiers.str,
-                  agi: s.player.stats.agi + jobDef.baseStatModifiers.agi,
-                  vit: s.player.stats.vit + jobDef.baseStatModifiers.vit,
-                  int: s.player.stats.int + jobDef.baseStatModifiers.int,
-                  dex: s.player.stats.dex + jobDef.baseStatModifiers.dex,
-                  luk: s.player.stats.luk + jobDef.baseStatModifiers.luk,
+                  str: s.player.stats.str + (jobDef.baseStatModifiers?.str || 0),
+                  agi: s.player.stats.agi + (jobDef.baseStatModifiers?.agi || 0),
+                  vit: s.player.stats.vit + (jobDef.baseStatModifiers?.vit || 0),
+                  int: s.player.stats.int + (jobDef.baseStatModifiers?.int || 0),
+                  dex: s.player.stats.dex + (jobDef.baseStatModifiers?.dex || 0),
+                  luk: s.player.stats.luk + (jobDef.baseStatModifiers?.luk || 0),
                 },
               }
             }));
@@ -235,25 +233,19 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
   saveProgress: async () => { console.log('Saving...'); },
   loadProgress: async () => { console.log('Loading...'); },
-  loadCharacter: (state) => set((s) => ({
+  loadCharacter: (characterState) => set((s) => ({
     player: {
-      ...buildInitialPlayer(),
-      ...state,
-      stats: { ...buildInitialPlayer().stats, ...(state?.stats || {}) },
-      inventory: state?.inventory || [],
-      unlockedSkills: state?.unlockedSkills || ['basic_attack'],
-      equippedItems: state?.equippedItems || {}
+      ...INITIAL_PLAYER_STATE,
+      ...characterState,
+      stats: { ...INITIAL_PLAYER_STATE.stats, ...(characterState?.stats || {}) },
+      inventory: characterState?.inventory || INITIAL_PLAYER_STATE.inventory,
+      unlockedSkills: characterState?.unlockedSkills || INITIAL_PLAYER_STATE.unlockedSkills,
+      equippedItems: characterState?.equippedItems || INITIAL_PLAYER_STATE.equippedItems,
     }
   })),
 
-  equipItem: (itemId, slot) => set((s) => {
-     return s;
-  }),
-
-  unequipItem: (slot) => set((s) => {
-     return s;
-  }),
-
+  equipItem: (itemId, slot) => set((s) => s),
+  unequipItem: (slot) => set((s) => s),
   getEquippedStats: () => get().player.stats,
 
   reloadData: async () => {
