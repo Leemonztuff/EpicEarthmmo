@@ -11,20 +11,31 @@ export function NetworkManager({ playerName }: { playerName: string }) {
   const inputSeqRef = useRef(0);
 
   useEffect(() => {
+    if (typeof window === 'undefined') return;
+
     inputSeqRef.current = 0;
     initSocket(playerName);
+
     const inputRef = setInterval(() => {
-      const { inputDirection } = useGameStore.getState();
-      const { socket, sendInput } = useNetworkStore.getState();
-      if (!socket?.connected) return;
+      const gs = useGameStore.getState();
+      const ns = useNetworkStore.getState();
+
+      if (!ns.socket?.connected || !gs.inputDirection) return;
+
       inputSeqRef.current++;
-      sendInput({ dirX: inputDirection.x, dirZ: inputDirection.z, seq: inputSeqRef.current });
+      ns.sendInput({
+        dirX: gs.inputDirection.x || 0,
+        dirZ: gs.inputDirection.z || 0,
+        seq: inputSeqRef.current
+      });
     }, INPUT_RATE_MS);
 
     return () => {
       clearInterval(inputRef);
       const s = useNetworkStore.getState().socket;
-      s?.disconnect();
+      if (s) {
+        s.disconnect();
+      }
     };
   }, [initSocket, playerName]);
 

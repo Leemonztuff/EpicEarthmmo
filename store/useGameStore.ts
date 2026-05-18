@@ -33,21 +33,23 @@ function buildInitialPlayer(): PlayerState {
 
 function buildInitialEnemies(): Record<string, EnemyState> {
   const result: Record<string, EnemyState> = {};
-  enemyTemplates.spawns.forEach(s => {
-    const template = enemyTemplates.templates.find(t => t.id === s.enemyId);
-    if (template) {
-      result[s.spawnId] = {
-        id: s.spawnId,
-        enemyId: s.enemyId,
-        name: template.name,
-        level: template.level,
-        hp: template.hp,
-        maxHp: template.hp,
-        position: s.position,
-        isDead: false,
-      };
-    }
-  });
+  if (enemyTemplates?.spawns) {
+    enemyTemplates.spawns.forEach(s => {
+      const template = enemyTemplates.templates.find(t => t.id === s.enemyId);
+      if (template) {
+        result[s.spawnId] = {
+          id: s.spawnId,
+          enemyId: s.enemyId,
+          name: template.name,
+          level: template.level,
+          hp: template.hp,
+          maxHp: template.hp,
+          position: s.position,
+          isDead: false,
+        };
+      }
+    });
+  }
   return result;
 }
 
@@ -153,10 +155,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
   },
 
   consumeItem: (itemId) => {
-    const itemIndex = get().player.inventory.findIndex(i => i.id === itemId);
-    if (itemIndex === -1) return;
-    const item = get().player.inventory[itemIndex];
-
     import('./useNetworkStore').then(({ useNetworkStore }) => {
       const socket = useNetworkStore.getState().socket;
       if (socket?.connected) {
@@ -173,7 +171,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
         ...s.player,
         stats: {
           ...s.player.stats,
-          [stat]: s.player.stats[stat] + 1,
+          [stat]: (s.player.stats[stat] || 0) + 1,
           statPoints: s.player.stats.statPoints - 1
         }
       }
@@ -187,7 +185,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       player: {
         ...s.player,
         skillPoints: s.player.skillPoints - cost,
-        unlockedSkills: [...s.player.unlockedSkills, skillId]
+        unlockedSkills: [...(s.player.unlockedSkills || []), skillId]
       }
     }));
   },
@@ -226,7 +224,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   }),
 
   gainLoot: (newItems) => set((state) => {
-    const newInventory = [...state.player.inventory];
+    const newInventory = [...(state.player.inventory || [])];
     newItems.forEach(newItem => {
       const existing = newInventory.find(i => i.id === newItem.id);
       if (existing) existing.amount += newItem.amount;
@@ -237,15 +235,22 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
   saveProgress: async () => { console.log('Saving...'); },
   loadProgress: async () => { console.log('Loading...'); },
-  loadCharacter: (state) => set({ player: state }),
+  loadCharacter: (state) => set((s) => ({
+    player: {
+      ...buildInitialPlayer(),
+      ...state,
+      stats: { ...buildInitialPlayer().stats, ...(state?.stats || {}) },
+      inventory: state?.inventory || [],
+      unlockedSkills: state?.unlockedSkills || ['basic_attack'],
+      equippedItems: state?.equippedItems || {}
+    }
+  })),
 
   equipItem: (itemId, slot) => set((s) => {
-     // Logic for equipping items
      return s;
   }),
 
   unequipItem: (slot) => set((s) => {
-     // Logic for unequipping items
      return s;
   }),
 
@@ -256,7 +261,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const newData = await hotReloadData();
     if (newData) {
       showToast('Game Data Hot-Reloaded!', 'success');
-      // In a more complex setup, we'd update other slices of the store here
     }
   }
 }));

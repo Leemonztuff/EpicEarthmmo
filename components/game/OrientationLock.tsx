@@ -1,38 +1,44 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { RotateCcw } from 'lucide-react';
+import { Smartphone } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 export function OrientationLock() {
-  const [isLandscape, setIsLandscape] = useState(false);
+  const [isWrongOrientation, setIsOrientation] = useState(false);
 
   useEffect(() => {
-    const check = () => {
-      if (typeof window === 'undefined') return;
-      const isLand = window.innerWidth > window.innerHeight;
-      setIsLandscape(isLand);
+    if (typeof window === 'undefined') return;
+
+    const checkOrientation = () => {
+      // Logic for mobile landscape locking if desired
+      // For now we just check aspect ratio
+      const isPortrait = window.innerHeight > window.innerWidth;
+      // Many mobile RPGs prefer landscape, but if our UI is 9:16 optimized:
+      // setIsOrientation(!isPortrait);
     };
-    check();
-    window.addEventListener('resize', check);
-    return () => window.removeEventListener('resize', check);
+
+    window.addEventListener('resize', checkOrientation);
+    checkOrientation();
+    return () => window.removeEventListener('resize', checkOrientation);
   }, []);
 
-  if (!isLandscape) return null;
-
   return (
-    <div className="fixed inset-0 z-[100] bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex flex-col items-center justify-center text-white text-center p-8">
-      <div className="w-20 h-20 rounded-2xl bg-slate-700/50 border-2 border-slate-600 flex items-center justify-center mb-6 animate-pulse">
-        <RotateCcw size={32} className="text-blue-400 -rotate-90" />
-      </div>
-      <h2 className="text-xl font-bold mb-2">Rotate Device</h2>
-      <p className="text-sm text-slate-400 max-w-[200px]">
-        This game is designed for portrait mode. Please rotate your device.
-      </p>
-      <div className="mt-8 flex items-center gap-2 text-slate-600">
-        <div className="w-8 h-14 rounded-lg border-2 border-slate-600 flex items-center justify-center">
-          <div className="w-2 h-2 rounded-full bg-blue-400 animate-bounce" />
-        </div>
-      </div>
-    </div>
+    <AnimatePresence>
+      {isWrongOrientation && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-[200] bg-slate-950 flex flex-col items-center justify-center p-8 text-center"
+        >
+          <div className="w-20 h-20 rounded-3xl bg-blue-500/10 flex items-center justify-center mb-6">
+            <Smartphone size={40} className="text-blue-500 animate-bounce" />
+          </div>
+          <h2 className="text-white font-black text-xl uppercase tracking-tighter mb-2 italic">Rotate Device</h2>
+          <p className="text-slate-500 text-sm font-medium">Please rotate your device to portrait mode for the optimal combat experience.</p>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 }

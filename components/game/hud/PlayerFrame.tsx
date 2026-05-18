@@ -5,7 +5,7 @@ import { useGameStore } from '@/store/useGameStore';
 import { gameData } from '@/shared/loader';
 import { ProgressBar, ThinBar, Avatar, StatusEffectBar } from '@/components/ui';
 import { Heart, Zap } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 
 const { balance } = gameData;
 
@@ -17,10 +17,16 @@ const mockStatusEffects = [
 export function PlayerFrame() {
   const player = useGameStore((state) => state.player);
 
-  const baseExpThreshold = player.baseLevel * balance.progression.baseLevelUpThreshold.multiplier;
-  const jobExpThreshold = player.jobLevel * balance.progression.jobLevelUpThreshold.multiplier;
-  const baseExpPct = baseExpThreshold > 0 ? Math.min(100, (player.baseExp / baseExpThreshold) * 100) : 0;
-  const jobExpPct = jobExpThreshold > 0 ? Math.min(100, (player.jobExp / jobExpThreshold) * 100) : 0;
+  if (!player) return null;
+
+  const baseMult = balance?.progression?.baseLevelUpThreshold?.multiplier || 100;
+  const jobMult = balance?.progression?.jobLevelUpThreshold?.multiplier || 50;
+
+  const baseExpThreshold = (player.baseLevel || 1) * baseMult;
+  const jobExpThreshold = (player.jobLevel || 1) * jobMult;
+
+  const baseExpPct = baseExpThreshold > 0 ? Math.min(100, ((player.baseExp || 0) / baseExpThreshold) * 100) : 0;
+  const jobExpPct = jobExpThreshold > 0 ? Math.min(100, ((player.jobExp || 0) / jobExpThreshold) * 100) : 0;
 
   return (
     <motion.div
@@ -31,8 +37,8 @@ export function PlayerFrame() {
       <div className="flex items-center gap-3 mb-2">
         <div className="relative">
           <Avatar
-            name={player.name}
-            level={player.baseLevel}
+            name={player.name || 'Hero'}
+            level={player.baseLevel || 1}
             size="md"
             ringColor="gradient"
             className="shadow-xl shadow-black/40"
@@ -46,23 +52,23 @@ export function PlayerFrame() {
         <div className="flex-1 min-w-0">
           <div className="flex items-baseline gap-2 mb-1">
             <span className="text-white font-black text-base truncate drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)] tracking-tight">
-              {player.name}
+              {player.name || 'Hero'}
             </span>
             <span className="text-blue-400/80 text-[10px] font-black uppercase tracking-tighter">
-              {player.jobClass}
+              {player.jobClass || 'Novice'}
             </span>
           </div>
           <div className="flex flex-col gap-1.5">
             <ProgressBar
-              value={player.hp}
-              max={player.maxHp}
+              value={player.hp || 0}
+              max={player.maxHp || 100}
               color="hp"
               size="sm"
               className="w-40 sm:w-48 shadow-lg"
             />
             <ProgressBar
-              value={player.sp}
-              max={player.maxSp}
+              value={player.sp || 0}
+              max={player.maxSp || 100}
               color="sp"
               size="sm"
               className="w-32 sm:w-40 shadow-lg"

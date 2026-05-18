@@ -1,17 +1,18 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { useGameStore } from '@/store/useGameStore';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Terminal } from 'lucide-react';
 
 export function addCombatLog(message: string, color?: string) {
-  const gs = useGameStore.getState();
-  gs.addCombatLog?.(message);
+  if (typeof window !== 'undefined') {
+     useGameStore.getState().addCombatLog?.(message);
+  }
 }
 
 export function CombatLog() {
-  const combatLog = useGameStore((state) => state.combatLog);
+  const combatLog = useGameStore((state) => state.combatLog || []);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -20,7 +21,7 @@ export function CombatLog() {
     }
   }, [combatLog]);
 
-  if (combatLog.length === 0) return null;
+  if (!combatLog || combatLog.length === 0) return null;
 
   return (
     <motion.div

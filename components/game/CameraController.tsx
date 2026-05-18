@@ -17,29 +17,29 @@ export function CameraController() {
   const baseZOffset = 0.8;
 
   useEffect(() => {
-    const playerPos = useGameStore.getState().position;
+    const playerPos = useGameStore.getState().position || { x: 0, y: 0.5, z: 0 };
     camera.position.set(playerPos.x, playerPos.y + 10, playerPos.z + 12);
     camera.lookAt(playerPos.x, playerPos.y, playerPos.z);
     initialized.current = false;
   }, [camera]);
 
   useFrame((_state, delta) => {
-    const playerPos = useGameStore.getState().position;
-    const inputDir = useGameStore.getState().inputDirection;
+    const playerPos = useGameStore.getState().position || { x: 0, y: 0.5, z: 0 };
+    const inputDir = useGameStore.getState().inputDirection || { x: 0, z: 0 };
 
     const aspect = size.width / size.height;
     const portraitScale = Math.max(0.7, Math.min(1.3, (16 / 9) / aspect));
     const dist = baseDist * portraitScale;
 
-    const inputMag = Math.sqrt(inputDir.x * inputDir.x + inputDir.z * inputDir.z);
+    const inputMag = Math.sqrt((inputDir.x || 0) ** 2 + (inputDir.z || 0) ** 2);
     const moveBoost = Math.min(inputMag * 2, 3);
 
     const heightOff = (baseHeight * dist) + moveBoost * 0.3;
     const zOff = (baseZOffset * dist) + moveBoost * 0.4;
 
     const smoothLerp = 1 - Math.pow(1 - 0.06, delta * 60);
-    smoothInput.current.x += (inputDir.x - smoothInput.current.x) * smoothLerp;
-    smoothInput.current.z += (inputDir.z - smoothInput.current.z) * smoothLerp;
+    smoothInput.current.x += ((inputDir.x || 0) - smoothInput.current.x) * smoothLerp;
+    smoothInput.current.z += ((inputDir.z || 0) - smoothInput.current.z) * smoothLerp;
 
     const rotOffset = Math.atan2(smoothInput.current.x, smoothInput.current.z) * 0.15;
 

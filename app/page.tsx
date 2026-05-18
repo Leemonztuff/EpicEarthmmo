@@ -5,8 +5,8 @@ import { useAuth } from '@/lib/auth';
 import { AuthForm } from '@/components/auth/AuthForm';
 import { CharacterSelect } from '@/components/auth/CharacterSelect';
 import { GameWrapper } from '@/components/game/GameWrapper';
-import { HUD } from '@/components/game/HUD';
 import { LoadingScreen } from '@/components/game/LoadingScreen';
+import { AnimatePresence, motion } from 'framer-motion';
 
 type AppScreen = 'auth' | 'character-select' | 'loading' | 'game';
 
@@ -45,27 +45,43 @@ export default function Home() {
     setSelectedCharacter(null);
   };
 
-  if (screen === 'auth') {
-    return <AuthForm />;
-  }
-
-  if (screen === 'character-select') {
-    return <CharacterSelect onSelect={handleSelectCharacter} onLogout={handleLogout} />;
-  }
-
-  if (screen === 'loading') {
-    return <LoadingScreen />;
-  }
-
   return (
-    <main className="flex min-h-screen items-center justify-center bg-black overflow-hidden relative">
-      <div
-        className="game-container relative w-full h-full overflow-hidden shadow-2xl ring-1 ring-white/10"
-        style={{ maxWidth: '430px', aspectRatio: '9/16' }}
-      >
-        <GameWrapper characterName={selectedCharacter?.state?.name} />
-        <HUD characterName={selectedCharacter?.state?.name} />
-      </div>
-    </main>
+    <div className="bg-black min-h-screen">
+      <AnimatePresence mode="wait">
+        {screen === 'auth' && (
+          <motion.div key="auth" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+             <AuthForm />
+          </motion.div>
+        )}
+
+        {screen === 'character-select' && (
+          <motion.div key="select" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+             <CharacterSelect onSelect={handleSelectCharacter} onLogout={handleLogout} />
+          </motion.div>
+        )}
+
+        {screen === 'loading' && (
+          <motion.div key="loading" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+             <LoadingScreen />
+          </motion.div>
+        )}
+
+        {screen === 'game' && (
+          <motion.div
+            key="game"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="flex min-h-screen items-center justify-center bg-black overflow-hidden relative"
+          >
+            <div
+              className="game-container relative w-full h-full overflow-hidden shadow-2xl ring-1 ring-white/10"
+              style={{ maxWidth: '430px', aspectRatio: '9/16' }}
+            >
+              <GameWrapper characterName={selectedCharacter?.state?.name || 'Hero'} />
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
   );
 }
