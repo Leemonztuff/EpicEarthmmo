@@ -1,5 +1,5 @@
 -- Migration 001: Create initial tables for EpicEarthmmo (RO Clone)
--- Run this in your Supabase project's SQL Editor.
+-- Updated to support multiple characters per user
 
 -- ============================================================
 -- Helper: auto-update updated_at
@@ -14,17 +14,21 @@ $$ LANGUAGE plpgsql;
 
 -- ============================================================
 -- Table: characters
--- One character per authenticated Supabase user.
--- user_id references auth.users, name must be unique.
+-- Multiple characters per authenticated Supabase user.
+-- user_id references auth.users, name must be unique globally.
 -- ============================================================
 DROP TABLE IF EXISTS characters CASCADE;
 CREATE TABLE characters (
-  user_id    UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id    UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   name       TEXT UNIQUE NOT NULL,
   state      JSONB NOT NULL DEFAULT '{}'::jsonb,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+-- Index for faster lookup by user
+CREATE INDEX idx_characters_user_id ON characters(user_id);
 
 DROP TRIGGER IF EXISTS trg_characters_updated_at ON characters;
 CREATE TRIGGER trg_characters_updated_at
@@ -33,9 +37,10 @@ CREATE TRIGGER trg_characters_updated_at
 
 -- ============================================================
 -- Table: chat_messages
--- Optional: persists in-game chat history between sessions.
+-- persists in-game chat history between sessions.
 -- ============================================================
-CREATE TABLE IF NOT EXISTS chat_messages (
+DROP TABLE IF EXISTS chat_messages CASCADE;
+CREATE TABLE chat_messages (
   id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   sender     TEXT NOT NULL,
   text       TEXT NOT NULL,
@@ -53,7 +58,7 @@ CREATE INDEX IF NOT EXISTS idx_chat_messages_created_at ON chat_messages (create
 ALTER TABLE characters ENABLE ROW LEVEL SECURITY;
 ALTER TABLE chat_messages ENABLE ROW LEVEL SECURITY;
 
--- Characters: each user can only manage their own character.
+-- Characters: each user can only manage their own characters.
 DROP POLICY IF EXISTS characters_select_own ON characters;
 CREATE POLICY characters_select_own ON characters
   FOR SELECT
