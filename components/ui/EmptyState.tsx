@@ -1,6 +1,7 @@
 import React from 'react';
 import { cn } from '@/lib/cn';
 import { Inbox } from 'lucide-react';
+import { motion } from 'framer-motion';
 
 export interface EmptyStateProps {
   icon?: React.ReactNode;
@@ -18,16 +19,22 @@ export function EmptyState({
   className,
 }: EmptyStateProps) {
   return (
-    <div className={cn('flex flex-col items-center justify-center py-12 px-4 text-center', className)}>
-      <div className="w-16 h-16 rounded-2xl bg-slate-800/50 border border-slate-700/40 flex items-center justify-center mb-4">
-        {icon ?? <Inbox size={28} className="text-slate-600" />}
-      </div>
-      <h3 className="text-white font-semibold text-sm mb-1">{title}</h3>
+    <div className={cn('flex flex-col items-center justify-center py-16 px-6 text-center', className)}>
+      <motion.div
+        initial={{ scale: 0.8, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        className="w-20 h-20 rounded-3xl bg-slate-900/50 border border-slate-800 flex items-center justify-center mb-6 shadow-2xl"
+      >
+        {icon ?? <Inbox size={32} className="text-slate-700" />}
+      </motion.div>
+      <h3 className="text-white font-black text-lg mb-2 tracking-tight">{title}</h3>
       {description && (
-        <p className="text-slate-500 text-xs max-w-[200px]">{description}</p>
+        <p className="text-slate-500 text-sm font-medium max-w-[240px] leading-relaxed">
+          {description}
+        </p>
       )}
       {action && (
-        <div className="mt-4">
+        <div className="mt-8">
           {action}
         </div>
       )}

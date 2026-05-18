@@ -1,29 +1,60 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useGameStore } from '@/store/useGameStore';
-import { Badge } from '@/components/ui';
-
-const typeBadges: Record<string, { label: string; variant: 'success' | 'warning' | 'danger' | 'default' }> = {
-  town: { label: 'Safe Zone', variant: 'success' },
-  field: { label: 'Field', variant: 'warning' },
-  dungeon: { label: 'Dungeon', variant: 'danger' },
-};
+import { motion, AnimatePresence } from 'framer-motion';
 
 export function MapNameDisplay() {
-  const mapName = useGameStore(state => state.currentMapName);
-  const mapType = useGameStore(state => state.currentMapType);
+  const currentMapId = useGameStore((state) => state.currentMapId);
+  const [show, setShow] = useState(false);
 
-  const typeInfo = typeBadges[mapType];
+  const mapNames: Record<string, string> = {
+    prontera: 'Prontera City',
+    prontera_fields: 'Prontera Fields',
+    geffen_dungeon: 'Geffen Dungeon',
+  };
+
+  const name = mapNames[currentMapId] || currentMapId.replace(/_/g, ' ');
+
+  useEffect(() => {
+    setShow(true);
+    const timer = setTimeout(() => setShow(false), 5000);
+    return () => clearTimeout(timer);
+  }, [currentMapId]);
 
   return (
-    <div className="absolute top-2 left-1/2 -translate-x-1/2 pointer-events-none z-10">
-      <div className="bg-slate-900/70 backdrop-blur-sm px-3 py-1 rounded-full border border-slate-700/40 flex items-center gap-2 shadow-lg">
-        <span className="text-white/90 font-semibold text-xs">{mapName}</span>
-        {typeInfo && (
-          <Badge variant={typeInfo.variant} size="xs">{typeInfo.label}</Badge>
+    <div className="absolute top-24 left-0 right-0 pointer-events-none flex justify-center z-50 px-6">
+      <AnimatePresence>
+        {show && (
+          <motion.div
+            initial={{ opacity: 0, y: -40, scale: 0.8 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, scale: 1.5, filter: 'blur(15px)', transition: { duration: 1 } }}
+            className="flex flex-col items-center"
+          >
+            <motion.div
+              initial={{ width: 0 }}
+              animate={{ width: '100%' }}
+              transition={{ duration: 1 }}
+              className="h-[1px] bg-gradient-to-r from-transparent via-blue-400 to-transparent mb-3"
+            />
+            <motion.h1
+              initial={{ letterSpacing: '0.1em' }}
+              animate={{ letterSpacing: '0.6em' }}
+              transition={{ duration: 4 }}
+              className="text-white font-black text-2xl sm:text-3xl uppercase italic drop-shadow-[0_4px_15px_rgba(0,0,0,1)] text-center"
+            >
+              {name}
+            </motion.h1>
+            <motion.div
+              initial={{ width: 0 }}
+              animate={{ width: '80%' }}
+              transition={{ duration: 1, delay: 0.2 }}
+              className="h-[1px] bg-gradient-to-r from-transparent via-blue-600/50 to-transparent mt-3"
+            />
+          </motion.div>
         )}
-      </div>
+      </AnimatePresence>
     </div>
   );
 }

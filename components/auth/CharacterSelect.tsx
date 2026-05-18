@@ -3,8 +3,9 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
-import { Button, Input, Card, Text, Spinner, Avatar, showToast, Badge } from '@/components/ui';
-import { Sword, Plus, Trash2, ArrowRight } from 'lucide-react';
+import { Button, Input, Card, Text, Spinner, Avatar, showToast, Badge, IconBox } from '@/components/ui';
+import { Sword, Plus, Trash2, ArrowRight, Sparkles, User, Shield } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 interface CharacterData {
   id: string;
@@ -42,6 +43,9 @@ export function CharacterSelect({ onSelect, onLogout }: CharacterSelectProps) {
 
     if (data) setCharacters(data as CharacterData[]);
     setLoading(false);
+    if (data && data.length > 0 && !selectedChar) {
+      setSelectedChar(data[0].id);
+    }
   };
 
   const handleCreate = async () => {
@@ -74,7 +78,7 @@ export function CharacterSelect({ onSelect, onLogout }: CharacterSelectProps) {
           sp: 10,
           maxSp: 10,
           zeny: 0,
-          jobClass: 'novice',
+          jobClass: 'Novice',
           stats: { str: 5, agi: 5, vit: 5, int: 5, dex: 5, luk: 5, statPoints: 0 },
           skillPoints: 5,
           unlockedSkills: ['basic_attack'],
@@ -105,6 +109,7 @@ export function CharacterSelect({ onSelect, onLogout }: CharacterSelectProps) {
 
   const handleDelete = async (charId: string) => {
     if (!supabase) return;
+    if (!confirm('Are you sure you want to delete this character?')) return;
     const { error: err } = await supabase.from('characters').delete().eq('id', charId);
     if (!err) {
       showToast('Character deleted', 'warning');
@@ -119,116 +124,187 @@ export function CharacterSelect({ onSelect, onLogout }: CharacterSelectProps) {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 flex items-center justify-center">
-        <div className="text-center">
-          <Spinner size="lg" color="blue" />
-          <Text variant="body" className="mt-4 text-slate-400">Loading characters...</Text>
-        </div>
+      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-4">
+        <motion.div
+          animate={{ scale: [1, 1.1, 1], opacity: [0.5, 1, 0.5] }}
+          transition={{ repeat: Infinity, duration: 2 }}
+          className="w-20 h-20 rounded-[2rem] bg-blue-600/10 flex items-center justify-center mb-6"
+        >
+          <Sparkles size={32} className="text-blue-500" />
+        </motion.div>
+        <Text variant="heading" className="text-white text-xl tracking-[0.2em] uppercase font-black italic">Synchronizing</Text>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 flex flex-col items-center justify-center p-4">
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-1/3 left-1/3 w-96 h-96 bg-blue-600/5 rounded-full blur-3xl" />
-        <div className="absolute bottom-1/3 right-1/3 w-96 h-96 bg-purple-600/5 rounded-full blur-3xl" />
+    <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-6 relative overflow-hidden">
+      <div className="absolute inset-0">
+         <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_center,rgba(59,130,246,0.05)_0%,transparent_70%)]" />
       </div>
 
-      <div className="w-full max-w-md relative z-10">
-        <div className="text-center mb-6">
-          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-600 to-purple-600 flex items-center justify-center mx-auto mb-3 shadow-lg shadow-blue-900/50">
-            <Sword size={24} className="text-white" />
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        className="w-full max-w-lg relative z-10"
+      >
+        <div className="text-center mb-10">
+          <h1 className="text-4xl font-black text-white tracking-tighter uppercase italic mb-2">
+            Select <span className="text-blue-500">Hero</span>
+          </h1>
+          <div className="flex items-center justify-center gap-2">
+             <div className="h-[1px] w-12 bg-slate-800" />
+             <Text variant="caption" className="text-slate-500 font-bold uppercase tracking-widest text-[10px]">{user?.email}</Text>
+             <div className="h-[1px] w-12 bg-slate-800" />
           </div>
-          <Text variant="heading" className="text-xl">Select Character</Text>
-          <Text variant="caption" className="mt-1">{user?.email}</Text>
         </div>
 
-        {characters.length > 0 && (
-          <div className="space-y-2 mb-4">
-            {characters.map(char => {
+        <div className="space-y-3 mb-8 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
+          <AnimatePresence mode="popLayout">
+            {characters.map((char, index) => {
               const state = char.state;
+              const isSelected = selectedChar === char.id;
               return (
-                <Card
+                <motion.div
                   key={char.id}
-                  variant={selectedChar === char.id ? 'default' : 'outline'}
-                  padding="sm"
-                  rounded="xl"
-                  className={`cursor-pointer transition-all ${
-                    selectedChar === char.id ? 'border-blue-500/50 bg-slate-800/70' : 'border-slate-700/40 hover:border-slate-600/50'
-                  }`}
-                  onClick={() => setSelectedChar(char.id)}
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: index * 0.1 }}
                 >
-                  <div className="flex items-center gap-3">
-                    <Avatar name={state.name} level={state.baseLevel} size="md" ringColor="gradient" />
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <Text variant="value" className="text-sm truncate">{state.name}</Text>
-                        <Badge variant="primary" size="xs">Lv.{state.baseLevel}</Badge>
+                  <Card
+                    variant={isSelected ? 'default' : 'outline'}
+                    padding="sm"
+                    rounded="2xl"
+                    className={cn(
+                      "cursor-pointer transition-all duration-300 relative group overflow-hidden h-24 flex items-center",
+                      isSelected
+                        ? "bg-slate-900 border-blue-500/50 shadow-[0_0_25px_-5px_rgba(59,130,246,0.3)] ring-1 ring-blue-500/20"
+                        : "border-slate-800 hover:border-slate-700 bg-slate-950/50"
+                    )}
+                    onClick={() => setSelectedChar(char.id)}
+                  >
+                    {isSelected && (
+                      <motion.div
+                        layoutId="active-char-bg"
+                        className="absolute inset-0 bg-gradient-to-r from-blue-600/5 to-transparent pointer-events-none"
+                      />
+                    )}
+
+                    <div className="flex items-center gap-4 w-full relative z-10 px-2">
+                      <div className="relative">
+                        <Avatar name={state.name} level={state.baseLevel} size="md" ringColor={isSelected ? "gradient" : "gray"} className="shadow-xl" />
+                        {isSelected && (
+                          <motion.div
+                            layoutId="check-icon"
+                            className="absolute -top-1 -right-1 w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center border-2 border-slate-900"
+                          >
+                            <div className="w-2 h-2 rounded-full bg-white animate-pulse" />
+                          </motion.div>
+                        )}
                       </div>
-                      <Text variant="caption">{state.jobClass} • Job Lv.{state.jobLevel}</Text>
+
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <Text variant="value" className={cn("text-lg font-black tracking-tight transition-colors", isSelected ? "text-white" : "text-slate-400")}>
+                            {state.name}
+                          </Text>
+                          <Badge variant={isSelected ? "primary" : "default"} size="xs" className="h-5">LV {state.baseLevel}</Badge>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">
+                             {state.jobClass}
+                          </span>
+                          <div className="w-1 h-1 rounded-full bg-slate-800" />
+                          <span className="text-[10px] font-bold text-slate-600 italic">
+                             Job Lv. {state.jobLevel}
+                          </span>
+                        </div>
+                      </div>
+
+                      <button
+                        onClick={(e) => { e.stopPropagation(); handleDelete(char.id); }}
+                        className="w-10 h-10 rounded-xl flex items-center justify-center text-slate-700 hover:text-red-400 hover:bg-red-950/30 transition-all active:scale-90"
+                      >
+                        <Trash2 size={16} />
+                      </button>
                     </div>
-                    <button
-                      onClick={(e) => { e.stopPropagation(); handleDelete(char.id); }}
-                      className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-600 hover:text-red-400 hover:bg-red-900/20 touch-manipulation transition-all"
-                    >
-                      <Trash2 size={14} />
-                    </button>
-                  </div>
-                </Card>
+                  </Card>
+                </motion.div>
               );
             })}
-          </div>
-        )}
+          </AnimatePresence>
 
-        {showCreate ? (
-          <Card variant="elevated" padding="md" rounded="xl" className="mb-4">
-            <Text variant="subheading" className="mb-3">New Character</Text>
-            <Input
-              label="Character Name"
-              value={newName}
-              onChange={e => { setNewName(e.target.value); setError(''); }}
-              placeholder="Enter name..."
-              maxLength={20}
-              variant="filled"
-              onKeyDown={e => e.key === 'Enter' && handleCreate()}
-            />
-            {error && <Text variant="error" className="mt-2">{error}</Text>}
-            <div className="flex gap-2 mt-3">
-              <Button variant="secondary" size="md" onClick={() => { setShowCreate(false); setError(''); }} className="flex-1">
-                Cancel
-              </Button>
-              <Button variant="primary" size="md" onClick={handleCreate} disabled={creating || newName.length < 3} className="flex-1">
-                {creating ? <Spinner size="sm" color="white" /> : 'Create'}
-              </Button>
+          {!showCreate && characters.length < 3 && (
+            <motion.button
+              whileHover={{ scale: 1.01 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => setShowCreate(true)}
+              className="w-full h-20 border-2 border-dashed border-slate-800 rounded-2xl flex flex-col items-center justify-center gap-1 text-slate-600 hover:text-blue-500 hover:border-blue-500/50 hover:bg-blue-500/5 transition-all cursor-pointer"
+            >
+              <Plus size={24} />
+              <span className="text-[10px] font-black uppercase tracking-[0.2em]">Recruit New Hero</span>
+            </motion.button>
+          )}
+        </div>
+
+        {showCreate && (
+          <Card variant="elevated" padding="lg" rounded="3xl" className="mb-8 border-slate-700 shadow-2xl">
+            <div className="flex items-center gap-3 mb-6">
+               <IconBox icon={<User size={20} />} color="blue" size="md" rounded="sm" />
+               <Text variant="subheading" className="text-white font-black text-lg">Create New Hero</Text>
+            </div>
+
+            <div className="space-y-4">
+              <Input
+                label="Hero Name"
+                value={newName}
+                onChange={e => { setNewName(e.target.value); setError(''); }}
+                placeholder="Enter character name..."
+                maxLength={20}
+                variant="filled"
+                className="bg-slate-900 border-slate-800"
+                onKeyDown={e => e.key === 'Enter' && handleCreate()}
+              />
+
+              <AnimatePresence>
+                {error && (
+                  <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="text-red-400 text-xs font-bold px-1">
+                    {error}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              <div className="flex gap-3 pt-2">
+                <Button variant="ghost" size="md" onClick={() => { setShowCreate(false); setError(''); }} className="flex-1 rounded-xl">
+                  Cancel
+                </Button>
+                <Button variant="primary" size="md" onClick={handleCreate} disabled={creating || newName.length < 3} className="flex-1 rounded-xl shadow-blue-600/20">
+                  {creating ? <Spinner size="sm" color="white" /> : 'Create Hero'}
+                </Button>
+              </div>
             </div>
           </Card>
-        ) : (
-          <Button
-            variant="outline"
-            size="md"
-            onClick={() => setShowCreate(true)}
-            className="w-full mb-4"
-          >
-            <Plus size={16} /> New Character
-          </Button>
         )}
 
-        <div className="flex gap-2">
-          <Button variant="ghost" size="md" onClick={onLogout} className="flex-1">
-            Logout
+        <div className="flex gap-4">
+          <Button variant="ghost" size="lg" onClick={onLogout} className="flex-1 rounded-2xl text-slate-500 hover:text-white uppercase tracking-widest text-[11px] font-black">
+            Disconnect
           </Button>
           <Button
             variant="primary"
-            size="md"
+            size="lg"
             onClick={handleSelect}
             disabled={!selectedChar}
-            className="flex-1"
+            className="flex-1 rounded-2xl shadow-blue-600/20 h-16 text-lg font-black italic uppercase tracking-tighter"
           >
-            Play <ArrowRight size={16} />
+            Enter World <ArrowRight size={20} className="ml-2" />
           </Button>
         </div>
-      </div>
+      </motion.div>
     </div>
   );
+}
+
+function cn(...classes: any[]) {
+  return classes.filter(Boolean).join(' ');
 }
