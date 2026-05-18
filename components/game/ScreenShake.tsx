@@ -1,28 +1,28 @@
-import React, { useRef } from 'react';
-import { useFrame, useThree } from '@react-three/fiber';
+'use client';
+
+import React, { useState, useEffect } from 'react';
+import { useFrame } from '@react-three/fiber';
+import * as THREE from 'three';
 
 let shakeIntensity = 0;
 let shakeDuration = 0;
-let shakeElapsed = 0;
+let shakeTimer = 0;
 
-export function triggerShake(intensity: number, duration: number = 0.3) {
+export function triggerShake(intensity = 0.1, duration = 0.2) {
   shakeIntensity = intensity;
   shakeDuration = duration;
-  shakeElapsed = 0;
+  shakeTimer = duration;
 }
 
 export function ScreenShake() {
-  const { camera } = useThree();
+  useFrame((state, delta) => {
+    if (shakeTimer > 0) {
+      shakeTimer -= delta;
+      const progress = shakeTimer / shakeDuration;
+      const currentIntensity = shakeIntensity * progress;
 
-  useFrame((_, delta) => {
-    if (shakeElapsed < shakeDuration) {
-      shakeElapsed += delta;
-      const progress = shakeElapsed / shakeDuration;
-      const currentIntensity = shakeIntensity * (1 - progress);
-      const x = (Math.random() - 0.5) * currentIntensity;
-      const y = (Math.random() - 0.5) * currentIntensity;
-      camera.position.x += x;
-      camera.position.y += y;
+      state.camera.position.x += (Math.random() - 0.5) * currentIntensity;
+      state.camera.position.y += (Math.random() - 0.5) * currentIntensity;
     }
   });
 

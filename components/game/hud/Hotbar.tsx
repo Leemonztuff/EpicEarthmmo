@@ -4,9 +4,9 @@ import React from 'react';
 import { useGameStore } from '@/store/useGameStore';
 import { useNetworkStore } from '@/store/useNetworkStore';
 import { gameData } from '@/shared/loader';
-import { Button, Badge, Tooltip, IconBox } from '@/components/ui';
-import { Zap, Heart, Shield, Sword, Sparkles, Target } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { Badge } from '@/components/ui';
+import { Zap, Heart, Shield, Sword, Sparkles } from 'lucide-react';
+import { motion } from 'framer-motion';
 
 const { skills, items } = gameData;
 
@@ -26,7 +26,7 @@ export function Hotbar() {
   const attackTarget = useNetworkStore((state) => state.attackTarget);
   const consumeItem = useGameStore((state) => state.consumeItem);
 
-  const quickItems = player.inventory.filter(i => i.type === 'usable' && i.amount > 0).slice(0, 3);
+  const quickItems = (player?.inventory || []).filter(i => i.type === 'usable' && i.amount > 0).slice(0, 3);
 
   const handleAttack = () => {
     if (selectedTargetId) {
@@ -97,7 +97,7 @@ export function Hotbar() {
 
           {/* Active Skills */}
           <div className="flex gap-2">
-            {player.unlockedSkills.slice(0, 4).map((skillId) => {
+            {(player?.unlockedSkills || []).slice(0, 4).map((skillId) => {
               const skillDef = skills.find(s => s.id === skillId);
               if (!skillDef) return null;
               const isActive = activeSkill === skillId;

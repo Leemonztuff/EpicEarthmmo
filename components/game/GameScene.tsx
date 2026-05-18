@@ -3,7 +3,6 @@
 import React, { Suspense } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { Physics } from '@react-three/rapier';
-import { Sky } from '@react-three/drei';
 import { EffectComposer, Bloom } from '@react-three/postprocessing';
 import { Player } from './Player';
 import { Map } from './Map';
@@ -12,7 +11,6 @@ import { NetworkManager } from './NetworkManager';
 import { RemotePlayers } from './RemotePlayers';
 import { QuarksRenderer } from './QuarksParticleSystem';
 import { VirtualJoystick } from './VirtualJoystick';
-import { OrientationLock } from './OrientationLock';
 import { ScreenShake } from './ScreenShake';
 import { useNetworkStore } from '@/store/useNetworkStore';
 
@@ -31,7 +29,7 @@ const defaultMapData = {
 
 function DynamicMap() {
   const mapData = useNetworkStore(state => state.currentMapData);
-  return <Map mapData={mapData || defaultMapData} />;
+  return <Map mapData={mapData || (defaultMapData as any)} />;
 }
 
 function MapAtmosphere() {
@@ -69,7 +67,7 @@ function MapAtmosphere() {
   );
 }
 
-export default function GameScene({ characterName }: { characterName?: string }) {
+export function GameScene({ characterName }: { characterName?: string }) {
   const mapType = useNetworkStore(state => state.currentMapData?.mapType);
 
   return (
@@ -111,14 +109,12 @@ export default function GameScene({ characterName }: { characterName?: string })
             <Bloom
               luminanceThreshold={mapType === 'dungeon' ? 0.3 : 0.8}
               luminanceSmoothing={0.7}
-              height={300}
               intensity={mapType === 'dungeon' ? 0.8 : 0.5}
             />
           </EffectComposer>
         </Suspense>
       </Canvas>
       <VirtualJoystick />
-      <OrientationLock />
     </div>
   );
 }
