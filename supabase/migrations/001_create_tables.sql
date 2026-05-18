@@ -17,8 +17,7 @@ $$ LANGUAGE plpgsql;
 -- Multiple characters per authenticated Supabase user.
 -- user_id references auth.users, name must be unique globally.
 -- ============================================================
-DROP TABLE IF EXISTS characters CASCADE;
-CREATE TABLE characters (
+CREATE TABLE IF NOT EXISTS characters (
   id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id    UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   name       TEXT UNIQUE NOT NULL,
@@ -28,19 +27,23 @@ CREATE TABLE characters (
 );
 
 -- Index for faster lookup by user
-CREATE INDEX idx_characters_user_id ON characters(user_id);
+CREATE INDEX IF NOT EXISTS idx_characters_user_id ON characters(user_id);
 
-DROP TRIGGER IF EXISTS trg_characters_updated_at ON characters;
-CREATE TRIGGER trg_characters_updated_at
-  BEFORE UPDATE ON characters
-  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+-- Apply trigger for updated_at
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'trg_characters_updated_at') THEN
+    CREATE TRIGGER trg_characters_updated_at
+      BEFORE UPDATE ON characters
+      FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+  END IF;
+END $$;
 
 -- ============================================================
 -- Table: chat_messages
 -- persists in-game chat history between sessions.
 -- ============================================================
-DROP TABLE IF EXISTS chat_messages CASCADE;
-CREATE TABLE chat_messages (
+CREATE TABLE IF NOT EXISTS chat_messages (
   id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   sender     TEXT NOT NULL,
   text       TEXT NOT NULL,
@@ -58,39 +61,30 @@ CREATE INDEX IF NOT EXISTS idx_chat_messages_created_at ON chat_messages (create
 ALTER TABLE characters ENABLE ROW LEVEL SECURITY;
 ALTER TABLE chat_messages ENABLE ROW LEVEL SECURITY;
 
--- Characters: each user can only manage their own characters.
-DROP POLICY IF EXISTS characters_select_own ON characters;
-CREATE POLICY characters_select_own ON characters
-  FOR SELECT
-  USING (user_id = auth.uid());
+-- Characters Policies
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'characters_select_own') THEN
+    CREATE POLICY characters_select_own ON characters FOR SELECT USING (user_id = auth.uid());
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'characters_insert_own') THEN
+    CREATE POLICY characters_insert_own ON characters FOR INSERT WITH CHECK (user_id = auth.uid());
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'characters_update_own') THEN
+    CREATE POLICY characters_update_own ON characters FOR UPDATE USING (user_id = auth.uid()) WITH CHECK (user_id = auth.uid());
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'characters_delete_own') THEN
+    CREATE POLICY characters_delete_own ON characters FOR DELETE USING (user_id = auth.uid());
+  END IF;
+END $$;
 
-DROP POLICY IF EXISTS characters_insert_own ON characters;
-CREATE POLICY characters_insert_own ON characters
-  FOR INSERT
-  WITH CHECK (user_id = auth.uid());
-
-DROP POLICY IF EXISTS characters_update_own ON characters;
-CREATE POLICY characters_update_own ON characters
-  FOR UPDATE
-  USING (user_id = auth.uid())
-  WITH CHECK (user_id = auth.uid());
-
-DROP POLICY IF EXISTS characters_delete_own ON characters;
-CREATE POLICY characters_delete_own ON characters
-  FOR DELETE
-  USING (user_id = auth.uid());
-
--- Chat messages: allow anyone to read and insert messages.
-DROP POLICY IF EXISTS chat_messages_select ON chat_messages;
-CREATE POLICY chat_messages_select ON chat_messages
-  FOR SELECT
-  USING (true);
-
-DROP POLICY IF EXISTS chat_messages_insert ON chat_messages;
-CREATE POLICY chat_messages_insert ON chat_messages
-  FOR INSERT
-  WITH CHECK (true);
-
--- ============================================================
--- Done
--- ============================================================
+-- Chat messages Policies
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'chat_messages_select') THEN
+    CREATE POLICY chat_messages_select ON chat_messages FOR SELECT USING (true);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'chat_messages_insert') THEN
+    CREATE POLICY chat_messages_insert ON chat_messages FOR INSERT WITH CHECK (true);
+  END IF;
+END $$;
