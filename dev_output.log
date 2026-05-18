@@ -12,3 +12,211 @@ Read more: https://nextjs.org/docs/app/api-reference/functions/generate-viewport
  ⚠ Unsupported metadata viewport is configured in metadata export in /. Please move it to viewport export instead.
 Read more: https://nextjs.org/docs/app/api-reference/functions/generate-viewport
  GET / 200 in 51ms
+ ✓ Compiled in 9.3s (1516 modules)
+ ✓ Compiled in 1032ms (1516 modules)
+ ✓ Compiled in 874ms (1516 modules)
+ ✓ Compiled in 888ms (1516 modules)
+ ⚠ ./components/game/GameWrapper.tsx
+Attempted import error: 'GameScene' is not exported from './GameScene' (imported as 'GameScene').
+
+Import trace for requested module:
+./components/game/GameWrapper.tsx
+./app/page.tsx
+
+./components/game/GameWrapper.tsx
+Attempted import error: 'GameScene' is not exported from './GameScene' (imported as 'GameScene').
+
+Import trace for requested module:
+./components/game/GameWrapper.tsx
+./app/page.tsx
+ ⚠ ./components/game/GameWrapper.tsx
+Attempted import error: 'GameScene' is not exported from './GameScene' (imported as 'GameScene').
+
+Import trace for requested module:
+./components/game/GameWrapper.tsx
+./app/page.tsx
+
+./components/game/GameWrapper.tsx
+Attempted import error: 'GameScene' is not exported from './GameScene' (imported as 'GameScene').
+
+Import trace for requested module:
+./components/game/GameWrapper.tsx
+./app/page.tsx
+ ⚠ ./components/game/GameWrapper.tsx
+Attempted import error: 'GameScene' is not exported from './GameScene' (imported as 'GameScene').
+
+Import trace for requested module:
+./components/game/GameWrapper.tsx
+./app/page.tsx
+
+./components/game/GameWrapper.tsx
+Attempted import error: 'GameScene' is not exported from './GameScene' (imported as 'GameScene').
+
+Import trace for requested module:
+./components/game/GameWrapper.tsx
+./app/page.tsx
+ ⨯ ./store/useGameStore.ts
+Error:   [31mx[0m Expected ';', '}' or <eof>
+     ,-[[36;1;4m/app/store/useGameStore.ts[0m:455:1]
+ [2m452[0m |     }));
+ [2m453[0m |
+ [2m454[0m |       // Admin & Dev Tools Actions
+ [2m455[0m | [35;1m,[0m[35;1m-[0m[35;1m>[0m   reloadData: async () => {
+ [2m456[0m | [35;1m|[0m       // This would typically re-fetch the json files from the server
+ [2m457[0m | [35;1m|[0m       console.log('Reloading game data...');
+ [2m458[0m | [35;1m|[0m       // In a real scenario, we would trigger a re-fetch of gameData and update the store
+ [2m459[0m | [35;1m|[0m     },
+ [2m460[0m | [35;1m|[0m
+ [2m461[0m | [35;1m|[0m[35;1m-[0m[35;1m>[0m   adminAction: (action) => {
+     : [35;1m`[0m[35;1m---[0m[33;1m             ^[0m
+     : [35;1m`[0m[35;1m---[0m[35;1m-[0m [35;1mThis is the expression part of an expression statement[0m
+ [2m462[0m |         // Local processing of admin actions if needed
+ [2m463[0m |         console.log('Admin action triggered:', action);
+ [2m464[0m |       }
+     `----
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./store/useGameStore.ts
+./app/page.tsx
+ ⚠ ./components/game/GameWrapper.tsx
+Attempted import error: 'GameScene' is not exported from './GameScene' (imported as 'GameScene').
+
+Import trace for requested module:
+./components/game/GameWrapper.tsx
+./app/page.tsx
+
+./components/game/GameWrapper.tsx
+Attempted import error: 'GameScene' is not exported from './GameScene' (imported as 'GameScene').
+
+Import trace for requested module:
+./components/game/GameWrapper.tsx
+./app/page.tsx
+ ⚠ ./components/game/GameWrapper.tsx
+Attempted import error: 'GameScene' is not exported from './GameScene' (imported as 'GameScene').
+
+Import trace for requested module:
+./components/game/GameWrapper.tsx
+./app/page.tsx
+
+./components/game/GameWrapper.tsx
+Attempted import error: 'GameScene' is not exported from './GameScene' (imported as 'GameScene').
+
+Import trace for requested module:
+./components/game/GameWrapper.tsx
+./app/page.tsx
+ ⚠ ./components/game/GameWrapper.tsx
+Attempted import error: 'GameScene' is not exported from './GameScene' (imported as 'GameScene').
+
+Import trace for requested module:
+./components/game/GameWrapper.tsx
+./app/page.tsx
+
+./shared/loader/index.ts
+export 'gameData' (reexported as 'gameData') was not found in './clientLoader' (possible exports: hotReloadData)
+
+Import trace for requested module:
+./shared/loader/index.ts
+./store/useGameStore.ts
+./app/page.tsx
+
+./components/game/GameWrapper.tsx
+Attempted import error: 'GameScene' is not exported from './GameScene' (imported as 'GameScene').
+
+Import trace for requested module:
+./components/game/GameWrapper.tsx
+./app/page.tsx
+
+./shared/loader/index.ts
+export 'gameData' (reexported as 'gameData') was not found in './clientLoader' (possible exports: hotReloadData)
+
+Import trace for requested module:
+./shared/loader/index.ts
+./store/useGameStore.ts
+./app/page.tsx
+ ⚠ ./components/game/GameWrapper.tsx
+Attempted import error: 'GameScene' is not exported from './GameScene' (imported as 'GameScene').
+
+Import trace for requested module:
+./components/game/GameWrapper.tsx
+./app/page.tsx
+
+./shared/loader/index.ts
+export 'gameData' (reexported as 'gameData') was not found in './clientLoader' (possible exports: hotReloadData)
+
+Import trace for requested module:
+./shared/loader/index.ts
+./components/game/hud/PlayerFrame.tsx
+./components/game/HUD.tsx
+./app/page.tsx
+
+./components/game/GameWrapper.tsx
+Attempted import error: 'GameScene' is not exported from './GameScene' (imported as 'GameScene').
+
+Import trace for requested module:
+./components/game/GameWrapper.tsx
+./app/page.tsx
+
+./shared/loader/index.ts
+export 'gameData' (reexported as 'gameData') was not found in './clientLoader' (possible exports: hotReloadData)
+
+Import trace for requested module:
+./shared/loader/index.ts
+./components/game/hud/PlayerFrame.tsx
+./components/game/HUD.tsx
+./app/page.tsx
+ ⚠ ./components/game/GameWrapper.tsx
+Attempted import error: 'GameScene' is not exported from './GameScene' (imported as 'GameScene').
+
+Import trace for requested module:
+./components/game/GameWrapper.tsx
+./app/page.tsx
+
+./shared/loader/index.ts
+export 'gameData' (reexported as 'gameData') was not found in './clientLoader' (possible exports: hotReloadData)
+
+Import trace for requested module:
+./shared/loader/index.ts
+./store/useGameStore.ts
+./app/page.tsx
+
+./components/game/GameWrapper.tsx
+Attempted import error: 'GameScene' is not exported from './GameScene' (imported as 'GameScene').
+
+Import trace for requested module:
+./components/game/GameWrapper.tsx
+./app/page.tsx
+
+./shared/loader/index.ts
+export 'gameData' (reexported as 'gameData') was not found in './clientLoader' (possible exports: hotReloadData)
+
+Import trace for requested module:
+./shared/loader/index.ts
+./components/game/hud/PlayerFrame.tsx
+./components/game/HUD.tsx
+./app/page.tsx
+ ⚠ ./components/game/GameWrapper.tsx
+Attempted import error: 'GameScene' is not exported from './GameScene' (imported as 'GameScene').
+
+Import trace for requested module:
+./components/game/GameWrapper.tsx
+./app/page.tsx
+
+./components/game/GameWrapper.tsx
+Attempted import error: 'GameScene' is not exported from './GameScene' (imported as 'GameScene').
+
+Import trace for requested module:
+./components/game/GameWrapper.tsx
+./app/page.tsx
+ ✓ Compiled in 3s (3069 modules)
+ ✓ Compiled in 585ms (1513 modules)
+ ✓ Compiled in 5s (3071 modules)
+ ✓ Compiled in 3.9s (1514 modules)
+ ✓ Compiled in 5.5s (3071 modules)
+ ✓ Compiled in 442ms (1514 modules)
+ ⚠ Unsupported metadata viewport is configured in metadata export in /. Please move it to viewport export instead.
+Read more: https://nextjs.org/docs/app/api-reference/functions/generate-viewport
+ Particle system powered by three.quarks. https://quarks.art/
+ GET / 200 in 787ms

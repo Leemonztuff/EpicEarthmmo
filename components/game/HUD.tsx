@@ -9,13 +9,15 @@ import { Hotbar } from './hud/Hotbar';
 import { MenuBar } from './hud/MenuBar';
 import { CombatLog } from './hud/CombatLog';
 import { SettingsPanel } from './hud/SettingsPanel';
-import { StatsWindow } from './ui/StatsWindow';
-import { SkillsWindow } from './ui/SkillsWindow';
-import { InventoryWindow } from './ui/InventoryWindow';
-import { JobChangeWindow } from './ui/JobChangeWindow';
-import { EquipmentWindow } from './ui/EquipmentWindow';
+import {
+  StatsWindow,
+  SkillsWindow,
+  InventoryWindow,
+  JobChangeWindow,
+  EquipmentWindow,
+  MapNameDisplay
+} from './ui';
 import { TradeManager } from './TradeManager';
-import { MapNameDisplay } from './ui/MapNameDisplay';
 import { ChatBox } from './ChatBox';
 import { ToastContainer } from '@/components/ui';
 import { LoadingScreen } from './LoadingScreen';
