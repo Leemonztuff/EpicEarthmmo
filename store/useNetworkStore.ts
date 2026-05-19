@@ -12,6 +12,7 @@ const { balance } = gameData;
 
 interface NetworkStore {
   socket: Socket | null;
+  isConnected: boolean;
   remotePlayers: Record<string, PeerPlayerState>;
   chatMessages: ChatMessage[];
   currentMapData: any | null;
@@ -46,6 +47,7 @@ let lastReconciledPos = { x: 0, y: 0.5, z: 0 };
 
 export const useNetworkStore = create<NetworkStore>((set, get) => ({
   socket: null,
+  isConnected: false,
   remotePlayers: {},
   chatMessages: [],
   currentMapData: null,
@@ -64,8 +66,14 @@ export const useNetworkStore = create<NetworkStore>((set, get) => ({
 
     newSocket.on('connect', () => {
       console.log('Connected to game server');
+      set({ isConnected: true });
       showToast('Connected to server', 'success');
       newSocket.emit('join', { name: playerName });
+    });
+
+    newSocket.on('disconnect', () => {
+      console.log('Disconnected from game server');
+      set({ isConnected: false });
     });
 
     newSocket.on('init', (data) => {
