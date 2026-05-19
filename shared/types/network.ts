@@ -33,6 +33,8 @@ export interface SnapshotPlayer {
   hp: number; maxHp: number;
   sp: number; maxSp: number;
   lastProcessedSeq?: number;
+  lastSeq?: number;
+  name?: string;
   direction?: string;
   animState?: string;
 }

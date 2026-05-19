@@ -58,13 +58,20 @@ export const useNetworkStore = create<NetworkStore>((set, get) => ({
     const { useGameStore } = await import('./useGameStore');
     const socketUrl = process.env.NEXT_PUBLIC_GAME_SERVER_URL || 'http://localhost:3001';
     const newSocket = io(socketUrl, {
-      transports: ['websocket'],
+      transports: ['polling', 'websocket'],
       query: { playerName }
     });
 
     newSocket.on('connect', () => {
       console.log('Connected to game server');
       showToast('Connected to server', 'success');
+      newSocket.emit('join', { name: playerName });
+    });
+
+    newSocket.on('init', (data) => {
+      if (!data) return;
+      set({ currentMapData: data.initData });
+      useGameStore.getState().setMap(data.mapId, data.mapName, data.mapType);
     });
 
     newSocket.on('mapData', (data) => {
@@ -73,7 +80,7 @@ export const useNetworkStore = create<NetworkStore>((set, get) => ({
       useGameStore.getState().setMap(data.mapId, data.mapName, data.mapType);
     });
 
-    newSocket.on('worldUpdate', (snapshot: WorldSnapshot) => {
+    newSocket.on('worldSnapshot', (snapshot: WorldSnapshot) => {
       if (!snapshot) return;
 
       const gs = useGameStore.getState();
@@ -83,7 +90,7 @@ export const useNetworkStore = create<NetworkStore>((set, get) => ({
       const players = snapshot.players || {};
       for (const [id, sp] of Object.entries(players)) {
         if (id === myId) {
-          const serverSeq = sp.lastSeq;
+          const serverSeq = sp.lastProcessedSeq || sp.lastSeq;
           let reconciled = { x: sp.x, y: sp.y, z: sp.z };
           lastReconciledPos = reconciled;
           gs.setPosition(reconciled);
