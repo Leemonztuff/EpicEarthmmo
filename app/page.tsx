@@ -55,19 +55,37 @@ export default function Home() {
     <div className="bg-slate-950 min-h-[100dvh] w-full relative overflow-hidden">
       <AnimatePresence mode="wait">
         {screen === 'auth' && (
-          <motion.div key="auth" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="h-full w-full">
+          <motion.div
+            key="auth"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="h-[100dvh] w-full"
+          >
              <AuthForm />
           </motion.div>
         )}
 
         {screen === 'character-select' && (
-          <motion.div key="select" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="h-full w-full">
+          <motion.div
+            key="select"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="h-[100dvh] w-full overflow-y-auto"
+          >
              <CharacterSelect onSelect={handleSelectCharacter} onLogout={handleLogout} />
           </motion.div>
         )}
 
         {screen === 'loading' && (
-          <motion.div key="loading" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="h-full w-full">
+          <motion.div
+            key="loading"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="h-[100dvh] w-full"
+          >
              <LoadingScreen />
           </motion.div>
         )}
@@ -77,9 +95,9 @@ export default function Home() {
             key="game"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            className="h-full w-full flex items-center justify-center bg-black overflow-hidden"
+            className="h-[100dvh] w-full bg-black overflow-hidden touch-none"
           >
-            <div className="game-container relative w-full h-full max-w-[1200px] mx-auto shadow-2xl overflow-hidden ring-1 ring-white/5 bg-slate-900">
+            <div className="game-container relative w-full h-full overflow-hidden bg-slate-900">
                <GameWrapper characterName={selectedCharacter?.state?.name || 'Hero'} />
             </div>
           </motion.div>

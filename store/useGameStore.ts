@@ -66,6 +66,9 @@ interface GameStore {
   combatLog: string[];
   ui: GameUIState;
 
+  // Derived state getters
+  getCombatStats: () => { atk: number; matk: number; def: number; flee: number };
+
   setMap: (mapId: string, mapName: string, mapType: string) => void;
   setTargetPosition: (pos: { x: number; z: number } | null) => void;
   setPosition: (pos: { x: number; y: number; z: number }) => void;
@@ -107,6 +110,17 @@ export const useGameStore = create<GameStore>((set, get) => ({
   damages: [],
   combatLog: [],
   ui: { isSkillsOpen: false, isStatsOpen: false, isInventoryOpen: false },
+
+  getCombatStats: () => {
+    const p = get().player;
+    const stats = p.stats;
+    return {
+      atk: 10 + (stats?.str || 0) * 2,
+      matk: 10 + (stats?.int || 0) * 2,
+      def: (stats?.vit || 0),
+      flee: 100 + (stats?.agi || 0) + (p.baseLevel || 1),
+    };
+  },
 
   setMap: (mapId, mapName, mapType) => set({ currentMapId: mapId, currentMapName: mapName, currentMapType: mapType }),
   setTargetPosition: (pos) => set({ targetPosition: pos }),

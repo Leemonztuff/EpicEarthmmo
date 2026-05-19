@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useGameStore } from '@/store/useGameStore';
 import { PlayerFrame } from './hud/PlayerFrame';
 import { TargetFrame } from './hud/TargetFrame';
@@ -22,6 +22,7 @@ import { ChatBox } from './ChatBox';
 import { ToastContainer } from '@/components/ui';
 import { ExpPopups } from './ExpPopups';
 import { AnimatePresence, motion } from 'framer-motion';
+import { MessageSquare } from 'lucide-react';
 
 export function HUD({ characterName }: { characterName?: string }) {
   const player = useGameStore((state) => state.player);
@@ -39,20 +40,23 @@ export function HUD({ characterName }: { characterName?: string }) {
   if (!player) return null;
 
   return (
-    <div className="absolute inset-0 pointer-events-none z-10 w-full h-full flex flex-col overflow-hidden p-2 sm:p-4">
+    <div className="absolute inset-0 pointer-events-none z-10 w-full h-full flex flex-col overflow-hidden safe-p p-2 sm:p-4">
       <ToastContainer />
       <ExpPopups />
       <MapNameDisplay />
 
+      {/* Top HUD Section */}
       <div className="flex items-start justify-between pointer-events-auto">
         <PlayerFrame />
         <Minimap />
       </div>
 
-      <div className="mt-1 pointer-events-auto flex justify-center">
+      {/* Center Top Section */}
+      <div className="mt-2 pointer-events-auto flex justify-center">
         <TargetFrame />
       </div>
 
+      {/* Main UI Windows Area */}
       <div className="flex-1 relative w-full h-full">
         <AnimatePresence>
           {ui.isStatsOpen && <StatsWindow onClose={() => toggleUI('isStatsOpen')} />}
@@ -65,16 +69,18 @@ export function HUD({ characterName }: { characterName?: string }) {
         {settingsOpen && <SettingsPanel onClose={() => setSettingsOpen(false)} />}
       </div>
 
-      <div className="space-y-3 sm:space-y-4">
-        <div className="flex justify-start pointer-events-auto">
+      {/* Bottom HUD Section */}
+      <div className="flex flex-col gap-3 sm:gap-4 mt-auto">
+        <div className="flex justify-start pointer-events-auto max-w-[80%] sm:max-w-[400px]">
           <CombatLog />
         </div>
 
         <div className="flex items-end justify-between gap-2 sm:gap-4">
-          <div className="pointer-events-auto self-end">
+          <div className="pointer-events-auto self-end mb-1">
             <ChatBoxWrapper isOpen={chatOpen} onToggle={handleToggleChat} />
           </div>
-          <div className="flex flex-col items-end gap-3 sm:gap-4 pointer-events-auto flex-1 min-w-0">
+
+          <div className="flex flex-col items-end gap-2 sm:gap-4 pointer-events-auto flex-1 min-w-0">
             <Hotbar />
             <MenuBar
               onToggleChat={handleToggleChat}
@@ -97,7 +103,7 @@ function ChatBoxWrapper({ isOpen, onToggle }: { isOpen: boolean; onToggle: () =>
         onClick={onToggle}
         className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-slate-950/40 backdrop-blur-md border border-slate-800/60 flex items-center justify-center text-blue-400 hover:text-blue-300 hover:bg-slate-900/60 transition-all shadow-2xl cursor-pointer"
       >
-        <MessageSquareIcon size={20} />
+        <MessageSquare size={20} />
       </motion.button>
     );
   }
@@ -105,17 +111,9 @@ function ChatBoxWrapper({ isOpen, onToggle }: { isOpen: boolean; onToggle: () =>
      <motion.div
       initial={{ opacity: 0, scale: 0.9, y: 20 }}
       animate={{ opacity: 1, scale: 1, y: 0 }}
-      className="pointer-events-auto w-full max-w-[300px]"
+      className="pointer-events-auto w-full max-w-[280px] xs:max-w-[320px] sm:max-w-[400px]"
      >
         <ChatBox />
      </motion.div>
-  );
-}
-
-function MessageSquareIcon({ size }: { size: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-    </svg>
   );
 }
