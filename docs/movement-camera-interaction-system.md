@@ -185,23 +185,40 @@ Integration: `Player.tsx` will call `stateMachine.tick()` each frame, and the st
 
 ### 3.2 Movement Formula
 
+Movement uses **velocity-based acceleration/deceleration** (RO-style easing) instead of instant on/off:
+
 ```typescript
 // Client-side prediction
-const speed = BALANCE.movement.playerSpeed; // 8 units/sec
+const SPEED = BALANCE.movement.playerSpeed; // 8 units/sec
+const ACCEL = SPEED * 8;   // reach full speed in ~0.125s
+const FRICTION = 10;        // stop in ~0.1s
 
-// Per-frame movement (delta in seconds)
-if (state === 'WALK' || state === 'WALK_TO_ATTACK' || state === 'WALK_TO_INTERACT') {
-  const direction = getMovementDirection(); // normalized {x, z}
-  const displacement = {
-    x: direction.x * speed * delta,
-    z: direction.z * speed * delta,
+// Per-frame velocity update (delta in seconds)
+if (isMoving) {
+  velocity.x += (inputDir.x * SPEED - velocity.x) * Math.min(1, ACCEL * delta);
+  velocity.z += (inputDir.z * SPEED - velocity.z) * Math.min(1, ACCEL * delta);
+} else {
+  velocity.x -= velocity.x * Math.min(1, FRICTION * delta);
+  velocity.z -= velocity.z * Math.min(1, FRICTION * delta);
+  if (Math.abs(velocity.x) < 0.001) velocity.x = 0;
+  if (Math.abs(velocity.z) < 0.001) velocity.z = 0;
+}
+
+// Apply position via kinematic body (Rapier handles collision response)
+const hasVelocity = velocity.x !== 0 || velocity.z !== 0;
+if (hasVelocity) {
+  const newPos = {
+    x: pos.x + velocity.x * delta,
+    y: pos.y,
+    z: pos.z + velocity.z * delta,
   };
-
-  // Apply collision resolution (see Section 4)
-  const resolved = collisionSystem.resolveMovement(currentPos, displacement);
-  rigidBody.setTranslation(resolved, true);
+  rigidBody.setTranslation(newPos, true);
+  playerPosition.x = newPos.x;  // update shared module for camera
+  playerPosition.z = newPos.z;
 }
 ```
+
+The player is a `kinematicPosition` RigidBody — it is unaffected by gravity/forces and only moves where explicitly placed. Collision response still works (kinematic bodies push dynamic bodies and trigger collision callbacks).
 
 ### 3.3 Animation Direction
 
@@ -288,10 +305,10 @@ The game uses **@react-three/rapier** (Rapier physics engine). Currently, only t
 
 | Entity | RigidBody Type | Collider Shape | Group |
 |---|---|---|---|
-| Player | `dynamic` (kinematic for movement) | Capsule (radius 0.3, height 1.0) | 0x0001 |
+| Player | `kinematicPosition` | Capsule (radius 0.3, height 1.0) | 0x0001 |
 | Enemies | `fixed` | Capsule (radius 0.3, height 1.0) | 0x0002 |
 | Walls/Obstacles | `fixed` | Based on geometry | 0x0004 |
-| Other Players | `dynamic` (kinematic) | Capsule | 0x0008 |
+| Other Players | `kinematicPosition` | Capsule | 0x0008 |
 | Warps/Triggers | `fixed` (sensor) | Box/Sphere | 0x0010 |
 
 **Collision groups:**
@@ -569,7 +586,24 @@ interface CameraConfig {
 | Pinch (2 fingers) | Zoom in/out | Mobile |
 | *(No orbit rotation)* | — | — |
 
-### 6.4 Smart Zoom
+### 6.4 Camera Position Source
+
+The camera reads from a shared module variable (`lib/playerPosition.ts`) instead of the Zustand store. This is because:
+
+- The store `position` field is only updated by server `worldSnapshot` events (never changes when offline)
+- The RigidBody position changes every frame during movement
+- A module-level variable avoids React re-renders at 60fps
+
+```typescript
+// lib/playerPosition.ts — shared module
+export const playerPosition = { x: 0, y: 0.5, z: 0 };
+```
+
+`Player.tsx` updates `playerPosition` every frame from the RigidBody translation. `CameraController.tsx` reads from it in `useFrame`.
+
+A `useEffect` + `useGameStore.subscribe` syncs the RigidBody (and `playerPosition`) when the store position changes externally (admin teleport, server correction).
+
+### 6.5 Smart Zoom
 
 Camera zooms out when moving, zooms in when idle. Already partially exists in current `CameraController.tsx`. Extend it.
 
@@ -579,7 +613,7 @@ const moveBoost = Math.min(inputMag * 2, 3);
 const targetDistance = defaultDistance + moveBoost;
 ```
 
-### 6.5 Camera Position Calculation
+### 6.6 Camera Position Calculation
 
 ```typescript
 const FIXED_YAW = 0.85;    // NE angle (radians)
@@ -600,7 +634,7 @@ camera.position.lerp(targetPos, smoothLerp);
 camera.lookAt(playerPos.x, playerPos.y + 0.5, playerPos.z);
 ```
 
-### 6.6 Camera Collision
+### 6.7 Camera Collision
 
 Camera must not clip through terrain/objects.
 
@@ -635,7 +669,7 @@ useFrame(() => {
 });
 ```
 
-### 6.7 Zoom Implementation
+### 6.8 Zoom Implementation
 
 ```typescript
 // State
@@ -656,13 +690,13 @@ useEffect(() => {
   return () => canvas.removeEventListener('wheel', handleWheel);
 }, []);
 
-// Pinch zoom (mobile) — see Section 6.8
+// Pinch zoom (mobile) — see Section 6.9
 // Per-frame smoothing
 const smoothLerp = 1 - Math.pow(1 - 0.06, delta * 60);
 distanceRef.current += (targetZoomRef.current - distanceRef.current) * smoothLerp;
 ```
 
-### 6.8 Pinch Zoom Implementation (Mobile)
+### 6.9 Pinch Zoom Implementation (Mobile)
 
 ```typescript
 let lastTouchDist = 0;
@@ -1588,7 +1622,7 @@ Server must include `animState` and `dirX`/`dirZ` in `SnapshotPlayer` (see Secti
 
 ## Appendix C: Key Gotchas
 
-1. **`setNextKinematicTranslation` vs `setTranslation`**: The former enables collision response. The latter teleports. Must use the former for smooth collision. For teleport (respawn, warp), use `setTranslation` then `setNextKinematicTranslation` next frame.
+1. **`kinematicPosition` RigidBody**: Player uses `type="kinematicPosition"` with direct `setTranslation()` calls. This eliminates gravity/force interference that causes jitter on dynamic bodies. Kinematic bodies still participate in collision response (they push dynamic bodies and trigger callbacks).
 
 2. **Rapier `CapsuleCollider` args**: `CapsuleCollider args={[radius, halfHeight]}`. For a player, `args={[0.3, 0.4]}` creates a 0.6-radius capsule 0.8 units tall.
 

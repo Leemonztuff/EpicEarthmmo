@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Vector3, Group as TGroup } from 'three';
 import { useGameStore } from '@/store/useGameStore';
@@ -12,6 +12,7 @@ import { getMovementInput } from '@/lib/movementController';
 import { createPlayerStateMachine, updatePlayerStateMachine } from '@/lib/playerStateMachine';
 import { createPathFollower, setPathTarget, getPathDirection, type PathFollower } from '@/lib/pathFollower';
 import { performInteraction } from '@/lib/interactionManager';
+import { playerPosition } from '@/lib/playerPosition';
 import { gameData } from '@/shared/loader';
 
 const { balance } = gameData;
@@ -47,9 +48,22 @@ export function Player() {
   const animStateRef = useRef<AnimState>('idle');
   const directionRef = useRef<Direction>('S');
   const reconciledRef = useRef(false);
+  const velocityRef = useRef({ x: 0, z: 0 });
 
   const jobClass = useGameStore(s => s.player.jobClass);
   const entityId = JOB_TO_ENTITY[jobClass] || 'novice_m';
+
+  useEffect(() => {
+    const unsub = useGameStore.subscribe((state, prev) => {
+      if (state.position !== prev.position && rigidBodyRef.current) {
+        rigidBodyRef.current.setTranslation(state.position, true);
+        playerPosition.x = state.position.x;
+        playerPosition.y = state.position.y;
+        playerPosition.z = state.position.z;
+      }
+    });
+    return unsub;
+  }, []);
 
   useFrame((state, delta) => {
     if (!rigidBodyRef.current) return;
@@ -68,6 +82,8 @@ export function Player() {
     } = gameStore;
 
     const SPEED = balance.movement.playerSpeed;
+    const ACCEL = SPEED * 8;
+    const FRICTION = 10;
     const ATTACK_RANGE = balance.combat.attackRange;
     const ATTACK_COOLDOWN = Math.max(0.1, (balance.combat.attackCooldownMs / 1000));
 
@@ -155,16 +171,33 @@ export function Player() {
 
     setInputDirection(inputDir);
 
-    // ── Apply movement ──
+    // ── Velocity-based movement (RO-style accel/decel) ──
     const isMoving = inputDir.x !== 0 || inputDir.z !== 0;
     if (isMoving) {
-      rigidBodyRef.current.setTranslation({
-        x: pos.x + inputDir.x * SPEED * delta,
-        y: pos.y,
-        z: pos.z + inputDir.z * SPEED * delta,
-      }, true);
+      velocityRef.current.x += (inputDir.x * SPEED - velocityRef.current.x) * Math.min(1, ACCEL * delta);
+      velocityRef.current.z += (inputDir.z * SPEED - velocityRef.current.z) * Math.min(1, ACCEL * delta);
       reconciledRef.current = false;
+    } else {
+      velocityRef.current.x -= velocityRef.current.x * Math.min(1, FRICTION * delta);
+      velocityRef.current.z -= velocityRef.current.z * Math.min(1, FRICTION * delta);
+      if (Math.abs(velocityRef.current.x) < 0.001) velocityRef.current.x = 0;
+      if (Math.abs(velocityRef.current.z) < 0.001) velocityRef.current.z = 0;
     }
+
+    const hasVelocity = velocityRef.current.x !== 0 || velocityRef.current.z !== 0;
+    if (hasVelocity) {
+      pos = {
+        x: pos.x + velocityRef.current.x * delta,
+        y: pos.y,
+        z: pos.z + velocityRef.current.z * delta,
+      };
+      rigidBodyRef.current.setTranslation(pos, true);
+    }
+
+    // ── Update shared position for camera ──
+    playerPosition.x = pos.x;
+    playerPosition.y = pos.y;
+    playerPosition.z = pos.z;
 
     // ── Server reconciliation (only when connected + not moving) ──
     const socketConnected = networkStore.socket?.connected;
@@ -179,8 +212,9 @@ export function Player() {
           z: pos.z + corrDz * 0.5,
         };
         rigidBodyRef.current.setTranslation(pos, true);
-      }
-      if (corrDistSq < 0.1) {
+        playerPosition.x = pos.x;
+        playerPosition.z = pos.z;
+      } else if (corrDistSq < 0.1) {
         reconciledRef.current = true;
       }
     }
@@ -195,30 +229,29 @@ export function Player() {
 
     if (isAttacking) {
       animStateRef.current = 'attack';
-    } else if (isMoving) {
+    } else if (hasVelocity) {
       animStateRef.current = 'walk';
     } else {
       animStateRef.current = 'idle';
     }
 
-    if (inputDir.x !== 0 || inputDir.z !== 0) {
-      directionRef.current = directionFromAngle(inputDir.x, inputDir.z);
+    if (hasVelocity) {
+      directionRef.current = directionFromAngle(velocityRef.current.x, velocityRef.current.z);
     }
 
     // ── Bob animation ──
     if (groupRef.current) {
-      if (isMoving) {
-        const bob = Math.sin(state.clock.elapsedTime * 15);
-        groupRef.current.position.y = Math.abs(bob) * 0.15;
+      if (hasVelocity) {
+        const bob = Math.sin(state.clock.elapsedTime * 12) * 0.08;
+        groupRef.current.position.y = bob;
       } else {
-        groupRef.current.position.y = Math.sin(state.clock.elapsedTime * 3) * 0.05;
+        groupRef.current.position.y = Math.sin(state.clock.elapsedTime * 2) * 0.02;
       }
-      groupRef.current.rotation.z = 0;
     }
   });
 
   return (
-    <RigidBody ref={rigidBodyRef} position={[initialPos.x, initialPos.y, initialPos.z]} enabledRotations={[false, false, false]}>
+    <RigidBody ref={rigidBodyRef} type="kinematicPosition" position={[initialPos.x, initialPos.y, initialPos.z]} enabledRotations={[false, false, false]}>
       <group ref={groupRef}>
         <Sprite
           entityId={entityId}

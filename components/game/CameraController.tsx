@@ -2,7 +2,7 @@
 
 import React, { useRef, useEffect } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
-import { useGameStore } from '@/store/useGameStore';
+import { playerPosition } from '@/lib/playerPosition';
 import * as THREE from 'three';
 
 const FIXED_YAW = 0.85;
@@ -19,7 +19,7 @@ export function CameraController() {
   const initialized = useRef(false);
 
   useEffect(() => {
-    const playerPos = useGameStore.getState().position || { x: 0, y: 0.5, z: 0 };
+    const pp = playerPosition;
     const aspect = size.width / size.height;
     const portraitScale = Math.max(0.7, Math.min(1.3, (16 / 9) / aspect));
     const dist = BASE_DIST * portraitScale;
@@ -28,11 +28,11 @@ export function CameraController() {
     const phi = FIXED_PITCH;
 
     camera.position.set(
-      playerPos.x + dist * Math.sin(phi) * Math.sin(theta),
-      playerPos.y + dist * Math.cos(phi),
-      playerPos.z + dist * Math.sin(phi) * Math.cos(theta),
+      pp.x + dist * Math.sin(phi) * Math.sin(theta),
+      pp.y + dist * Math.cos(phi),
+      pp.z + dist * Math.sin(phi) * Math.cos(theta),
     );
-    camera.lookAt(playerPos.x, playerPos.y, playerPos.z);
+    camera.lookAt(pp.x, pp.y, pp.z);
     initialized.current = false;
   }, [camera, size]);
 
@@ -46,7 +46,7 @@ export function CameraController() {
   }, []);
 
   useFrame((_state, delta) => {
-    const playerPos = useGameStore.getState().position || { x: 0, y: 0.5, z: 0 };
+    const pp = playerPosition;
     const aspect = size.width / size.height;
     const portraitScale = Math.max(0.7, Math.min(1.3, (16 / 9) / aspect));
     const baseDist = BASE_DIST * portraitScale;
@@ -57,14 +57,14 @@ export function CameraController() {
     const theta = FIXED_YAW;
     const phi = FIXED_PITCH;
 
-    const targetX = playerPos.x + dist * Math.sin(phi) * Math.sin(theta);
-    const targetY = playerPos.y + dist * Math.cos(phi);
-    const targetZ = playerPos.z + dist * Math.sin(phi) * Math.cos(theta);
+    const targetX = pp.x + dist * Math.sin(phi) * Math.sin(theta);
+    const targetY = pp.y + dist * Math.cos(phi);
+    const targetZ = pp.z + dist * Math.sin(phi) * Math.cos(theta);
 
     camTarget.current.set(targetX, targetY, targetZ);
     const smoothLerp = 1 - Math.pow(1 - 0.06, delta * 60);
     camera.position.lerp(camTarget.current, smoothLerp);
-    camera.lookAt(playerPos.x, playerPos.y + 0.5, playerPos.z);
+    camera.lookAt(pp.x, pp.y + 0.5, pp.z);
 
     if (!initialized.current) {
       camera.position.copy(camTarget.current);
