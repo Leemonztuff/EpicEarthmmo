@@ -3,6 +3,7 @@ import { Texture, TextureLoader, RepeatWrapping, ClampToEdgeWrapping, CanvasText
 const textureLoader = typeof window !== 'undefined' ? new TextureLoader() : null;
 const textureCache = new Map<string, Texture>();
 const canvasCache = new Map<string, CanvasTexture>();
+const failedTextures = new Set<string>();
 
 // ─── Direction system ───────────────────────────────────────────
 
@@ -436,6 +437,7 @@ function isTextureReady(tex: Texture): boolean {
 
 function loadTexture(path: string): Texture | null {
   if (!textureLoader) return null;
+  if (failedTextures.has(path)) return null;
   const cached = textureCache.get(path);
   if (cached) return cached;
 
@@ -443,6 +445,15 @@ function loadTexture(path: string): Texture | null {
   tex.wrapS = RepeatWrapping;
   tex.wrapT = ClampToEdgeWrapping;
   textureCache.set(path, tex);
+
+  const img = tex.image;
+  if (img instanceof HTMLImageElement) {
+    img.onerror = () => {
+      failedTextures.add(path);
+      textureCache.delete(path);
+    };
+  }
+
   return tex;
 }
 

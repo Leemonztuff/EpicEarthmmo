@@ -14,23 +14,43 @@ import { VirtualJoystick } from './VirtualJoystick';
 import { ScreenShake } from './ScreenShake';
 import { DialogWindow } from './ui/DialogWindow';
 import { useNetworkStore } from '@/store/useNetworkStore';
+import { gameData } from '@/shared/loader';
 
-const defaultMapData = {
-  mapId: 'prontera',
-  mapName: 'Prontera',
-  mapType: 'town',
-  dimensions: { width: 80, height: 80 },
-  warps: [],
-  safeZones: [],
-  decorations: [],
-  grassTuftCount: 50,
-  grassTexture: { baseColor: '#c4a882', repeatX: 20, repeatY: 20 },
-  floorColor: '#c4a882',
-};
+function getDefaultMapData() {
+  const prontera = gameData.maps.find(m => m.id === 'prontera');
+  if (!prontera) {
+    return {
+      mapId: 'prontera',
+      mapName: 'Prontera',
+      mapType: 'town',
+      dimensions: { width: 80, height: 80 },
+      npcs: [], chests: [], warps: [], safeZones: [], decorations: [], colliders: [],
+      grassTuftCount: 50,
+      grassTexture: { baseColor: '#c4a882', repeatX: 20, repeatY: 20 },
+      floorColor: '#c4a882',
+    };
+  }
+  const p = prontera as any;
+  return {
+    mapId: p.id,
+    mapName: p.name,
+    mapType: p.type,
+    dimensions: p.dimensions,
+    npcs: p.npcs || [],
+    chests: p.chests || [],
+    warps: p.warps || [],
+    safeZones: p.safeZones || [],
+    decorations: p.decorations || [],
+    colliders: p.colliders || [],
+    grassTuftCount: p.grassTuftCount || 50,
+    grassTexture: p.grassTexture || { baseColor: '#c4a882', repeatX: 20, repeatY: 20 },
+    floorColor: p.floorColor || '#c4a882',
+  };
+}
 
 function DynamicMap() {
   const mapData = useNetworkStore(state => state.currentMapData);
-  return <Map mapData={mapData || (defaultMapData as any)} />;
+  return <Map mapData={mapData || (getDefaultMapData() as any)} />;
 }
 
 function MapAtmosphere() {

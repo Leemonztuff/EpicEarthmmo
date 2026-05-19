@@ -79,9 +79,7 @@ export function Player() {
     let inputDir = { x: rawInput.x, z: rawInput.z };
 
     // ── Camera-relative rotation ──
-    if (hasKeyboardInput) {
-      inputDir = rotateInput(inputDir);
-    }
+    inputDir = rotateInput(inputDir);
 
     // ── Direct input clears pathfinding target ──
     if (hasKeyboardInput && (inputDir.x !== 0 || inputDir.z !== 0)) {
@@ -168,8 +166,9 @@ export function Player() {
       reconciledRef.current = false;
     }
 
-    // ── Server reconciliation (only when not moving) ──
-    if (!isMoving && !reconciledRef.current) {
+    // ── Server reconciliation (only when connected + not moving) ──
+    const socketConnected = networkStore.socket?.connected;
+    if (!isMoving && !reconciledRef.current && socketConnected) {
       const corrDx = storePos.x - pos.x;
       const corrDz = storePos.z - pos.z;
       const corrDistSq = corrDx * corrDx + corrDz * corrDz;

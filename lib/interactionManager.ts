@@ -2,7 +2,7 @@ import { useGameStore } from '@/store/useGameStore';
 import { useNetworkStore } from '@/store/useNetworkStore';
 import { gameData } from '@/shared/loader';
 
-const { dialogs } = gameData;
+const { dialogs, maps } = gameData;
 
 export type InteractionType = 'npc' | 'chest' | 'warp' | 'enemy';
 
@@ -24,8 +24,12 @@ export function performInteraction(target: InteractionTarget) {
   switch (target.type) {
     case 'npc': {
       const networkStore = useNetworkStore.getState();
-      const mapData = networkStore.currentMapData;
-      const npc = (mapData?.npcs || []).find((n: any) => n.id === target.id);
+      let mapData = networkStore.currentMapData;
+      if (!mapData) {
+        const localMap = maps.find(m => m.id === 'prontera');
+        mapData = localMap || null;
+      }
+      const npc = (mapData as any)?.npcs?.find((n: any) => n.id === target.id);
       if (npc) {
         const dialog = (dialogs?.dialogs || []).find(d => d.id === npc.dialogId);
         if (dialog) {
