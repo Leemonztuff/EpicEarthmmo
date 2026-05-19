@@ -3,9 +3,8 @@
 import React from 'react';
 import { useGameStore } from '@/store/useGameStore';
 import { Modal, IconBox, Text, Button, Badge, Section, ListItem } from '@/components/ui';
-import { Sword, Shield, Shirt, Footprints, Crown, Gem, X, ArrowUpRight, Plus } from 'lucide-react';
+import { Sword, Shield, Shirt, Footprints, Crown, Gem, X, ArrowUpRight } from 'lucide-react';
 import { gameData } from '@/shared/loader';
-import { motion, AnimatePresence } from 'framer-motion';
 
 const { items } = gameData;
 
@@ -20,13 +19,13 @@ const slotConfig: Record<string, { label: string; icon: React.ReactNode; color: 
 
 export function EquipmentWindow({ onClose }: { onClose: () => void }) {
   const player = useGameStore((state) => state.player);
-  const equippedItems = player.equippedItems || {};
+  const equippedItems = player?.equippedItems || {};
   const equipItem = useGameStore((state) => state.equipItem);
   const unequipItem = useGameStore((state) => state.unequipItem);
   const getEquippedStats = useGameStore((state) => state.getEquippedStats);
-  const equippedStats = getEquippedStats();
+  const equippedStats = (typeof getEquippedStats === 'function' ? getEquippedStats() : null) || {};
 
-  const equippableItems = player.inventory.filter(i => i.type === 'equip');
+  const equippableItems = (player?.inventory || []).filter(i => i.type === 'equip');
 
   return (
     <Modal
@@ -76,7 +75,7 @@ export function EquipmentWindow({ onClose }: { onClose: () => void }) {
                 {itemDef && (
                   <button
                     onClick={() => unequipItem(slot as any)}
-                    className="absolute -top-1 -right-1 w-6 h-6 rounded-full bg-red-500/80 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-lg"
+                    className="absolute -top-1 -right-1 w-6 h-6 rounded-full bg-red-500/80 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-lg cursor-pointer"
                   >
                     <X size={12} strokeWidth={3} />
                   </button>
@@ -87,10 +86,10 @@ export function EquipmentWindow({ onClose }: { onClose: () => void }) {
         </div>
 
         {/* Bonus Stats Panel */}
-        {Object.keys(equippedStats).some(k => k !== 'statPoints' && (equippedStats as any)[k] !== 0) && (
+        {Object.keys(equippedStats || {}).some(k => k !== 'statPoints' && (equippedStats as any)[k] !== 0) && (
           <Section title="Active Bonuses" variant="card" className="bg-emerald-500/5 border-emerald-500/20">
             <div className="flex flex-wrap gap-2">
-              {Object.entries(equippedStats).map(([key, val]) => {
+              {Object.entries(equippedStats || {}).map(([key, val]) => {
                 if (key === 'statPoints' || val === 0) return null;
                 return (
                   <Badge key={key} variant="success" size="sm" className="bg-emerald-500/20">
@@ -121,20 +120,18 @@ export function EquipmentWindow({ onClose }: { onClose: () => void }) {
                     title={item.name}
                     description={
                       <div className="flex gap-1 mt-1">
-                        {itemDef?.equipStats && Object.entries(itemDef.equipStats).map(([k, v]) => (
+                        {itemDef?.equipStats && Object.entries(itemDef.equipStats || {}).map(([k, v]) => (
                           <Badge key={k} variant="primary" size="xs">{k.toUpperCase()} +{v}</Badge>
                         ))}
                       </div>
                     }
                     action={
                       <div className="flex gap-1">
-                        {/* Auto-detect best slot or show options */}
                         <Button
                           variant="primary"
                           size="sm"
                           className="h-8 px-3"
                           onClick={() => {
-                            // Simple logic: weapon to weapon, others to armor for now if ambiguous
                             const slot = itemDef?.type === 'weapon' ? 'weapon' : 'armor';
                             equipItem(item.id, slot);
                           }}
@@ -154,7 +151,6 @@ export function EquipmentWindow({ onClose }: { onClose: () => void }) {
   );
 }
 
-// Helper to avoid build error
 function cn(...classes: any[]) {
   return classes.filter(Boolean).join(' ');
 }

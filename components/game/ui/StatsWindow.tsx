@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { useGameStore } from '@/store/useGameStore';
-import { Modal, IconBox, Text, Button, Section, Badge, ProgressBar } from '@/components/ui';
+import { Modal, IconBox, Text, Button, Section, Badge } from '@/components/ui';
 import { Dumbbell, Wind, Heart, Brain, Crosshair, Clover, Star, TrendingUp } from 'lucide-react';
 import { motion } from 'framer-motion';
 
@@ -19,12 +19,14 @@ export function StatsWindow({ onClose }: { onClose: () => void }) {
   const player = useGameStore((state) => state.player);
   const allocateStat = useGameStore((state) => state.allocateStat);
 
+  if (!player) return null;
+
   return (
     <Modal
       isOpen
       onClose={onClose}
       title="Character Status"
-      subtitle={`Level ${player.baseLevel} ${player.jobClass}`}
+      subtitle={`Level ${player.baseLevel || 1} ${player.jobClass || 'Novice'}`}
       position="bottom"
     >
       <div className="space-y-6">
@@ -34,10 +36,10 @@ export function StatsWindow({ onClose }: { onClose: () => void }) {
             <IconBox icon={<Star size={20} className="text-amber-400" />} color="yellow" size="md" />
             <div>
               <Text variant="caption" className="uppercase tracking-widest text-[10px] font-black text-slate-500">Available Points</Text>
-              <Text variant="valueLg" className="text-2xl text-white">{player.stats.statPoints}</Text>
+              <Text variant="valueLg" className="text-2xl text-white">{player.stats?.statPoints || 0}</Text>
             </div>
           </div>
-          {player.stats.statPoints > 0 && (
+          {(player.stats?.statPoints || 0) > 0 && (
             <motion.div
               animate={{ scale: [1, 1.05, 1] }}
               transition={{ repeat: Infinity, duration: 2 }}
@@ -50,8 +52,8 @@ export function StatsWindow({ onClose }: { onClose: () => void }) {
         {/* Stats Grid */}
         <div className="grid gap-3">
           {statConfig.map(({ key, icon: Icon, label, desc, color }, index) => {
-            const val = player.stats[key];
-            const canAllocate = player.stats.statPoints > 0;
+            const val = player.stats ? player.stats[key] : 0;
+            const canAllocate = (player.stats?.statPoints || 0) > 0;
 
             return (
               <motion.div
@@ -94,19 +96,19 @@ export function StatsWindow({ onClose }: { onClose: () => void }) {
            <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1">
                 <Text variant="caption" className="text-[10px] uppercase text-slate-500 font-bold">Physical Attack</Text>
-                <Text variant="value" className="text-white">{10 + player.stats.str * 2}</Text>
+                <Text variant="value" className="text-white">{10 + (player.stats?.str || 0) * 2}</Text>
               </div>
               <div className="space-y-1">
                 <Text variant="caption" className="text-[10px] uppercase text-slate-500 font-bold">Magic Attack</Text>
-                <Text variant="value" className="text-white">{10 + player.stats.int * 2}</Text>
+                <Text variant="value" className="text-white">{10 + (player.stats?.int || 0) * 2}</Text>
               </div>
               <div className="space-y-1">
                 <Text variant="caption" className="text-[10px] uppercase text-slate-500 font-bold">Defense</Text>
-                <Text variant="value" className="text-white">{player.stats.vit}</Text>
+                <Text variant="value" className="text-white">{player.stats?.vit || 0}</Text>
               </div>
               <div className="space-y-1">
                 <Text variant="caption" className="text-[10px] uppercase text-slate-500 font-bold">Flee Rate</Text>
-                <Text variant="value" className="text-white">{100 + player.stats.agi + player.baseLevel}</Text>
+                <Text variant="value" className="text-white">{100 + (player.stats?.agi || 0) + (player.baseLevel || 1)}</Text>
               </div>
            </div>
         </Section>
