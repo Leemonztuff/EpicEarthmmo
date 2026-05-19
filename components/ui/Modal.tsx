@@ -43,12 +43,12 @@ export function Modal({
   };
 
   const positionClasses = {
-    center: 'items-center justify-center p-4',
+    center: 'items-center justify-center p-4 sm:p-6',
     bottom: 'items-end justify-center',
   };
 
   const contentClasses = {
-    center: 'rounded-2xl',
+    center: 'rounded-2xl sm:rounded-3xl',
     bottom: 'rounded-t-3xl w-full',
   };
 
@@ -89,32 +89,32 @@ export function Modal({
               'relative bg-slate-900/95 border border-slate-700/60 shadow-[0_0_50px_-12px_rgba(0,0,0,0.5)] pointer-events-auto flex flex-col overflow-hidden',
               sizeClasses[size],
               contentClasses[position],
-              position === 'bottom' ? 'max-h-[85dvh]' : 'max-h-[90dvh]',
+              position === 'bottom' ? 'max-h-[90dvh] sm:max-h-[85dvh]' : 'max-h-[90dvh]',
               className
             )}
           >
             {position === 'bottom' && (
-              <div className="w-12 h-1.5 bg-slate-700/60 mx-auto rounded-full mt-3 mb-1 flex-shrink-0" />
+              <div className="w-12 h-1.5 bg-slate-700/60 mx-auto rounded-full mt-3 mb-1 flex-shrink-0 sm:hidden" />
             )}
 
             {title && (
-              <div className="flex items-center justify-between px-5 py-4 border-b border-slate-800/60 bg-slate-900/50">
+              <div className="flex items-center justify-between px-4 py-3 sm:px-5 sm:py-4 border-b border-slate-800/60 bg-slate-900/50">
                 <div>
-                  <h2 className="text-white font-bold text-lg tracking-tight">{title}</h2>
-                  {subtitle && <p className="text-slate-400 text-xs font-medium mt-0.5">{subtitle}</p>}
+                  <h2 className="text-white font-bold text-base sm:text-lg tracking-tight">{title}</h2>
+                  {subtitle && <p className="text-slate-400 text-[10px] sm:text-xs font-medium mt-0.5">{subtitle}</p>}
                 </div>
                 {showClose && (
                   <button
                     onClick={onClose}
-                    className="w-10 h-10 rounded-xl flex items-center justify-center text-slate-400 hover:text-white hover:bg-slate-800/80 active:scale-90 transition-all"
+                    className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center text-slate-400 hover:text-white hover:bg-slate-800/80 active:scale-90 transition-all cursor-pointer"
                   >
-                    <X size={20} />
+                    <X size={18} />
                   </button>
                 )}
               </div>
             )}
             <div className={cn('flex-1 overflow-y-auto custom-scrollbar', !title && 'pt-4')}>
-              <div className={cn('px-5 pb-6', title ? 'pt-2' : '')}>
+              <div className={cn('px-4 pb-6 sm:px-5', title ? 'pt-2' : '')}>
                 {children}
               </div>
             </div>
