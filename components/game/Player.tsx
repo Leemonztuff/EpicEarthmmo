@@ -1,27 +1,36 @@
-import React, { useRef, useMemo, useEffect, useState } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import { useFrame } from '@react-three/fiber';
-import { Vector3, Mesh, CanvasTexture } from 'three';
-import * as THREE from 'three';
-import { Billboard } from '@react-three/drei';
+import { Vector3, Group as TGroup } from 'three';
 import { useGameStore } from '@/store/useGameStore';
 import { useNetworkStore } from '@/store/useNetworkStore';
 import { RigidBody, RapierRigidBody } from '@react-three/rapier';
 import { touchInput } from '@/lib/touchInput';
 import { gameData } from '@/shared/loader';
+import { Sprite } from './Sprite';
+import { directionFromAngle, type Direction, type AnimState } from '@/lib/spriteManager';
 
-const { balance, skills } = gameData;
+const { balance } = gameData;
+
+const JOB_TO_ENTITY: Record<string, string> = {
+  Novice: 'novice_m',
+  Swordsman: 'swordsman_m',
+  Mage: 'mage_m',
+  Archer: 'archer_m',
+  Thief: 'thief_m',
+  Acolyte: 'acolyte_m',
+};
 
 export function Player() {
   const rigidBodyRef = useRef<RapierRigidBody>(null);
-  const meshRef = useRef<Mesh>(null);
-  const planeRef = useRef<Mesh>(null);
-  const flipX = useRef(1);
+  const groupRef = useRef<TGroup>(null);
 
   const [initialPos] = useState(() => useGameStore.getState().position);
   const lastAttackTimeRef = useRef(0);
   const keys = useRef<{ [key: string]: boolean }>({});
   const firstFrameRef = useRef(true);
-  const prevInputRef = useRef({ x: 0, z: 0 });
+
+  const animStateRef = useRef<AnimState>('idle');
+  const directionRef = useRef<Direction>('S');
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => { keys.current[e.code] = true; };
@@ -34,61 +43,8 @@ export function Player() {
     };
   }, []);
 
-  const texture = useMemo(() => {
-    if (typeof document === 'undefined') return null;
-    const canvas = document.createElement('canvas');
-    canvas.width = 64;
-    canvas.height = 64;
-    const ctx = canvas.getContext('2d')!;
-
-    ctx.fillStyle = '#8B4513';
-    ctx.beginPath();
-    ctx.arc(32, 18, 11, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = '#A0522D';
-    for (let i = 0; i < 5; i++) {
-      const angle = -Math.PI / 2 + (i - 2) * 0.3;
-      ctx.beginPath();
-      ctx.arc(32 + Math.cos(angle) * 10, 18 + Math.sin(angle) * 10, 4, 0, Math.PI * 2);
-      ctx.fill();
-    }
-    ctx.fillStyle = '#ffd5a0';
-    ctx.beginPath();
-    ctx.arc(32, 20, 9, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = '#333';
-    ctx.fillRect(27, 18, 3, 3);
-    ctx.fillRect(34, 18, 3, 3);
-    ctx.fillStyle = '#c97';
-    ctx.fillRect(30, 24, 4, 1);
-    ctx.fillStyle = '#2a7a9e';
-    ctx.beginPath();
-    ctx.moveTo(22, 26);
-    ctx.lineTo(42, 26);
-    ctx.lineTo(44, 42);
-    ctx.lineTo(20, 42);
-    ctx.closePath();
-    ctx.fill();
-    ctx.fillStyle = '#8B4513';
-    ctx.fillRect(22, 37, 20, 2);
-    ctx.fillStyle = '#ffd5a0';
-    ctx.fillRect(16, 28, 6, 4);
-    ctx.fillRect(42, 28, 6, 4);
-    ctx.fillStyle = '#4a4a6a';
-    ctx.fillRect(24, 42, 6, 10);
-    ctx.fillRect(34, 42, 6, 10);
-    ctx.fillStyle = '#5a3a1a';
-    ctx.fillRect(23, 50, 8, 3);
-    ctx.fillRect(33, 50, 8, 3);
-
-    return new CanvasTexture(canvas);
-  }, []);
-
-  useEffect(() => {
-    return () => {
-      texture?.dispose();
-    }
-  }, [texture]);
+  const jobClass = useGameStore(s => s.player.jobClass);
+  const entityId = JOB_TO_ENTITY[jobClass] || 'novice_m';
 
   useFrame((state, delta) => {
     if (!rigidBodyRef.current) return;
@@ -174,19 +130,6 @@ export function Player() {
             lastAttackTimeRef.current = now;
             isAttacking = true;
             networkStore.attackTarget(selectedTargetId);
-
-            if (planeRef.current) {
-              const mat = planeRef.current.material;
-              if (mat && 'color' in mat) {
-                (mat as THREE.MeshBasicMaterial).color.setHex(0xffcccc);
-                setTimeout(() => {
-                  if (planeRef.current) {
-                    const m2 = planeRef.current.material;
-                    if (m2 && 'color' in m2) (m2 as THREE.MeshBasicMaterial).color.setHex(0xffffff);
-                  }
-                }, 80);
-              }
-            }
           }
         } else {
           const dx = enemy.position.x - current.x;
@@ -212,7 +155,7 @@ export function Player() {
       }
     }
 
-    setInputDirection({ x: inputDir.x, y: 0, z: inputDir.z });
+    setInputDirection({ x: inputDir.x, z: inputDir.z });
 
     const isMoving = inputDir.x !== 0 || inputDir.z !== 0;
     if (isMoving) {
@@ -223,46 +166,37 @@ export function Player() {
       }, true);
     }
 
-    if (inputDir.x < -0.1) flipX.current = -1;
-    else if (inputDir.x > 0.1) flipX.current = 1;
+    // ── Update animation state ──
+    animStateRef.current = isAttacking ? 'attack' : isMoving ? 'walk' : 'idle';
 
-    if (meshRef.current) {
-      meshRef.current.scale.x = flipX.current;
-
-      if (isMoving) {
-        const bob = Math.sin(state.clock.elapsedTime * 15);
-        meshRef.current.position.y = Math.abs(bob) * 0.15;
-        meshRef.current.rotation.z = bob * 0.05 * flipX.current;
-      } else {
-        meshRef.current.position.y = Math.sin(state.clock.elapsedTime * 3) * 0.05;
-        meshRef.current.rotation.z = 0;
-      }
-
-      if (isAttacking) {
-        meshRef.current.position.x = flipX.current * 0.15;
-        setTimeout(() => {
-          if (meshRef.current) meshRef.current.position.x = 0;
-        }, 80);
-      }
+    if (inputDir.x !== 0 || inputDir.z !== 0) {
+      directionRef.current = directionFromAngle(inputDir.x, inputDir.z);
     }
 
-    prevInputRef.current = { x: inputDir.x, z: inputDir.z };
+    // ── Visual effects (bob) ──
+    if (groupRef.current) {
+      if (isMoving) {
+        const bob = Math.sin(state.clock.elapsedTime * 15);
+        groupRef.current.position.y = Math.abs(bob) * 0.15;
+      } else {
+        groupRef.current.position.y = Math.sin(state.clock.elapsedTime * 3) * 0.05;
+      }
+      groupRef.current.rotation.z = 0;
+    }
   });
 
   return (
     <RigidBody ref={rigidBodyRef} position={[initialPos.x, initialPos.y, initialPos.z]} enabledRotations={[false, false, false]}>
-      <Billboard follow={true} lockX={false} lockY={false} lockZ={false}>
-        <group ref={meshRef}>
-          <mesh ref={planeRef}>
-            <planeGeometry args={[1.5, 1.5]} />
-            {texture ? (
-              <meshBasicMaterial map={texture} transparent={true} />
-            ) : (
-              <meshBasicMaterial color="red" />
-            )}
-          </mesh>
-        </group>
-      </Billboard>
+      <group ref={groupRef}>
+        <Sprite
+          entityId={entityId}
+          state={animStateRef.current}
+          direction={directionRef.current}
+          width={1.5}
+          height={1.5}
+          billboard
+        />
+      </group>
     </RigidBody>
   );
 }

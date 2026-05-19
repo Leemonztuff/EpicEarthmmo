@@ -2,8 +2,8 @@
 
 import React, { useState } from 'react';
 import { useGameStore } from '@/store/useGameStore';
-import { Modal, IconBox, Button, ListItem, Badge, TabBar, EmptyState } from '@/components/ui';
-import { Heart, Zap, Package, Sword, Shield, Gem } from 'lucide-react';
+import { Modal, Button, ListItem, Badge, TabBar, EmptyState, GameIcon, getItemVariant } from '@/components/ui';
+import { Package, Gem } from 'lucide-react';
 import { gameData } from '@/shared/loader';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -75,19 +75,7 @@ export function InventoryWindow({ onClose }: { onClose: () => void }) {
               >
                 {filteredItems.map((item, index) => {
                   const itemDef = items.find(i => i.id === item.id);
-                  const isHp = itemDef?.effect?.type.includes('hp') ?? false;
-                  const isSp = itemDef?.effect?.type.includes('sp') ?? false;
-
-                  let iconColor: any = 'default';
-                  let Icon = Package;
-
-                  if (item.type === 'usable') {
-                    iconColor = isHp ? 'green' : isSp ? 'blue' : 'yellow';
-                    Icon = isHp ? Heart : isSp ? Zap : Package;
-                  } else if (item.type === 'equip') {
-                    iconColor = 'purple';
-                    Icon = itemDef?.type === 'weapon' ? Sword : Shield;
-                  }
+                  const variant = getItemVariant(item.type);
 
                   return (
                     <ListItem
@@ -95,11 +83,13 @@ export function InventoryWindow({ onClose }: { onClose: () => void }) {
                       variant="clickable"
                       padding="sm"
                       icon={
-                        <IconBox
-                          icon={<Icon size={18} />}
-                          size="md"
-                          color={iconColor}
-                          rounded="sm"
+                        <GameIcon
+                          iconType="item"
+                          id={item.id}
+                          name={item.name}
+                          variant={variant}
+                          size={28}
+                          className="shrink-0"
                         />
                       }
                       title={

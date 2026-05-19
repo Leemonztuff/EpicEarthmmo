@@ -2,8 +2,8 @@
 
 import React from 'react';
 import { useGameStore } from '@/store/useGameStore';
-import { Modal, IconBox, Text, Button, ListItem, Badge, Section, ProgressBar } from '@/components/ui';
-import { Check, Lock, Zap, Star, Sparkles, BookOpen } from 'lucide-react';
+import { Modal, Text, Button, ListItem, Badge, GameIcon } from '@/components/ui';
+import { Star, Sparkles } from 'lucide-react';
 import { gameData } from '@/shared/loader';
 import { motion } from 'framer-motion';
 
@@ -69,11 +69,13 @@ export function SkillsWindow({ onClose }: { onClose: () => void }) {
                   )}
                   icon={
                     <div className="relative">
-                       <IconBox
-                        icon={isUnlocked ? <Check size={18} /> : meetsReqs ? <BookOpen size={18} /> : <Lock size={16} />}
-                        size="md"
-                        color={isUnlocked ? 'green' : meetsReqs ? 'blue' : 'default'}
-                        rounded="sm"
+                      <GameIcon
+                        iconType="skill"
+                        id={skill.id}
+                        name={skill.name}
+                        variant={isUnlocked ? 'green' : meetsReqs ? 'amber' : 'default'}
+                        size={32}
+                        className="shrink-0"
                       />
                       {isUnlocked && (
                          <motion.div

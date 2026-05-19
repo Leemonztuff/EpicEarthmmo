@@ -4,18 +4,22 @@ import React from 'react';
 import { useGameStore } from '@/store/useGameStore';
 import { useNetworkStore } from '@/store/useNetworkStore';
 import { gameData } from '@/shared/loader';
-import { Badge } from '@/components/ui';
-import { Zap, Heart, Shield, Sword, Sparkles } from 'lucide-react';
+import { Badge, GameIcon } from '@/components/ui';
+import { Sword, Sparkles } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 const { skills, items } = gameData;
 
-const skillIcons: Record<string, React.ReactNode> = {
-  basic_attack: <Sword size={22} />,
-};
-
 function getSkillIcon(skillId: string, size = 20) {
-  return skillIcons[skillId] || <Sparkles size={size} />;
+  return (
+    <GameIcon
+      iconType="skill"
+      id={skillId}
+      name={skillId}
+      variant="amber"
+      size={size}
+    />
+  );
 }
 
 export function Hotbar() {
@@ -72,63 +76,67 @@ export function Hotbar() {
         <div className="flex flex-col gap-2 sm:gap-3">
           {/* Quick Items */}
           <div className="flex gap-1.5 sm:gap-2">
-            {quickItems.map((item) => {
-              const itemDef = items.find(i => i.id === item.id);
-              const isHp = itemDef?.effect?.type.includes('hp') ?? false;
-              const isSp = itemDef?.effect?.type.includes('sp') ?? false;
-
-              return (
-                <motion.button
-                  key={item.id}
-                  whileTap={{ scale: 0.9 }}
-                  onClick={() => consumeItem(item.id)}
-                  className={cn(
-                    "w-9 h-9 sm:w-11 sm:h-11 rounded-lg sm:rounded-xl flex flex-col items-center justify-center border transition-all cursor-pointer relative",
-                    isHp ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400" :
-                    isSp ? "bg-blue-500/10 border-blue-500/30 text-blue-400" :
-                    "bg-slate-900/50 border-slate-800 text-slate-400"
-                  )}
-                >
-                  {isHp ? <Heart size={14} className="sm:hidden" /> : isSp ? <Zap size={14} className="sm:hidden" /> : <Shield size={14} className="sm:hidden" />}
-                  {isHp ? <Heart size={18} className="hidden sm:block" /> : isSp ? <Zap size={18} className="hidden sm:block" /> : <Shield size={18} className="hidden sm:block" />}
-                  <Badge variant="amount" size="xs" className="absolute -top-1 -right-1 sm:-top-1.5 sm:-right-1.5 px-1 min-w-[14px] sm:min-w-[18px] h-3.5 sm:h-4.5 text-[8px] sm:text-[10px] rounded-full border-slate-900 shadow-lg">
-                    {item.amount}
-                  </Badge>
-                </motion.button>
-              );
-            })}
+                {quickItems.map((item) => {
+                  return (
+                    <motion.button
+                      key={item.id}
+                      whileTap={{ scale: 0.9 }}
+                      onClick={() => consumeItem(item.id)}
+                      className={cn(
+                        "w-9 h-9 sm:w-11 sm:h-11 rounded-lg sm:rounded-xl flex flex-col items-center justify-center border transition-all cursor-pointer relative",
+                        "bg-slate-900/50 border-slate-800"
+                      )}
+                    >
+                      <GameIcon
+                        iconType="item"
+                        id={item.id}
+                        name={item.name}
+                        size={22}
+                      />
+                      <Badge variant="amount" size="xs" className="absolute -top-1 -right-1 sm:-top-1.5 sm:-right-1.5 px-1 min-w-[14px] sm:min-w-[18px] h-3.5 sm:h-4.5 text-[8px] sm:text-[10px] rounded-full border-slate-900 shadow-lg">
+                        {item.amount}
+                      </Badge>
+                    </motion.button>
+                  );
+                })}
           </div>
 
           {/* Active Skills */}
           <div className="flex gap-1.5 sm:gap-2">
             {(player.unlockedSkills || []).slice(0, 4).map((skillId) => {
-              const skillDef = skills.find(s => s.id === skillId);
-              if (!skillDef) return null;
-              const isActive = activeSkill === skillId;
+                const skillDef = skills.find(s => s.id === skillId);
+                if (!skillDef) return null;
+                const isActive = activeSkill === skillId;
 
-              return (
-                <motion.button
-                  key={skillId}
-                  whileTap={{ scale: 0.9 }}
-                  onClick={() => setActiveSkill(isActive ? null : skillId)}
-                  className={cn(
-                    "w-9 h-9 sm:w-11 sm:h-11 rounded-lg sm:rounded-xl flex flex-col items-center justify-center border transition-all cursor-pointer relative overflow-hidden",
-                    isActive
-                      ? "bg-amber-500/20 border-amber-500/50 text-amber-400 shadow-[0_0_10px_rgba(245,158,11,0.3)]"
-                      : "bg-slate-900/50 border-slate-800 text-slate-400 hover:border-slate-700"
-                  )}
-                >
-                  {getSkillIcon(skillId, 14)}
-                  <span className="text-[6px] sm:text-[7px] font-black text-white/50 absolute bottom-0.5 sm:bottom-1">{skillDef.spCost}</span>
-                  {isActive && (
-                    <motion.div
-                      layoutId="active-skill"
-                      className="absolute inset-0 border-2 border-amber-400 rounded-lg sm:rounded-xl"
+                return (
+                  <motion.button
+                    key={skillId}
+                    whileTap={{ scale: 0.9 }}
+                    onClick={() => setActiveSkill(isActive ? null : skillId)}
+                    className={cn(
+                      "w-9 h-9 sm:w-11 sm:h-11 rounded-lg sm:rounded-xl flex flex-col items-center justify-center border transition-all cursor-pointer relative overflow-hidden",
+                      isActive
+                        ? "bg-amber-500/20 border-amber-500/50 shadow-[0_0_10px_rgba(245,158,11,0.3)]"
+                        : "bg-slate-900/50 border-slate-800 hover:border-slate-700"
+                    )}
+                  >
+                    <GameIcon
+                      iconType="skill"
+                      id={skillId}
+                      name={skillDef.name}
+                      variant={isActive ? 'amber' : 'default'}
+                      size={22}
                     />
-                  )}
-                </motion.button>
-              );
-            })}
+                    <span className="text-[6px] sm:text-[7px] font-black text-white/50 absolute bottom-0.5 sm:bottom-1">{skillDef.spCost}</span>
+                    {isActive && (
+                      <motion.div
+                        layoutId="active-skill"
+                        className="absolute inset-0 border-2 border-amber-400 rounded-lg sm:rounded-xl"
+                      />
+                    )}
+                  </motion.button>
+                );
+              })}
           </div>
         </div>
       </div>
