@@ -21,6 +21,7 @@ import { TradeManager } from './TradeManager';
 import { ChatBox } from './ChatBox';
 import { ToastContainer } from '@/components/ui';
 import { ExpPopups } from './ExpPopups';
+import { ConnectionBadge } from './hud/ConnectionBadge';
 import { AnimatePresence, motion } from 'framer-motion';
 import { MessageSquare } from 'lucide-react';
 
@@ -47,7 +48,10 @@ export function HUD({ characterName }: { characterName?: string }) {
 
       {/* Top HUD Section */}
       <div className="flex items-start justify-between pointer-events-auto">
-        <PlayerFrame />
+        <div className="flex flex-col gap-1">
+          <PlayerFrame />
+          <ConnectionBadge />
+        </div>
         <Minimap />
       </div>
 
