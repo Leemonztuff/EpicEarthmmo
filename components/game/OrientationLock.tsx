@@ -12,10 +12,9 @@ export function OrientationLock() {
 
     const checkOrientation = () => {
       // Logic for mobile landscape locking if desired
-      // For now we just check aspect ratio
-      const isPortrait = window.innerHeight > window.innerWidth;
-      // Many mobile RPGs prefer landscape, but if our UI is 9:16 optimized:
-      // setIsOrientation(!isPortrait);
+      // For now we allow both but show a hint if aspect is too extreme
+      const isExtremeLandscape = window.innerWidth / window.innerHeight > 2;
+      // setIsOrientation(isExtremeLandscape);
     };
 
     window.addEventListener('resize', checkOrientation);
@@ -35,8 +34,8 @@ export function OrientationLock() {
           <div className="w-20 h-20 rounded-3xl bg-blue-500/10 flex items-center justify-center mb-6">
             <Smartphone size={40} className="text-blue-500 animate-bounce" />
           </div>
-          <h2 className="text-white font-black text-xl uppercase tracking-tighter mb-2 italic">Rotate Device</h2>
-          <p className="text-slate-500 text-sm font-medium">Please rotate your device to portrait mode for the optimal combat experience.</p>
+          <h2 className="text-white font-black text-xl uppercase tracking-tighter mb-2 italic">Optimal View</h2>
+          <p className="text-slate-500 text-sm font-medium">Please adjust your viewport for the best combat experience.</p>
         </motion.div>
       )}
     </AnimatePresence>

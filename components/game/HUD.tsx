@@ -39,17 +39,17 @@ export function HUD({ characterName }: { characterName?: string }) {
   if (!player) return null;
 
   return (
-    <div className="absolute inset-0 pointer-events-none z-10 w-full h-full flex flex-col overflow-hidden">
+    <div className="absolute inset-0 pointer-events-none z-10 w-full h-full flex flex-col overflow-hidden p-2 sm:p-4">
       <ToastContainer />
       <ExpPopups />
       <MapNameDisplay />
 
-      <div className="flex items-start justify-between px-4 pt-4 pointer-events-auto">
+      <div className="flex items-start justify-between pointer-events-auto">
         <PlayerFrame />
         <Minimap />
       </div>
 
-      <div className="px-4 mt-2 pointer-events-auto flex justify-center">
+      <div className="mt-1 pointer-events-auto flex justify-center">
         <TargetFrame />
       </div>
 
@@ -65,16 +65,16 @@ export function HUD({ characterName }: { characterName?: string }) {
         {settingsOpen && <SettingsPanel onClose={() => setSettingsOpen(false)} />}
       </div>
 
-      <div className="px-4 pb-4 space-y-4">
+      <div className="space-y-3 sm:space-y-4">
         <div className="flex justify-start pointer-events-auto">
           <CombatLog />
         </div>
 
-        <div className="flex items-end justify-between gap-4">
+        <div className="flex items-end justify-between gap-2 sm:gap-4">
           <div className="pointer-events-auto self-end">
             <ChatBoxWrapper isOpen={chatOpen} onToggle={handleToggleChat} />
           </div>
-          <div className="flex flex-col items-end gap-4 pointer-events-auto">
+          <div className="flex flex-col items-end gap-3 sm:gap-4 pointer-events-auto flex-1 min-w-0">
             <Hotbar />
             <MenuBar
               onToggleChat={handleToggleChat}
@@ -95,9 +95,9 @@ function ChatBoxWrapper({ isOpen, onToggle }: { isOpen: boolean; onToggle: () =>
         whileHover={{ scale: 1.05 }}
         whileTap={{ scale: 0.95 }}
         onClick={onToggle}
-        className="w-12 h-12 rounded-2xl bg-slate-950/40 backdrop-blur-md border border-slate-800/60 flex items-center justify-center text-blue-400 hover:text-blue-300 hover:bg-slate-900/60 transition-all shadow-2xl cursor-pointer"
+        className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-slate-950/40 backdrop-blur-md border border-slate-800/60 flex items-center justify-center text-blue-400 hover:text-blue-300 hover:bg-slate-900/60 transition-all shadow-2xl cursor-pointer"
       >
-        <MessageSquareIcon size={22} />
+        <MessageSquareIcon size={20} />
       </motion.button>
     );
   }
@@ -105,7 +105,7 @@ function ChatBoxWrapper({ isOpen, onToggle }: { isOpen: boolean; onToggle: () =>
      <motion.div
       initial={{ opacity: 0, scale: 0.9, y: 20 }}
       animate={{ opacity: 1, scale: 1, y: 0 }}
-      className="pointer-events-auto"
+      className="pointer-events-auto w-full max-w-[300px]"
      >
         <ChatBox />
      </motion.div>

@@ -32,16 +32,16 @@ export function PlayerFrame() {
     <motion.div
       initial={{ opacity: 0, x: -20 }}
       animate={{ opacity: 1, x: 0 }}
-      className="pointer-events-auto select-none"
+      className="pointer-events-auto select-none max-w-full"
     >
-      <div className="flex items-center gap-3 mb-2">
-        <div className="relative">
+      <div className="flex items-center gap-2 sm:gap-3 mb-2">
+        <div className="relative flex-shrink-0">
           <Avatar
             name={player.name || 'Hero'}
             level={player.baseLevel || 1}
             size="md"
             ringColor="gradient"
-            className="shadow-xl shadow-black/40"
+            className="shadow-xl shadow-black/40 w-10 h-10 sm:w-12 sm:h-12"
           />
           <motion.div
             animate={{ scale: [1, 1.2, 1], opacity: [0.3, 0.6, 0.3] }}
@@ -50,41 +50,41 @@ export function PlayerFrame() {
           />
         </div>
         <div className="flex-1 min-w-0">
-          <div className="flex items-baseline gap-2 mb-1">
-            <span className="text-white font-black text-base truncate drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)] tracking-tight">
+          <div className="flex items-baseline gap-1.5 sm:gap-2 mb-0.5 sm:mb-1">
+            <span className="text-white font-black text-sm sm:text-base truncate drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)] tracking-tight">
               {player.name || 'Hero'}
             </span>
-            <span className="text-blue-400/80 text-[10px] font-black uppercase tracking-tighter">
+            <span className="text-blue-400/80 text-[8px] sm:text-[10px] font-black uppercase tracking-tighter">
               {player.jobClass || 'Novice'}
             </span>
           </div>
-          <div className="flex flex-col gap-1.5">
+          <div className="flex flex-col gap-1 sm:gap-1.5">
             <ProgressBar
               value={player.hp || 0}
               max={player.maxHp || 100}
               color="hp"
               size="sm"
-              className="w-40 sm:w-48 shadow-lg"
+              className="w-28 xs:w-32 sm:w-48 shadow-lg h-1.5 sm:h-2"
             />
             <ProgressBar
               value={player.sp || 0}
               max={player.maxSp || 100}
               color="sp"
               size="sm"
-              className="w-32 sm:w-40 shadow-lg"
+              className="w-24 xs:w-28 sm:w-40 shadow-lg h-1.5 sm:h-2"
             />
           </div>
         </div>
       </div>
 
-      <div className="flex flex-col gap-1 px-1 mb-2">
+      <div className="flex flex-col gap-0.5 sm:gap-1 px-1 mb-2">
          <div className="flex items-center gap-2">
-            <span className="text-[8px] font-black text-amber-500 w-6">BASE</span>
-            <ThinBar value={baseExpPct} color="exp" className="flex-1" />
+            <span className="text-[7px] sm:text-[8px] font-black text-amber-500 w-4 sm:w-6">BASE</span>
+            <ThinBar value={baseExpPct} color="exp" className="flex-1 h-1 sm:h-1.5" />
          </div>
          <div className="flex items-center gap-2">
-            <span className="text-[8px] font-black text-purple-500 w-6">JOB</span>
-            <ThinBar value={jobExpPct} color="jobExp" className="flex-1" />
+            <span className="text-[7px] sm:text-[8px] font-black text-purple-500 w-4 sm:w-6">JOB</span>
+            <ThinBar value={jobExpPct} color="jobExp" className="flex-1 h-1 sm:h-1.5" />
          </div>
       </div>
 

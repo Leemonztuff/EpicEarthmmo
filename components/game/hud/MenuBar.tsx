@@ -26,26 +26,17 @@ export function MenuBar({ onToggleChat, onOpenSettings, onOpenEquipment }: MenuB
   ];
 
   return (
-    <div className="pointer-events-auto select-none">
-      <div className="flex items-center gap-2 p-2 bg-slate-950/40 backdrop-blur-md rounded-2xl border border-slate-800/60 shadow-2xl">
+    <div className="pointer-events-auto select-none max-w-full overflow-x-auto no-scrollbar">
+      <div className="flex items-center gap-1.5 sm:gap-2 p-1.5 sm:p-2 bg-slate-950/40 backdrop-blur-md rounded-xl sm:rounded-2xl border border-slate-800/60 shadow-2xl">
         {buttons.map((btn, index) => {
           const Icon = btn.icon;
-          const colors: any = {
-            blue: 'text-blue-400 group-hover:text-blue-300',
-            amber: 'text-amber-400 group-hover:text-amber-300',
-            emerald: 'text-emerald-400 group-hover:text-emerald-300',
-            purple: 'text-purple-400 group-hover:text-purple-300',
-            cyan: 'text-cyan-400 group-hover:text-cyan-300',
-            slate: 'text-slate-400 group-hover:text-slate-300',
-          };
-
           const activeBg: any = {
-            blue: 'bg-blue-500/20 border-blue-500/40',
-            amber: 'bg-amber-500/20 border-amber-500/40',
-            emerald: 'bg-emerald-500/20 border-emerald-500/40',
-            purple: 'bg-purple-500/20 border-purple-500/40',
-            cyan: 'bg-cyan-500/20 border-cyan-500/40',
-            slate: 'bg-slate-500/20 border-slate-500/40',
+            blue: 'bg-blue-500/20 border-blue-500/40 text-blue-400',
+            amber: 'bg-amber-500/20 border-amber-500/40 text-amber-400',
+            emerald: 'bg-emerald-500/20 border-emerald-500/40 text-emerald-400',
+            purple: 'bg-purple-500/20 border-purple-500/40 text-purple-400',
+            cyan: 'bg-cyan-500/20 border-cyan-500/40 text-cyan-400',
+            slate: 'bg-slate-500/20 border-slate-500/40 text-slate-400',
           };
 
           return (
@@ -56,17 +47,18 @@ export function MenuBar({ onToggleChat, onOpenSettings, onOpenEquipment }: MenuB
               transition={{ delay: index * 0.05 }}
               onClick={btn.onClick}
               className={cn(
-                "group relative w-11 h-11 rounded-xl flex items-center justify-center transition-all duration-200 border cursor-pointer active:scale-90",
+                "group relative w-9 h-9 sm:w-11 sm:h-11 rounded-lg sm:rounded-xl flex items-center justify-center transition-all duration-200 border cursor-pointer active:scale-90 flex-shrink-0",
                 btn.active
                   ? activeBg[btn.color]
-                  : "bg-slate-900/50 border-slate-800 hover:bg-slate-800 hover:border-slate-700"
+                  : "bg-slate-900/50 border-slate-800 text-slate-500 hover:text-white"
               )}
             >
-              <Icon size={20} className={cn("transition-transform duration-200 group-hover:scale-110", btn.active ? "scale-110" : colors[btn.color])} />
+              <Icon size={18} className="sm:hidden" />
+              <Icon size={20} className="hidden sm:block" />
               {btn.active && (
                 <motion.div
                   layoutId="active-indicator"
-                  className="absolute -bottom-1 w-1.5 h-1.5 rounded-full bg-current"
+                  className="absolute -bottom-1 w-1 h-1 sm:w-1.5 sm:h-1.5 rounded-full bg-current"
                 />
               )}
             </motion.button>
