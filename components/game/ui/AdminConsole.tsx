@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useGameStore } from '@/store/useGameStore';
 import { useNetworkStore } from '@/store/useNetworkStore';
-import { Modal, Input, Button, Text, Badge, IconBox } from '@/components/ui';
+import { Modal, Input, Button, Badge } from '@/components/ui';
 import { Terminal, Send, Trash2, Cpu, Zap, Ghost, Map as MapIcon, Box } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -12,8 +12,8 @@ export function AdminConsole({ onClose }: { onClose: () => void }) {
   const [history, setHistory] = useState<string[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
   const player = useGameStore(state => state.player);
-  const enemies = useGameStore(state => state.enemies);
-  const remotePlayers = useGameStore(state => state.remotePlayers);
+  const enemies = useGameStore(state => state.enemies || {});
+  const remotePlayers = useNetworkStore(state => state.remotePlayers || {});
   const socket = useNetworkStore(state => state.socket);
 
   const addLog = (msg: string) => {
@@ -31,7 +31,7 @@ export function AdminConsole({ onClose }: { onClose: () => void }) {
         addLog('Available: /tp x z, /spawn id, /give id amt, /setlevel lvl, /killall, /stats');
         break;
       case '/stats':
-        addLog(`HP: ${player.hp}/${player.maxHp}, Pos: ${useGameStore.getState().position.x.toFixed(1)}, ${useGameStore.getState().position.z.toFixed(1)}`);
+        addLog(`HP: ${player?.hp}/${player?.maxHp}, Pos: ${useGameStore.getState().position?.x?.toFixed(1)}, ${useGameStore.getState().position?.z?.toFixed(1)}`);
         break;
       case '/tp':
         if (args.length >= 2) {

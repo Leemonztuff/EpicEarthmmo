@@ -2,15 +2,15 @@
 
 import React from 'react';
 import { useGameStore } from '@/store/useGameStore';
+import { useNetworkStore } from '@/store/useNetworkStore';
 import { Card } from '@/components/ui';
 import { MapPin, Users, Skull } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 export function Minimap() {
   const currentMapId = useGameStore((state) => state.currentMapId);
-  const player = useGameStore((state) => state.player);
-  const remotePlayers = useGameStore((state) => state.remotePlayers);
-  const enemies = useGameStore((state) => state.enemies);
+  const enemies = useGameStore((state) => state.enemies || {});
+  const remotePlayers = useNetworkStore((state) => state.remotePlayers || {});
 
   return (
     <motion.div

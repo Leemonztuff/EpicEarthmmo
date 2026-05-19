@@ -2,8 +2,8 @@
 
 import React, { useState } from 'react';
 import { useGameStore } from '@/store/useGameStore';
-import { Modal, IconBox, Text, Button, ListItem, Badge, TabBar, EmptyState } from '@/components/ui';
-import { Heart, Zap, Package, Coins, Sword, Shield, Gem } from 'lucide-react';
+import { Modal, IconBox, Button, ListItem, Badge, TabBar, EmptyState } from '@/components/ui';
+import { Heart, Zap, Package, Sword, Shield, Gem } from 'lucide-react';
 import { gameData } from '@/shared/loader';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -14,6 +14,8 @@ export function InventoryWindow({ onClose }: { onClose: () => void }) {
   const consumeItem = useGameStore((state) => state.consumeItem);
   const [activeTab, setActiveTab] = useState('all');
 
+  if (!player) return null;
+
   const tabs = [
     { id: 'all', label: 'All', icon: <Package size={14} /> },
     { id: 'usable', label: 'Usable', icon: <Heart size={14} /> },
@@ -21,7 +23,9 @@ export function InventoryWindow({ onClose }: { onClose: () => void }) {
     { id: 'misc', label: 'Misc', icon: <Gem size={14} /> },
   ];
 
-  const filteredItems = player.inventory.filter(item => {
+  const inventory = player.inventory || [];
+
+  const filteredItems = inventory.filter(item => {
     if (activeTab === 'all') return true;
     if (activeTab === 'usable') return item.type === 'usable';
     if (activeTab === 'equip') return item.type === 'equip';
@@ -33,7 +37,7 @@ export function InventoryWindow({ onClose }: { onClose: () => void }) {
       isOpen
       onClose={onClose}
       title="Inventory"
-      subtitle={`${player.zeny.toLocaleString()} Zeny`}
+      subtitle={`${(player.zeny || 0).toLocaleString()} Zeny`}
       size="md"
       position="bottom"
     >

@@ -2,7 +2,6 @@
 
 import React from 'react';
 import { useNetworkStore } from '@/store/useNetworkStore';
-import { Avatar } from '@/components/ui';
 import { Billboard, Text } from '@react-three/drei';
 
 export function RemotePlayers() {
@@ -10,7 +9,7 @@ export function RemotePlayers() {
 
   return (
     <>
-      {Object.entries(remotePlayers).map(([id, player]) => (
+      {Object.entries(remotePlayers || {}).map(([id, player]) => (
         <group key={id} position={[player.x || 0, player.y || 0.5, player.z || 0]}>
           <Billboard follow>
             <mesh>

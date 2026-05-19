@@ -68,31 +68,34 @@ export const useNetworkStore = create<NetworkStore>((set, get) => ({
     });
 
     newSocket.on('mapData', (data) => {
+      if (!data) return;
       set({ currentMapData: data });
       useGameStore.getState().setMap(data.mapId, data.mapName, data.mapType);
     });
 
     newSocket.on('worldUpdate', (snapshot: WorldSnapshot) => {
+      if (!snapshot) return;
+
       const gs = useGameStore.getState();
       const myId = newSocket.id;
       const updatedPlayers: Record<string, PeerPlayerState> = {};
 
-      for (const [id, sp] of Object.entries(snapshot.players)) {
+      const players = snapshot.players || {};
+      for (const [id, sp] of Object.entries(players)) {
         if (id === myId) {
           const serverSeq = sp.lastSeq;
           let reconciled = { x: sp.x, y: sp.y, z: sp.z };
-
-          // Reconciliation logic...
           lastReconciledPos = reconciled;
           gs.setPosition(reconciled);
         } else {
           const existing = get().remotePlayers[id];
-          updatedPlayers[id] = { x: sp.x, y: sp.y, z: sp.z, name: existing?.name || id };
+          updatedPlayers[id] = { x: sp.x, y: sp.y, z: sp.z, name: (existing?.name || sp.name || id) };
         }
       }
       set({ remotePlayers: updatedPlayers });
 
-      for (const [id, se] of Object.entries(snapshot.enemies || {})) {
+      const enemies = snapshot.enemies || {};
+      for (const [id, se] of Object.entries(enemies)) {
         gs.updateEnemyState(id, { hp: se.hp, isDead: se.isDead, position: se.position });
       }
     });
@@ -108,15 +111,17 @@ export const useNetworkStore = create<NetworkStore>((set, get) => ({
     });
 
     newSocket.on('chatMessage', (msg: ChatMessage) => {
+      if (!msg) return;
       set(s => ({ chatMessages: [...s.chatMessages, msg].slice(-50) }));
     });
 
     newSocket.on('enemyDamaged', (data) => {
+      if (!data) return;
       const gs = useGameStore.getState();
       gs.updateEnemyState(data.targetId, { hp: data.hp, isDead: data.isDead });
       
       const enemy = gs.enemies[data.targetId];
-      if (enemy) {
+      if (enemy && enemy.position) {
         const pos = { 
           x: enemy.position.x + (Math.random()*0.5-0.25), 
           y: enemy.position.y + 1, 
@@ -134,6 +139,7 @@ export const useNetworkStore = create<NetworkStore>((set, get) => ({
     });
 
     newSocket.on('enemyKilled', (data) => {
+      if (!data) return;
       const gs = useGameStore.getState();
       gs.setSp(data.newSp);
       gs.updateEnemyState(data.targetId, { hp: data.hp, isDead: data.isDead });
@@ -145,6 +151,7 @@ export const useNetworkStore = create<NetworkStore>((set, get) => ({
     });
 
     newSocket.on('playerDamaged', (data) => {
+      if (!data) return;
       const gs = useGameStore.getState();
       gs.updatePlayerHp(data.hp);
       addCombatLog(`Received ${data.damage} damage!`);
