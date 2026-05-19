@@ -29,6 +29,13 @@
     }
   ],
   "enemyAreas": [],
+  "npcs": [
+    { "id": "prontera_guide", "name": "Guide", "sprite": "novice_f", "dialogId": "prontera_guide", "position": { "x": 3, "y": 0.5, "z": 3 } },
+    { "id": "prontera_weaponsmith", "name": "Weaponsmith", "sprite": "swordsman_m", "dialogId": "prontera_weaponsmith", "position": { "x": -3, "y": 0.5, "z": 3 } }
+  ],
+  "chests": [
+    { "id": "prontera_chest_1", "position": { "x": -15, "y": 0.5, "z": 20 }, "lootTable": [ { "itemId": "red_potion", "chance": 1.0, "minAmount": 1, "maxAmount": 3 } ], "respawnSeconds": 60 }
+  ],
   "decorations": [
     {"position": [0, 0, -20], "type": "castle", "scale": 1.0},
     {"position": [0, 0, -20], "type": "castle_tower_left", "scale": 1.0},

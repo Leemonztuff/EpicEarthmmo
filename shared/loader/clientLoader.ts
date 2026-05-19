@@ -4,7 +4,8 @@ import {
   SkillTree,
   ItemDatabase,
   JobDatabase,
-  MapConfig
+  MapConfig,
+  DialogDatabase,
 } from '../schemas';
 
 import balanceData from '../data/balance.json';
@@ -12,11 +13,12 @@ import enemiesData from '../data/enemies.json';
 import skillsData from '../data/skills.json';
 import itemsData from '../data/items.json';
 import jobsData from '../data/jobs.json';
+import dialogsData from '../data/dialogs.json';
 import pronteraMap from '../data/maps/prontera.json';
 import pronteraFieldsMap from '../data/maps/prontera_fields.json';
 import geffenDungeonMap from '../data/maps/geffen_dungeon.json';
 
-export type { BalanceConfig, EnemyData, SkillTree, ItemDatabase, JobDatabase, MapConfig };
+export type { BalanceConfig, EnemyData, SkillTree, ItemDatabase, JobDatabase, MapConfig, DialogDatabase };
 
 export interface LoadedGameData {
   balance: BalanceConfig;
@@ -24,6 +26,7 @@ export interface LoadedGameData {
   skills: SkillTree;
   items: ItemDatabase;
   jobs: JobDatabase;
+  dialogs: DialogDatabase;
   maps: MapConfig[];
 }
 
@@ -33,6 +36,7 @@ export const gameData: LoadedGameData = {
   skills: skillsData as any,
   items: itemsData as any,
   jobs: jobsData as any,
+  dialogs: dialogsData as any,
   maps: [
     pronteraMap as any,
     pronteraFieldsMap as any,

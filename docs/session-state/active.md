@@ -1,24 +1,21 @@
 # Session State: Movement, Camera & Interaction System
 
 **Date:** 2026-05-19  
-**Status:** Design complete (v1.1), decisions baked in
+**Status:** Phase 1 implementation complete, Phase 2 design drafted
 
-## Completed Sections
-- [x] Executive Summary (v1.1 with decision table)
-- [x] Player State Machine
-- [x] Movement System
-- [x] Collision System (BOTH approach documented)
-- [x] Pathfinding System (client A* + server displacement validation)
-- [x] Camera System (fixed-angle RO-style, no orbit)
-- [x] Interaction System (NPC dialog window approach)
-- [x] Input Handling (updated for no orbit)
-- [x] Client-Server Data Flow
-- [x] Component Architecture
-- [x] Edge Cases & Error Handling
-- [x] Mobile-Specific Considerations
-- [x] Implementation Priority (Phase 1 detailed plan)
-- [x] Tuning Parameters
-- [x] Data Contracts (all updated for decisions)
+## Completed Sections (Phase 1)
+- [x] `lib/collisionGrid.ts` — A* pathfinding + collision bitmap generation
+- [x] `lib/movementController.ts` — Input aggregation (keyboard + touch + click-to-move)
+- [x] `lib/playerStateMachine.ts` — State machine (idle/walk/attack/interact)
+- [x] Map data format — `colliders[]`, `warps[]`, `decorations[]`, `safeZones[]`
+- [x] `WarpPortal.tsx` — Visual portal/door/NPC rendering (no click interaction)
+- [x] `targetPosition` flow — Click ground in Map.tsx → move toward target (simple direction, no pathfinding)
+
+## Phase 2 Design Complete
+- [x] `docs/integration-phase2.md` — Full design doc for:
+  - Pathfinding Integration (connect A* to click-to-move with waypoints)
+  - NPC Interaction (data format, rendering, dialog system)
+  - Object Interaction (chests, warps with click-to-interact)
 
 ## Key Decisions (5/19)
 1. **Collision**: BOTH — bitmap grid from decorations + manual box colliders in map JSON
@@ -27,8 +24,12 @@
 4. **Camera**: Fixed-angle RO-style (NE, ~50° pitch). No user orbit. Zoom only.
 5. **Remote Players**: Send animState + dirX/dirZ in snapshots
 
-## Next Section to Work On
-Ready to begin **Phase 1 implementation**. First file: `lib/collisionSystem.ts`
+## Phase 2 Implementation Order
+1. **2A**: Core Infrastructure — schemas, dialog data, loaders
+2. **2B**: Pathfinding Integration — PathFollower, Player.tsx updates
+3. **2C**: Interaction Manager — click dispatch
+4. **2D**: NPC System — rendering, dialog UI
+5. **2E**: Chest + Warp Interaction
 
 ## Action Needed
-User should review the updated document and approve Phase 1 plan, then we write code.
+User should review `docs/integration-phase2.md` and decide which implementation sub-phase to start with.

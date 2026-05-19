@@ -3,6 +3,7 @@ import { useFrame } from '@react-three/fiber';
 import { Text, Billboard } from '@react-three/drei';
 import * as THREE from 'three';
 import { useNetworkStore } from '@/store/useNetworkStore';
+import { startInteraction } from '@/lib/interactionManager';
 
 interface WarpPortalProps {
   id: string;
@@ -241,9 +242,6 @@ function WarpPillar({ color, offset }: { color: string; offset: [number, number,
 export function WarpPortal({ id, name, position, targetMapName, visual }: WarpPortalProps) {
   const groupRef = useRef<THREE.Group>(null);
   const [hovered, setHovered] = useState(false);
-  const requestWarp = useNetworkStore(state => state.requestWarp);
-  const socketId = useNetworkStore(state => state.socketId);
-
   useFrame((state) => {
     if (groupRef.current) {
       groupRef.current.position.y = position.y + Math.sin(state.clock.elapsedTime * 1.5) * 0.08;
@@ -251,9 +249,7 @@ export function WarpPortal({ id, name, position, targetMapName, visual }: WarpPo
   });
 
   const handleInteract = () => {
-    if (socketId) {
-      requestWarp(id);
-    }
+    startInteraction({ type: 'warp', id, position: { x: position.x, z: position.z } });
   };
 
   const portalColor = visual === 'portal' ? '#8844ff' : visual === 'door' ? '#8B4513' : '#aaaaaa';

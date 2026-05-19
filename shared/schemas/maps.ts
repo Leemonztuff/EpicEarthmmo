@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { NPCSpawnSchema, ChestSchema } from './npcs';
 
 export const MapTypeSchema = z.enum(['town', 'field', 'dungeon', 'instance']);
 
@@ -47,6 +48,11 @@ export const MapDecorationSchema = z.object({
   scale: z.number().positive(),
 });
 
+export const ColliderSchema = z.object({
+  position: z.tuple([z.number(), z.number(), z.number()]),
+  size: z.tuple([z.number(), z.number(), z.number()]),
+});
+
 export const MapSpawnPointSchema = z.object({
   id: z.string(),
   position: z.object({
@@ -70,6 +76,9 @@ export const MapSchema = z.object({
   safeZones: z.array(SafeZoneSchema),
   enemyAreas: z.array(EnemyAreaSchema),
   decorations: z.array(MapDecorationSchema),
+  colliders: z.array(ColliderSchema).optional().default([]),
+  npcs: z.array(NPCSpawnSchema).optional().default([]),
+  chests: z.array(ChestSchema).optional().default([]),
   grassTuftCount: z.number().int().nonnegative(),
   grassTexture: z.object({
     baseColor: z.string(),
@@ -91,3 +100,4 @@ export type EnemyArea = z.infer<typeof EnemyAreaSchema>;
 export type MapDecoration = z.infer<typeof MapDecorationSchema>;
 export type MapSpawnPoint = z.infer<typeof MapSpawnPointSchema>;
 export type MapConfig = z.infer<typeof MapSchema>;
+export type Collider = z.infer<typeof ColliderSchema>;

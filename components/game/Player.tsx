@@ -10,6 +10,8 @@ import { Sprite } from './Sprite';
 import { directionFromAngle, type Direction, type AnimState } from '@/lib/spriteManager';
 import { getMovementInput, getTargetDirection } from '@/lib/movementController';
 import { createPlayerStateMachine, updatePlayerStateMachine } from '@/lib/playerStateMachine';
+import { createPathFollower, setPathTarget, getPathDirection, type PathFollower } from '@/lib/pathFollower';
+import { performInteraction } from '@/lib/interactionManager';
 import { gameData } from '@/shared/loader';
 
 const { balance } = gameData;
@@ -31,6 +33,7 @@ export function Player() {
   const lastAttackTimeRef = useRef(0);
 
   const smRef = useRef(createPlayerStateMachine());
+  const pathRef = useRef<PathFollower>(createPathFollower());
   const animStateRef = useRef<AnimState>('idle');
   const directionRef = useRef<Direction>('S');
 
@@ -50,7 +53,7 @@ export function Player() {
     const networkStore = useNetworkStore.getState();
     const {
       targetPosition, setTargetPosition, setInputDirection, position: storePos,
-      selectedTargetId, enemies, player,
+      selectedTargetId, enemies, player, collisionGrid,
     } = gameStore;
 
     const SPEED = balance.movement.playerSpeed;
@@ -75,12 +78,18 @@ export function Player() {
     }
 
     // ── Get input ──
-    const { input: rawInput } = getMovementInput();
+    const { input: rawInput, hasKeyboardInput } = getMovementInput();
     let inputDir = { x: rawInput.x, z: rawInput.z };
+
+    // ── Direct input clears pathfinding target ──
+    if (hasKeyboardInput && (inputDir.x !== 0 || inputDir.z !== 0)) {
+      if (targetPosition) setTargetPosition(null);
+      pathRef.current = createPathFollower();
+    }
 
     // ── Auto-follow enemy if selected ──
     let isAttacking = false;
-    if (selectedTargetId) {
+    if (selectedTargetId && !hasKeyboardInput) {
       const enemy = enemies[selectedTargetId];
       if (enemy && !enemy.isDead) {
         const enemyPos = new Vector3(enemy.position.x, enemy.position.y, enemy.position.z);
@@ -88,6 +97,7 @@ export function Player() {
 
         if (dist <= ATTACK_RANGE) {
           if (targetPosition) setTargetPosition(null);
+          pathRef.current = createPathFollower();
           const now = state.clock.elapsedTime;
           if (now - lastAttackTimeRef.current >= ATTACK_COOLDOWN) {
             lastAttackTimeRef.current = now;
@@ -106,14 +116,36 @@ export function Player() {
       }
     }
 
-    // ── Click-to-move target ──
-    if (inputDir.x === 0 && inputDir.z === 0 && targetPosition) {
-      const dir = getTargetDirection(
-        { x: pos.x, z: pos.z },
-        { x: targetPosition.x, z: targetPosition.z },
-      );
+    // ── Click-to-move with pathfinding ──
+    if (inputDir.x === 0 && inputDir.z === 0 && targetPosition && !selectedTargetId) {
+      const arrived = pathRef.current.arrived;
+      const targetChanged =
+        pathRef.current.target &&
+        (Math.abs(pathRef.current.target.x - targetPosition.x) > 0.1 ||
+         Math.abs(pathRef.current.target.z - targetPosition.z) > 0.1);
+
+      if (targetChanged || (!pathRef.current.target && !arrived)) {
+        pathRef.current = setPathTarget(
+          pathRef.current,
+          collisionGrid,
+          pos.x, pos.z,
+          targetPosition.x, targetPosition.z,
+        );
+      }
+
+      const dir = getPathDirection(pathRef.current, pos.x, pos.z, 0.5);
       if (dir.x !== 0 || dir.z !== 0) {
         inputDir = dir;
+      } else if (pathRef.current.arrived) {
+        setTargetPosition(null);
+      }
+    }
+
+    // ── If path finished, perform interaction or clear target ──
+    if (pathRef.current.arrived && targetPosition && !selectedTargetId) {
+      const interactionTarget = gameStore.interactionTarget;
+      if (interactionTarget) {
+        performInteraction(interactionTarget);
       } else {
         setTargetPosition(null);
       }

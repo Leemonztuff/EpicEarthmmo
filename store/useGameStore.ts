@@ -2,6 +2,9 @@ import { create } from 'zustand';
 import { gameData } from '@/shared/loader';
 import { supabase } from '@/lib/supabase';
 import { PlayerState, PlayerStats, DamageText, EnemyState, GameUIState } from '@/types/game';
+import { CollisionGridData } from '@/lib/collisionGrid';
+import { InteractionTarget } from '@/lib/interactionManager';
+import { Dialog } from '@/shared/schemas';
 import { processLevelUp } from '@/shared/loader/formulaEngine';
 import { hotReloadData } from '@/shared/loader/clientLoader';
 import { showToast } from '@/components/ui';
@@ -51,6 +54,13 @@ function buildInitialEnemies(): Record<string, EnemyState> {
   return result;
 }
 
+interface DialogState {
+  isOpen: boolean;
+  dialog: Dialog | null;
+  currentLineIndex: number;
+  selectedResponse: string | null;
+}
+
 interface GameStore {
   player: PlayerState;
   position: { x: number; y: number; z: number };
@@ -61,6 +71,9 @@ interface GameStore {
   targetPosition: { x: number; z: number } | null;
   selectedTargetId: string | null;
   activeSkill: string | null;
+  collisionGrid: CollisionGridData | null;
+  interactionTarget: InteractionTarget | null;
+  dialogState: DialogState;
   enemies: Record<string, EnemyState>;
   damages: DamageText[];
   combatLog: string[];
@@ -70,10 +83,13 @@ interface GameStore {
   getCombatStats: () => { atk: number; matk: number; def: number; flee: number };
 
   setMap: (mapId: string, mapName: string, mapType: string) => void;
+  setCollisionGrid: (grid: CollisionGridData | null) => void;
   setTargetPosition: (pos: { x: number; z: number } | null) => void;
   setPosition: (pos: { x: number; y: number; z: number }) => void;
   setInputDirection: (dir: { x: number; z: number }) => void;
   setSelectedTargetId: (id: string | null) => void;
+  setInteractionTarget: (target: InteractionTarget | null) => void;
+  setDialogState: (state: Partial<DialogState>) => void;
   setActiveSkill: (skillId: string | null) => void;
   updateEnemyState: (id: string, state: Partial<EnemyState>) => void;
   updatePlayerHp: (hp: number) => void;
@@ -106,6 +122,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
   targetPosition: null,
   selectedTargetId: null,
   activeSkill: null,
+  collisionGrid: null,
+  interactionTarget: null,
+  dialogState: { isOpen: false, dialog: null, currentLineIndex: 0, selectedResponse: null },
   enemies: buildInitialEnemies(),
   damages: [],
   combatLog: [],
@@ -126,8 +145,11 @@ export const useGameStore = create<GameStore>((set, get) => ({
   setTargetPosition: (pos) => set({ targetPosition: pos }),
   setPosition: (pos) => set({ position: pos }),
   setInputDirection: (dir) => set({ inputDirection: dir }),
-  setSelectedTargetId: (id) => set({ selectedTargetId: id }),
+  setSelectedTargetId: (id) => set({ selectedTargetId: id, interactionTarget: id ? { type: 'enemy', id, position: { x: 0, z: 0 } } : null }),
+  setInteractionTarget: (target) => set({ interactionTarget: target }),
+  setDialogState: (state) => set((s) => ({ dialogState: { ...s.dialogState, ...state } })),
   setActiveSkill: (skillId) => set({ activeSkill: skillId }),
+  setCollisionGrid: (grid) => set({ collisionGrid: grid }),
   updateEnemyState: (id, state) => set((s) => ({
     enemies: { ...s.enemies, [id]: { ...s.enemies[id], ...state } }
   })),

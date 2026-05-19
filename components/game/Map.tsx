@@ -6,11 +6,8 @@ import { CollisionGroup } from '@/lib/collisionSystem';
 import { Enemy } from './Enemy';
 import { DamageNumbers } from './DamageNumbers';
 import { WarpPortal } from './WarpPortal';
-
-interface WallCollider {
-  position: [number, number, number];
-  size: [number, number, number];
-}
+import { NPC } from './NPC';
+import { Chest } from './Chest';
 
 interface MapData {
   mapId: string;
@@ -20,10 +17,12 @@ interface MapData {
   warps: Array<{ id: string; name: string; position: { x: number; y: number; z: number }; targetMapName: string; visual: string }>;
   safeZones: Array<{ id: string; center: { x: number; z: number }; radius: number; name?: string }>;
   decorations: Array<{ position: [number, number, number]; type: string; scale: number }>;
+  npcs?: Array<{ id: string; name: string; sprite: string; dialogId: string; position: { x: number; y: number; z: number } }>;
+  chests?: Array<{ id: string; position: { x: number; y: number; z: number }; lootTable: Array<{ itemId: string; chance: number; minAmount: number; maxAmount: number }>; respawnSeconds: number }>;
+  colliders?: Array<{ position: [number, number, number]; size: [number, number, number] }>;
   grassTuftCount: number;
   grassTexture: { baseColor: string; repeatX: number; repeatY: number };
   floorColor: string;
-  colliders?: WallCollider[];
 }
 
 function createGrassTexture(grassTexture: { baseColor: string; repeatX: number; repeatY: number }): THREE.CanvasTexture {
@@ -125,6 +124,25 @@ export function Map({ mapData }: { mapData: MapData }) {
           position={w.position}
           targetMapName={w.targetMapName}
           visual={w.visual}
+        />
+      ))}
+
+      {(mapData.npcs || []).map((npc) => (
+        <NPC
+          key={npc.id}
+          id={npc.id}
+          name={npc.name}
+          sprite={npc.sprite}
+          dialogId={npc.dialogId}
+          position={npc.position}
+        />
+      ))}
+
+      {(mapData.chests || []).map((chest) => (
+        <Chest
+          key={chest.id}
+          id={chest.id}
+          position={chest.position}
         />
       ))}
 
