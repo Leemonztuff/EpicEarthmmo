@@ -20,7 +20,6 @@ import {
 import { TradeManager } from './TradeManager';
 import { ChatBox } from './ChatBox';
 import { ToastContainer } from '@/components/ui';
-import { LoadingScreen } from './LoadingScreen';
 import { ExpPopups } from './ExpPopups';
 import { AnimatePresence, motion } from 'framer-motion';
 
@@ -28,84 +27,64 @@ export function HUD({ characterName }: { characterName?: string }) {
   const player = useGameStore((state) => state.player);
   const ui = useGameStore((state) => state.ui);
   const toggleUI = useGameStore((state) => state.toggleUI);
+
   const [chatOpen, setChatOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [equipmentOpen, setEquipmentOpen] = useState(false);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const timer = setTimeout(() => setLoading(false), 2500);
-    return () => clearTimeout(timer);
-  }, []);
 
   const handleToggleChat = () => setChatOpen(prev => !prev);
   const handleOpenSettings = () => setSettingsOpen(true);
   const handleOpenEquipment = () => setEquipmentOpen(true);
 
+  if (!player) return null;
+
   return (
-    <>
-      <AnimatePresence>
-        {loading && (
-          <motion.div
-            key="loader"
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.8 }}
-            className="z-[100] fixed inset-0"
-          >
-            <LoadingScreen />
-          </motion.div>
-        )}
-      </AnimatePresence>
+    <div className="absolute inset-0 pointer-events-none z-10 w-full h-full flex flex-col overflow-hidden">
+      <ToastContainer />
+      <ExpPopups />
+      <MapNameDisplay />
 
-      <div className="absolute inset-0 pointer-events-none z-10 w-full h-full flex flex-col overflow-hidden">
-        <ToastContainer />
-        <ExpPopups />
-        <MapNameDisplay />
+      <div className="flex items-start justify-between px-4 pt-4 pointer-events-auto">
+        <PlayerFrame />
+        <Minimap />
+      </div>
 
-        <div className="flex items-start justify-between px-4 pt-4 pointer-events-auto">
-          <PlayerFrame />
-          <div className="flex flex-col items-end gap-3">
-             <Minimap />
+      <div className="px-4 mt-2 pointer-events-auto flex justify-center">
+        <TargetFrame />
+      </div>
+
+      <div className="flex-1 relative w-full h-full">
+        <AnimatePresence>
+          {ui.isStatsOpen && <StatsWindow onClose={() => toggleUI('isStatsOpen')} />}
+          {ui.isSkillsOpen && <SkillsWindow onClose={() => toggleUI('isSkillsOpen')} />}
+          {ui.isInventoryOpen && <InventoryWindow onClose={() => toggleUI('isInventoryOpen')} />}
+          {equipmentOpen && <EquipmentWindow onClose={() => setEquipmentOpen(false)} />}
+          {player.jobClass === 'Novice' && player.jobLevel >= 10 && <JobChangeWindow />}
+        </AnimatePresence>
+        <TradeManager />
+        {settingsOpen && <SettingsPanel onClose={() => setSettingsOpen(false)} />}
+      </div>
+
+      <div className="px-4 pb-4 space-y-4">
+        <div className="flex justify-start pointer-events-auto">
+          <CombatLog />
+        </div>
+
+        <div className="flex items-end justify-between gap-4">
+          <div className="pointer-events-auto self-end">
+            <ChatBoxWrapper isOpen={chatOpen} onToggle={handleToggleChat} />
           </div>
-        </div>
-
-        <div className="px-4 mt-2 pointer-events-auto flex justify-center">
-          <TargetFrame />
-        </div>
-
-        <div className="flex-1 relative w-full h-full">
-          <AnimatePresence>
-            {ui.isStatsOpen && <StatsWindow onClose={() => toggleUI('isStatsOpen')} />}
-            {ui.isSkillsOpen && <SkillsWindow onClose={() => toggleUI('isSkillsOpen')} />}
-            {ui.isInventoryOpen && <InventoryWindow onClose={() => toggleUI('isInventoryOpen')} />}
-            {equipmentOpen && <EquipmentWindow onClose={() => setEquipmentOpen(false)} />}
-            {player.jobClass === 'Novice' && player.jobLevel >= 10 && <JobChangeWindow />}
-          </AnimatePresence>
-          <TradeManager />
-          {settingsOpen && <SettingsPanel onClose={() => setSettingsOpen(false)} />}
-        </div>
-
-        <div className="px-4 pb-4 space-y-4">
-          <div className="flex justify-start pointer-events-auto">
-            <CombatLog />
-          </div>
-
-          <div className="flex items-end justify-between gap-4">
-            <div className="pointer-events-auto self-end">
-              <ChatBoxWrapper isOpen={chatOpen} onToggle={handleToggleChat} />
-            </div>
-            <div className="flex flex-col items-end gap-4 pointer-events-auto">
-              <Hotbar />
-              <MenuBar
-                onToggleChat={handleToggleChat}
-                onOpenSettings={handleOpenSettings}
-                onOpenEquipment={handleOpenEquipment}
-              />
-            </div>
+          <div className="flex flex-col items-end gap-4 pointer-events-auto">
+            <Hotbar />
+            <MenuBar
+              onToggleChat={handleToggleChat}
+              onOpenSettings={handleOpenSettings}
+              onOpenEquipment={handleOpenEquipment}
+            />
           </div>
         </div>
       </div>
-    </>
+    </div>
   );
 }
 

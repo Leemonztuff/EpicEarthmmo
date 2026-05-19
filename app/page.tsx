@@ -27,6 +27,11 @@ export default function Home() {
   }, [session, authLoading]);
 
   const handleSelectCharacter = (character: any) => {
+    if (!character || !character.state) {
+      console.error('Invalid character selected');
+      return;
+    }
+
     setSelectedCharacter(character);
     setScreen('loading');
 
@@ -34,9 +39,10 @@ export default function Home() {
       useGameStore.getState().loadCharacter(character.state);
     });
 
+    // Cinematic delay for world entry
     setTimeout(() => {
       setScreen('game');
-    }, 1500);
+    }, 2500);
   };
 
   const handleLogout = async () => {
@@ -46,7 +52,7 @@ export default function Home() {
   };
 
   return (
-    <div className="bg-black min-h-screen">
+    <div className="bg-slate-950 min-h-screen">
       <AnimatePresence mode="wait">
         {screen === 'auth' && (
           <motion.div key="auth" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
