@@ -21,7 +21,7 @@ export function Hotbar() {
 
   if (!player) return null;
 
-  const quickItems = (player.inventory || []).filter(i => i.type === 'usable' && i.amount > 0).slice(0, 4);
+  const quickItems = (player.inventory || []).filter(i => i.type === 'usable' && i.amount > 0).slice(0, 3);
 
   const handleAttack = () => {
     if (selectedTargetId) {
@@ -30,11 +30,38 @@ export function Hotbar() {
   };
 
   return (
-    <div className="pointer-events-auto select-none w-full safe-pr">
-      <div className="flex items-center justify-end gap-2 sm:gap-4 p-2 sm:p-4 bg-slate-950/40 backdrop-blur-md rounded-3xl border border-slate-800/60 shadow-2xl">
+    <div className="pointer-events-auto select-none max-w-full">
+      <div className="flex items-end gap-2 sm:gap-3 p-2 sm:p-3 bg-slate-950/40 backdrop-blur-md rounded-2xl sm:rounded-[2rem] border border-slate-800/60 shadow-2xl">
+        {/* Main Attack Button */}
+        <div className="relative group">
+          <motion.button
+            whileTap={{ scale: 0.9 }}
+            onClick={handleAttack}
+            className={cn(
+              "w-12 h-12 sm:w-16 sm:h-16 rounded-xl sm:rounded-2xl flex items-center justify-center transition-all duration-300 border-2 cursor-pointer relative overflow-hidden",
+              selectedTargetId
+                ? "bg-gradient-to-b from-red-500 to-red-700 border-red-400 shadow-[0_0_20px_rgba(239,68,68,0.4)]"
+                : "bg-slate-900 border-slate-800 text-slate-600 grayscale"
+            )}
+          >
+            {selectedTargetId && (
+              <motion.div
+                animate={{ scale: [1, 1.2, 1], opacity: [0.2, 0.4, 0.2] }}
+                transition={{ repeat: Infinity, duration: 2 }}
+                className="absolute inset-0 bg-white"
+              />
+            )}
+            <Sword size={32} className="relative z-10 text-white" />
+          </motion.button>
+          <div className="absolute -bottom-5 left-0 right-0 text-center">
+             <span className="text-[7px] sm:text-[9px] font-black text-white/40 uppercase tracking-tighter">Attack</span>
+          </div>
+        </div>
 
-        {/* Skills and Consumables Grid */}
-        <div className="grid grid-cols-2 gap-2">
+        <div className="h-10 sm:h-12 w-[1px] bg-slate-800/60 mx-0.5 sm:mx-1 mb-2" />
+
+        {/* Consumables and Skills */}
+        <div className="flex flex-col gap-2 sm:gap-3">
           {/* Quick Items */}
           <div className="flex gap-1.5 sm:gap-2">
             {quickItems.map((item) => {
@@ -44,7 +71,7 @@ export function Hotbar() {
                   whileTap={{ scale: 0.9 }}
                   onClick={() => consumeItem(item.id)}
                   className={cn(
-                    "w-9 h-9 sm:w-12 sm:h-12 rounded-xl flex flex-col items-center justify-center border transition-all cursor-pointer relative",
+                    "w-9 h-9 sm:w-11 sm:h-11 rounded-lg sm:rounded-xl flex flex-col items-center justify-center border transition-all cursor-pointer relative",
                     "bg-slate-900/50 border-slate-800"
                   )}
                 >
@@ -54,7 +81,7 @@ export function Hotbar() {
                     name={item.name}
                     size={22}
                   />
-                  <Badge variant="amount" size="xs" className="absolute -top-1 -right-1 px-1 min-w-[14px] h-3.5 text-[8px] rounded-full border-slate-900 shadow-lg">
+                  <Badge variant="amount" size="xs" className="absolute -top-1 -right-1 sm:-top-1.5 sm:-right-1.5 px-1 min-w-[14px] sm:min-w-[18px] h-3.5 sm:h-4.5 text-[8px] sm:text-[10px] rounded-full border-slate-900 shadow-lg">
                     {item.amount}
                   </Badge>
                 </motion.button>
@@ -64,7 +91,7 @@ export function Hotbar() {
 
           {/* Active Skills */}
           <div className="flex gap-1.5 sm:gap-2">
-            {(player.unlockedSkills || []).slice(0, 2).map((skillId) => {
+            {(player.unlockedSkills || []).slice(0, 4).map((skillId) => {
               const skillDef = skills.find(s => s.id === skillId);
               if (!skillDef) return null;
               const isActive = activeSkill === skillId;
@@ -75,7 +102,7 @@ export function Hotbar() {
                   whileTap={{ scale: 0.9 }}
                   onClick={() => setActiveSkill(isActive ? null : skillId)}
                   className={cn(
-                    "w-9 h-9 sm:w-12 sm:h-12 rounded-xl flex flex-col items-center justify-center border transition-all cursor-pointer relative overflow-hidden",
+                    "w-9 h-9 sm:w-11 sm:h-11 rounded-lg sm:rounded-xl flex flex-col items-center justify-center border transition-all cursor-pointer relative overflow-hidden",
                     isActive
                       ? "bg-amber-500/20 border-amber-500/50 shadow-[0_0_10px_rgba(245,158,11,0.3)]"
                       : "bg-slate-900/50 border-slate-800 hover:border-slate-700"
@@ -88,49 +115,17 @@ export function Hotbar() {
                     variant={isActive ? 'amber' : 'default'}
                     size={22}
                   />
-                  <span className="text-[6px] font-black text-white/50 absolute bottom-0.5">{skillDef.spCost}</span>
+                  <span className="text-[6px] sm:text-[7px] font-black text-white/50 absolute bottom-0.5 sm:bottom-1">{skillDef.spCost}</span>
                   {isActive && (
                     <motion.div
                       layoutId="active-skill"
-                      className="absolute inset-0 border-2 border-amber-400 rounded-xl"
+                      className="absolute inset-0 border-2 border-amber-400 rounded-lg sm:rounded-xl"
                     />
                   )}
                 </motion.button>
               );
             })}
           </div>
-        </div>
-
-        <div className="h-10 sm:h-14 w-[1px] bg-slate-800/60 mx-1" />
-
-        {/* Main Attack Button - Larger for Mobile */}
-        <div className="relative">
-          <motion.button
-            whileTap={{ scale: 0.9 }}
-            onClick={handleAttack}
-            className={cn(
-              "w-16 h-16 sm:w-20 sm:h-20 rounded-3xl flex items-center justify-center transition-all duration-300 border-2 cursor-pointer relative overflow-hidden shadow-2xl",
-              selectedTargetId
-                ? "bg-gradient-to-tr from-red-600 to-orange-500 border-white/20 shadow-[0_0_30px_rgba(239,68,68,0.4)]"
-                : "bg-slate-900 border-slate-800 text-slate-700 grayscale"
-            )}
-          >
-            {selectedTargetId && (
-              <motion.div
-                animate={{ scale: [1, 1.2, 1], opacity: [0, 0.3, 0] }}
-                transition={{ repeat: Infinity, duration: 1.5 }}
-                className="absolute inset-0 bg-white"
-              />
-            )}
-            <Sword size={32} className={cn("relative z-10 text-white", !selectedTargetId && "text-slate-800 opacity-40")} />
-
-            <div className="absolute inset-0 flex items-end justify-center pb-1">
-               <span className={cn(
-                 "text-[8px] font-black uppercase tracking-widest",
-                 selectedTargetId ? "text-white/60" : "text-transparent"
-               )}>ATK</span>
-            </div>
-          </motion.button>
         </div>
       </div>
     </div>

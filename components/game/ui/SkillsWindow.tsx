@@ -2,8 +2,8 @@
 
 import React, { useState } from 'react';
 import { useGameStore } from '@/store/useGameStore';
-import { Modal, Text, Button, Badge, GameIcon } from '@/components/ui';
-import { Sparkles, Info } from 'lucide-react';
+import { Modal, Text, Button, ListItem, Badge, GameIcon } from '@/components/ui';
+import { Star, Sparkles } from 'lucide-react';
 import { gameData } from '@/shared/loader';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/cn';
@@ -13,92 +13,115 @@ const { skills } = gameData;
 export function SkillsWindow({ onClose }: { onClose: () => void }) {
   const player = useGameStore((state) => state.player);
   const unlockSkill = useGameStore((state) => state.unlockSkill);
-  const [selectedSkillId, setSelectedSkillId] = useState<string | null>(null);
+  const [selectedSkill, setSelectedSkill] = useState<any>(null);
 
   if (!player) return null;
-
-  const selectedSkill = skills.find(s => s.id === selectedSkillId);
 
   return (
     <Modal
       isOpen
       onClose={onClose}
       title="Skill Tree"
-      subtitle={`${player.jobClass} Class`}
+      subtitle={`${player.jobClass} Skills`}
       position="bottom"
       size="md"
     >
       <div className="space-y-6">
         {/* Points Header */}
-        <div className="bg-slate-900/40 backdrop-blur-md rounded-3xl p-5 border border-white/5 flex items-center justify-between shadow-xl">
-          <div className="flex items-center gap-4">
+        <div className="bg-gradient-to-br from-indigo-900/40 to-slate-900 rounded-2xl p-4 border border-indigo-500/20 flex items-center justify-between shadow-xl">
+          <div className="flex items-center gap-3">
             <div className="relative">
-              <div className="w-12 h-12 rounded-2xl bg-indigo-500/10 flex items-center justify-center border border-indigo-500/20">
-                <Sparkles size={24} className="text-indigo-400" />
+              <div className="w-10 h-10 rounded-2xl bg-indigo-500/10 flex items-center justify-center">
+                <Sparkles size={20} className="text-indigo-400" />
               </div>
-              {player.skillPoints > 0 && (
-                <motion.div
-                  animate={{ scale: [1, 1.2, 1] }}
-                  transition={{ repeat: Infinity, duration: 2 }}
-                  className="absolute -top-1 -right-1 w-4 h-4 bg-amber-500 rounded-full border-2 border-slate-900"
-                />
-              )}
+              <motion.div
+                animate={{ rotate: 360 }}
+                transition={{ duration: 10, repeat: Infinity, ease: "linear" }}
+                className="absolute inset-0 border-2 border-indigo-400/20 rounded-2xl"
+              />
             </div>
             <div>
-              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-indigo-400/60 mb-0.5">Skill Points Available</p>
-              <h2 className="text-3xl font-black text-white leading-none">{player.skillPoints}</h2>
+              <Text variant="caption" className="uppercase tracking-widest text-[10px] font-black text-indigo-400/60">Skill Points</Text>
+              <Text variant="valueLg" className="text-2xl text-white">{player.skillPoints}</Text>
             </div>
           </div>
+          {player.skillPoints > 0 && (
+            <Badge variant="purple" size="md" className="animate-pulse shadow-[0_0_15px_rgba(168,85,247,0.4)]">
+              Level Up!
+            </Badge>
+          )}
         </div>
 
-        {/* Skills Grid */}
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid gap-3">
           {skills.map((skill, index) => {
             const isUnlocked = player.unlockedSkills.includes(skill.id) || skill.skillPointCost === 0;
             const meetsReqs = skill.requirements.every(r => player.unlockedSkills.includes(r) || r === 'basic_attack');
             const canUnlock = !isUnlocked && meetsReqs && player.skillPoints >= skill.skillPointCost;
-            const isSelected = selectedSkillId === skill.id;
 
             return (
-              <motion.button
+              <motion.div
                 key={skill.id}
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: index * 0.05 }}
-                onClick={() => setSelectedSkillId(skill.id)}
-                className={cn(
-                  "relative p-4 rounded-[2rem] border-2 transition-all text-left flex flex-col gap-3 group active:scale-95",
-                  isSelected
-                    ? "bg-indigo-500/10 border-indigo-500 shadow-[0_0_25px_rgba(99,102,241,0.2)]"
-                    : isUnlocked
-                    ? "bg-emerald-500/5 border-emerald-500/20"
-                    : meetsReqs
-                    ? "bg-slate-900/40 border-slate-800 hover:border-slate-700"
-                    : "bg-black/20 border-slate-900 opacity-40 grayscale"
-                )}
               >
-                <div className="flex items-start justify-between">
-                  <GameIcon
-                    iconType="skill"
-                    id={skill.id}
-                    name={skill.name}
-                    variant={isUnlocked ? 'green' : meetsReqs ? 'amber' : 'default'}
-                    size={40}
-                  />
-                  {skill.spCost > 0 && (
-                    <span className="text-[10px] font-black text-blue-400/60 font-mono">{skill.spCost} SP</span>
+                <ListItem
+                  variant={isUnlocked ? 'default' : meetsReqs ? 'clickable' : 'disabled'}
+                  padding="sm"
+                  onClick={() => setSelectedSkill(skill)}
+                  className={cn(
+                    "transition-all duration-300",
+                    isUnlocked && "border-emerald-500/20 bg-emerald-500/5",
+                    canUnlock && "border-indigo-500/30 bg-indigo-500/5"
                   )}
-                </div>
-
-                <div>
-                  <h3 className="font-black text-sm text-white truncate">{skill.name}</h3>
-                  <p className="text-[10px] text-slate-500 font-medium line-clamp-1">{skill.description}</p>
-                </div>
-
-                {isSelected && (
-                  <motion.div layoutId="skill-glow" className="absolute inset-0 rounded-[2rem] shadow-[inset_0_0_20px_rgba(99,102,241,0.2)] pointer-events-none" />
-                )}
-              </motion.button>
+                  icon={
+                    <div className="relative">
+                      <GameIcon
+                        iconType="skill"
+                        id={skill.id}
+                        name={skill.name}
+                        variant={isUnlocked ? 'green' : meetsReqs ? 'amber' : 'default'}
+                        size={32}
+                        className="shrink-0"
+                      />
+                      {isUnlocked && (
+                         <motion.div
+                          layoutId={`sparkle-${skill.id}`}
+                          className="absolute -top-1 -right-1"
+                         >
+                            <Star size={12} className="text-yellow-400 fill-yellow-400" />
+                         </motion.div>
+                      )}
+                    </div>
+                  }
+                  title={
+                    <div className="flex items-center gap-2">
+                      <span className={cn(isUnlocked ? "text-white" : "text-slate-400")}>{skill.name}</span>
+                      {skill.spCost > 0 && (
+                        <Badge variant="primary" size="xs" className="font-mono">{skill.spCost} SP</Badge>
+                      )}
+                    </div>
+                  }
+                  description={skill.description}
+                  action={
+                    !isUnlocked && meetsReqs ? (
+                      <Button
+                        variant={canUnlock ? 'primary' : 'secondary'}
+                        size="sm"
+                        disabled={!canUnlock}
+                        onClick={(e) => { e.stopPropagation(); unlockSkill(skill.id, skill.skillPointCost); }}
+                        className="h-8"
+                      >
+                        {canUnlock ? `Unlock (${skill.skillPointCost})` : 'Need SP'}
+                      </Button>
+                    ) : isUnlocked ? (
+                      <Badge variant="success" size="sm" className="bg-emerald-500/20 border-emerald-500/30">Mastered</Badge>
+                    ) : (
+                       <Badge variant="default" size="sm" className="opacity-50">Locked</Badge>
+                    )
+                  }
+                />
+              </motion.div>
             );
           })}
         </div>
@@ -133,7 +156,7 @@ export function SkillsWindow({ onClose }: { onClose: () => void }) {
                   <div className="flex flex-col gap-1">
                     <span className="text-[9px] font-black uppercase tracking-widest text-slate-500">Requirements</span>
                     <div className="flex gap-2">
-                       {selectedSkill.requirements.map(req => (
+                       {selectedSkill.requirements.map((req: string) => (
                          <Badge key={req} variant={player.unlockedSkills.includes(req) ? "success" : "default"} size="xs">
                             {req.replace('_', ' ')}
                          </Badge>
@@ -147,8 +170,8 @@ export function SkillsWindow({ onClose }: { onClose: () => void }) {
                     </Badge>
                   ) : (
                     <Button
-                      variant={player.skillPoints >= selectedSkill.skillPointCost && selectedSkill.requirements.every(r => player.unlockedSkills.includes(r) || r === 'basic_attack') ? "primary" : "secondary"}
-                      disabled={player.skillPoints < selectedSkill.skillPointCost || !selectedSkill.requirements.every(r => player.unlockedSkills.includes(r) || r === 'basic_attack')}
+                      variant={player.skillPoints >= selectedSkill.skillPointCost && selectedSkill.requirements.every((r: string) => player.unlockedSkills.includes(r) || r === 'basic_attack') ? "primary" : "secondary"}
+                      disabled={player.skillPoints < selectedSkill.skillPointCost || !selectedSkill.requirements.every((r: string) => player.unlockedSkills.includes(r) || r === 'basic_attack')}
                       onClick={() => unlockSkill(selectedSkill.id, selectedSkill.skillPointCost)}
                       className="h-12 px-8 rounded-full font-black text-sm shadow-xl"
                     >

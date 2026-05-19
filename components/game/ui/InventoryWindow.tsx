@@ -2,11 +2,10 @@
 
 import React, { useState } from 'react';
 import { useGameStore } from '@/store/useGameStore';
-import { Modal, Button, Badge, TabBar, EmptyState, GameIcon, getItemVariant } from '@/components/ui';
+import { Modal, Button, ListItem, Badge, TabBar, EmptyState, GameIcon, getItemVariant } from '@/components/ui';
 import { Package, Heart, Sword, Gem } from 'lucide-react';
 import { gameData } from '@/shared/loader';
 import { motion, AnimatePresence } from 'framer-motion';
-import { cn } from '@/lib/cn';
 
 const { items } = gameData;
 
@@ -49,60 +48,75 @@ export function InventoryWindow({ onClose }: { onClose: () => void }) {
           size="sm"
         />
 
-        <div className="min-h-[350px] relative">
+        <div className="min-h-[300px]">
           <AnimatePresence mode="wait">
             {filteredItems.length === 0 ? (
               <motion.div
                 key="empty"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="pt-12"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
               >
                 <EmptyState
-                  icon={<Package size={48} className="text-slate-800" />}
-                  title="Inventory Empty"
-                  description={`No items in ${activeTab} category.`}
+                  icon={<Package size={48} className="text-slate-700" />}
+                  title="No items found"
+                  description={activeTab === 'all' ? "Your inventory is currently empty." : `You don't have any items in the ${activeTab} category.`}
                 />
               </motion.div>
             ) : (
               <motion.div
                 key={activeTab}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="grid grid-cols-4 sm:grid-cols-5 gap-2"
+                initial={{ opacity: 0, x: 10 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -10 }}
+                className="grid gap-2"
               >
                 {filteredItems.map((item, index) => {
                   const variant = getItemVariant(item.type);
 
                   return (
-                    <motion.button
+                    <ListItem
                       key={`${item.id}-${index}`}
-                      initial={{ opacity: 0, scale: 0.8 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      transition={{ delay: index * 0.02 }}
+                      variant="clickable"
+                      padding="sm"
                       onClick={() => setSelectedItem(item)}
-                      className={cn(
-                        "aspect-square rounded-xl border-2 flex flex-col items-center justify-center relative transition-all active:scale-95 bg-slate-900/40 border-slate-800 hover:border-slate-700",
-                        selectedItem?.id === item.id && "border-blue-500 shadow-[0_0_15px_rgba(59,130,246,0.3)]"
-                      )}
-                    >
-                      <GameIcon
-                        iconType="item"
-                        id={item.id}
-                        name={item.name}
-                        variant={variant}
-                        size={32}
-                      />
-
-                      {item.amount > 1 && (
-                        <div className="absolute bottom-1 right-1">
-                          <span className="text-[10px] font-black text-white bg-slate-950/80 px-1 rounded-sm border border-white/10 shadow-lg">
-                            {item.amount}
-                          </span>
+                      icon={
+                        <GameIcon
+                          iconType="item"
+                          id={item.id}
+                          name={item.name}
+                          variant={variant}
+                          size={28}
+                          className="shrink-0"
+                        />
+                      }
+                      title={
+                        <div className="flex items-center justify-between">
+                          <span>{item.name}</span>
+                          {item.amount > 1 && (
+                            <Badge variant="amount" size="xs">x{item.amount}</Badge>
+                          )}
                         </div>
-                      )}
-                    </motion.button>
+                      }
+                      description={item.description}
+                      action={
+                        item.type === 'usable' ? (
+                          <Button
+                            variant="primary"
+                            size="sm"
+                            className="h-8 px-4"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              consumeItem(item.id);
+                            }}
+                          >
+                            Use
+                          </Button>
+                        ) : item.type === 'equip' ? (
+                          <Badge variant="purple" size="xs">Gear</Badge>
+                        ) : null
+                      }
+                    />
                   );
                 })}
               </motion.div>
@@ -147,7 +161,7 @@ export function InventoryWindow({ onClose }: { onClose: () => void }) {
                        Use
                      </Button>
                    ) : (
-                     <Badge variant="purple" size="md" className="rounded-full">EQUIP</Badge>
+                     <Badge variant="purple" size="md" className="rounded-full">GEAR</Badge>
                    )}
                    <Button variant="ghost" size="sm" onClick={() => setSelectedItem(null)} className="text-slate-500">
                      Dismiss
