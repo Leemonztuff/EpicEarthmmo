@@ -145,7 +145,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
   setTargetPosition: (pos) => set({ targetPosition: pos }),
   setPosition: (pos) => set({ position: pos }),
   setInputDirection: (dir) => set({ inputDirection: dir }),
-  setSelectedTargetId: (id) => set({ selectedTargetId: id, interactionTarget: id ? { type: 'enemy', id, position: { x: 0, z: 0 } } : null }),
+  setSelectedTargetId: (id) => set((s) => ({
+    selectedTargetId: id,
+    interactionTarget: id ? { type: 'enemy', id, position: s.enemies[id] ? { x: s.enemies[id].position.x, z: s.enemies[id].position.z } : { x: 0, z: 0 } } : null,
+  })),
   setInteractionTarget: (target) => set({ interactionTarget: target }),
   setDialogState: (state) => set((s) => ({ dialogState: { ...s.dialogState, ...state } })),
   setActiveSkill: (skillId) => set({ activeSkill: skillId }),

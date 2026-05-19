@@ -68,13 +68,10 @@ export function getPathDirection(
 
   if (dist <= arriveDist * 0.5) {
     pf.currentIndex++;
-    if (pf.currentIndex >= pf.waypoints.length) {
-      return getPathDirection(pf, currentX, currentZ, arriveDist);
-    }
+    return getPathDirection(pf, currentX, currentZ, arriveDist);
   }
 
-  const dir = normalize(dx, dz);
-  return { x: dir.x, z: dir.z };
+  return normalize(dx, dz);
 }
 
 function normalize(dx: number, dz: number): { x: number; z: number } {

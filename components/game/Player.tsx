@@ -8,13 +8,16 @@ import { useNetworkStore } from '@/store/useNetworkStore';
 import { RigidBody, RapierRigidBody } from '@react-three/rapier';
 import { Sprite } from './Sprite';
 import { directionFromAngle, type Direction, type AnimState } from '@/lib/spriteManager';
-import { getMovementInput, getTargetDirection } from '@/lib/movementController';
+import { getMovementInput } from '@/lib/movementController';
 import { createPlayerStateMachine, updatePlayerStateMachine } from '@/lib/playerStateMachine';
 import { createPathFollower, setPathTarget, getPathDirection, type PathFollower } from '@/lib/pathFollower';
 import { performInteraction } from '@/lib/interactionManager';
 import { gameData } from '@/shared/loader';
 
 const { balance } = gameData;
+const FIXED_YAW = 0.85;
+const COSYAW = Math.cos(-FIXED_YAW);
+const SINYAW = Math.sin(-FIXED_YAW);
 
 const JOB_TO_ENTITY: Record<string, string> = {
   Novice: 'novice_m',
@@ -24,6 +27,13 @@ const JOB_TO_ENTITY: Record<string, string> = {
   Thief: 'thief_m',
   Acolyte: 'acolyte_m',
 };
+
+function rotateInput(input: { x: number; z: number }) {
+  return {
+    x: input.x * COSYAW - input.z * SINYAW,
+    z: input.x * SINYAW + input.z * COSYAW,
+  };
+}
 
 export function Player() {
   const rigidBodyRef = useRef<RapierRigidBody>(null);
@@ -36,6 +46,7 @@ export function Player() {
   const pathRef = useRef<PathFollower>(createPathFollower());
   const animStateRef = useRef<AnimState>('idle');
   const directionRef = useRef<Direction>('S');
+  const reconciledRef = useRef(false);
 
   const jobClass = useGameStore(s => s.player.jobClass);
   const entityId = JOB_TO_ENTITY[jobClass] || 'novice_m';
@@ -63,23 +74,14 @@ export function Player() {
     let pos = rigidBodyRef.current.translation();
     const currentVec = new Vector3(pos.x, pos.y, pos.z);
 
-    // ── Server reconciliation ──
-    const corrDx = storePos.x - pos.x;
-    const corrDz = storePos.z - pos.z;
-    const corrDistSq = corrDx * corrDx + corrDz * corrDz;
-    if (corrDistSq > 0.1) {
-      const corrSpeed = corrDistSq > 9.0 ? 1.0 : 0.08;
-      pos = {
-        x: pos.x + corrDx * corrSpeed,
-        y: pos.y,
-        z: pos.z + corrDz * corrSpeed,
-      };
-      rigidBodyRef.current.setTranslation(pos, true);
-    }
-
     // ── Get input ──
     const { input: rawInput, hasKeyboardInput } = getMovementInput();
     let inputDir = { x: rawInput.x, z: rawInput.z };
+
+    // ── Camera-relative rotation ──
+    if (hasKeyboardInput) {
+      inputDir = rotateInput(inputDir);
+    }
 
     // ── Direct input clears pathfinding target ──
     if (hasKeyboardInput && (inputDir.x !== 0 || inputDir.z !== 0)) {
@@ -89,7 +91,7 @@ export function Player() {
 
     // ── Auto-follow enemy if selected ──
     let isAttacking = false;
-    if (selectedTargetId && !hasKeyboardInput) {
+    if (selectedTargetId) {
       const enemy = enemies[selectedTargetId];
       if (enemy && !enemy.isDead) {
         const enemyPos = new Vector3(enemy.position.x, enemy.position.y, enemy.position.z);
@@ -104,13 +106,15 @@ export function Player() {
             isAttacking = true;
             networkStore.attackTarget(selectedTargetId);
           }
+          if (inputDir.x === 0 && inputDir.z === 0) {
+            inputDir = { x: 0, z: 0 };
+          }
         } else {
-          const dir = getTargetDirection(
-            { x: pos.x, z: pos.z },
-            { x: enemy.position.x, z: enemy.position.z },
-          );
-          if (dir.x !== 0 || dir.z !== 0) {
-            inputDir = dir;
+          const dx = enemy.position.x - pos.x;
+          const dz = enemy.position.z - pos.z;
+          const len = Math.sqrt(dx * dx + dz * dz);
+          if (len > 0.3) {
+            inputDir = { x: dx / len, z: dz / len };
           }
         }
       }
@@ -161,6 +165,25 @@ export function Player() {
         y: pos.y,
         z: pos.z + inputDir.z * SPEED * delta,
       }, true);
+      reconciledRef.current = false;
+    }
+
+    // ── Server reconciliation (only when not moving) ──
+    if (!isMoving && !reconciledRef.current) {
+      const corrDx = storePos.x - pos.x;
+      const corrDz = storePos.z - pos.z;
+      const corrDistSq = corrDx * corrDx + corrDz * corrDz;
+      if (corrDistSq > 0.5) {
+        pos = {
+          x: pos.x + corrDx * 0.5,
+          y: pos.y,
+          z: pos.z + corrDz * 0.5,
+        };
+        rigidBodyRef.current.setTranslation(pos, true);
+      }
+      if (corrDistSq < 0.1) {
+        reconciledRef.current = true;
+      }
     }
 
     // ── Update state machine ──
