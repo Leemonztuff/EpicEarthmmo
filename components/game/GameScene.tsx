@@ -12,6 +12,7 @@ import { RemotePlayers } from './RemotePlayers';
 import { QuarksRenderer } from './QuarksParticleSystem';
 import { VirtualJoystick } from './VirtualJoystick';
 import { ScreenShake } from './ScreenShake';
+import { DialogWindow } from './ui/DialogWindow';
 import { useNetworkStore } from '@/store/useNetworkStore';
 
 const defaultMapData = {
@@ -115,6 +116,7 @@ export function GameScene({ characterName }: { characterName?: string }) {
         </Suspense>
       </Canvas>
       <VirtualJoystick />
+      <DialogWindow />
     </div>
   );
 }

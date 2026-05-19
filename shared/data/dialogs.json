@@ -1,0 +1,57 @@
+{
+  "dialogs": [
+    {
+      "id": "prontera_guide",
+      "npcName": "Guide",
+      "lines": [
+        {
+          "speaker": "Guide",
+          "text": "Welcome to Prontera, the capital of the Rune-Midgarts Kingdom! How can I help you, adventurer?"
+        },
+        {
+          "speaker": "Guide",
+          "text": "If you're looking for monsters to train on, head east to Prontera Fields. For a greater challenge, the Geffen Dungeon lies to the west.",
+          "responses": [
+            { "text": "Tell me about the city", "nextDialogId": "prontera_guide_city" },
+            { "text": "I'm ready to adventure!", "action": "close" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "prontera_guide_city",
+      "npcName": "Guide",
+      "lines": [
+        {
+          "speaker": "Guide",
+          "text": "Prontera has many services for adventurers. You can visit the item shop for potions, the weapon shop for equipment, and the skill master to learn new abilities."
+        },
+        {
+          "speaker": "Guide",
+          "text": "Is there anything else you'd like to know?",
+          "responses": [
+            { "text": "Where can I train?", "nextDialogId": "prontera_guide" },
+            { "text": "Goodbye!", "action": "close" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "prontera_weaponsmith",
+      "npcName": "Weaponsmith",
+      "lines": [
+        {
+          "speaker": "Weaponsmith",
+          "text": "Welcome to my shop! I forge the finest weapons in all of Rune-Midgarts. What are you looking for?"
+        },
+        {
+          "speaker": "Weaponsmith",
+          "text": "Unfortunately, I don't have much stock right now. Check back later when I've had time to work the forge.",
+          "responses": [
+            { "text": "I'll come back later", "action": "close" }
+          ]
+        }
+      ]
+    }
+  ]
+}

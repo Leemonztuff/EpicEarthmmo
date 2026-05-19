@@ -40,4 +40,6 @@ export { Skeleton, SkeletonCard, SkeletonList } from './Skeleton';
 export type { SkeletonProps } from './Skeleton';
 export { Collapsible } from './Collapsible';
 export type { CollapsibleProps } from './Collapsible';
+export { GameIcon, getIconPath, getItemVariant } from './GameIcon';
+export type { IconType, IconVariant } from './GameIcon';
 export { cn } from '@/lib/cn';

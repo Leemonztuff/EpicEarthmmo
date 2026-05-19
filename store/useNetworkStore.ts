@@ -89,7 +89,12 @@ export const useNetworkStore = create<NetworkStore>((set, get) => ({
           gs.setPosition(reconciled);
         } else {
           const existing = get().remotePlayers[id];
-          updatedPlayers[id] = { x: sp.x, y: sp.y, z: sp.z, name: (existing?.name || sp.name || id) };
+          updatedPlayers[id] = {
+            x: sp.x, y: sp.y, z: sp.z,
+            name: (existing?.name || sp.name || id),
+            direction: sp.direction || existing?.direction || 'S',
+            animState: sp.animState || existing?.animState || 'idle',
+          };
         }
       }
       set({ remotePlayers: updatedPlayers });

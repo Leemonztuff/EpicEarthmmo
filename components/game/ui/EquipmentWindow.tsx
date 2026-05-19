@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { useGameStore } from '@/store/useGameStore';
-import { Modal, IconBox, Text, Button, Badge, Section, ListItem } from '@/components/ui';
+import { Modal, IconBox, Text, Button, Badge, Section, ListItem, GameIcon } from '@/components/ui';
 import { Sword, Shield, Shirt, Footprints, Crown, Gem, X, ArrowUpRight } from 'lucide-react';
 import { gameData } from '@/shared/loader';
 
@@ -15,6 +15,15 @@ const slotConfig: Record<string, { label: string; icon: React.ReactNode; color: 
   shield: { label: 'Shield', icon: <Shield size={20} />, color: 'cyan' },
   shoes: { label: 'Shoes', icon: <Footprints size={20} />, color: 'green' },
   accessory1: { label: 'Accessory', icon: <Gem size={20} />, color: 'purple' },
+};
+
+const SLOT_ITEM_TYPES: Record<string, string> = {
+  weapon: 'weapon',
+  armor: 'armor',
+  shield: 'shield',
+  headTop: 'headgear',
+  shoes: 'shoes',
+  accessory1: 'accessory',
 };
 
 export function EquipmentWindow({ onClose }: { onClose: () => void }) {
@@ -53,13 +62,23 @@ export function EquipmentWindow({ onClose }: { onClose: () => void }) {
                     : "bg-slate-900/30 border-dashed border-slate-800"
                 )}
               >
-                <IconBox
-                  icon={itemDef ? <ArrowUpRight size={18} /> : config.icon}
-                  size="md"
-                  color={itemDef ? config.color : 'default'}
-                  rounded="sm"
-                  className={cn(!itemDef && "opacity-20")}
-                />
+                {itemDef ? (
+                  <GameIcon
+                    iconType="item"
+                    id={itemDef.id}
+                    name={itemDef.name}
+                    size={28}
+                    className="shrink-0"
+                  />
+                ) : (
+                  <IconBox
+                    icon={config.icon}
+                    size="md"
+                    color="default"
+                    rounded="sm"
+                    className="opacity-20"
+                  />
+                )}
                 <div className="flex-1 min-w-0">
                   <Text variant="caption" className="uppercase text-[9px] font-black text-slate-500 tracking-tighter">
                     {config.label}
@@ -116,7 +135,15 @@ export function EquipmentWindow({ onClose }: { onClose: () => void }) {
                     key={item.id}
                     variant="clickable"
                     padding="sm"
-                    icon={<IconBox icon={<Sword size={18} />} color="purple" size="md" rounded="sm" />}
+                    icon={
+                      <GameIcon
+                        iconType="item"
+                        id={item.id}
+                        name={item.name}
+                        size={28}
+                        className="shrink-0"
+                      />
+                    }
                     title={item.name}
                     description={
                       <div className="flex gap-1 mt-1">
