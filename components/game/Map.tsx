@@ -1,10 +1,16 @@
 import React, { useCallback, useMemo } from 'react';
 import { useGameStore } from '@/store/useGameStore';
 import * as THREE from 'three';
-import { RigidBody } from '@react-three/rapier';
+import { RigidBody, CuboidCollider, interactionGroups } from '@react-three/rapier';
+import { CollisionGroup } from '@/lib/collisionSystem';
 import { Enemy } from './Enemy';
 import { DamageNumbers } from './DamageNumbers';
 import { WarpPortal } from './WarpPortal';
+
+interface WallCollider {
+  position: [number, number, number];
+  size: [number, number, number];
+}
 
 interface MapData {
   mapId: string;
@@ -17,6 +23,7 @@ interface MapData {
   grassTuftCount: number;
   grassTexture: { baseColor: string; repeatX: number; repeatY: number };
   floorColor: string;
+  colliders?: WallCollider[];
 }
 
 function createGrassTexture(grassTexture: { baseColor: string; repeatX: number; repeatY: number }): THREE.CanvasTexture {
@@ -91,7 +98,7 @@ export function Map({ mapData }: { mapData: MapData }) {
     if (e.button !== 0) return;
     e.stopPropagation();
     const point = e.point;
-    setTargetPosition({ x: point.x, y: 0.5, z: point.z });
+    setTargetPosition({ x: point.x, z: point.z });
     setSelectedTargetId(null);
   }, [setTargetPosition, setSelectedTargetId]);
 
@@ -123,6 +130,16 @@ export function Map({ mapData }: { mapData: MapData }) {
 
       {(mapData.safeZones || []).map((sz) => (
         <SafeZoneIndicator key={sz.id} zone={sz} />
+      ))}
+
+      {(mapData.colliders || []).map((c, i) => (
+        <RigidBody key={i} type="fixed" colliders={false}>
+          <CuboidCollider
+            args={[c.size[0] / 2, c.size[1] / 2, c.size[2] / 2]}
+            position={c.position}
+            collisionGroups={interactionGroups([CollisionGroup.WALL], [CollisionGroup.PLAYER, CollisionGroup.ENEMY, CollisionGroup.NPC])}
+          />
+        </RigidBody>
       ))}
 
       {Object.values(enemies || {}).map((enemy) => (

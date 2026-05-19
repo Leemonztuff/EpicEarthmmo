@@ -1,13 +1,16 @@
-import React, { useRef, useEffect, useState } from 'react';
+'use client';
+
+import React, { useRef, useState } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Vector3, Group as TGroup } from 'three';
 import { useGameStore } from '@/store/useGameStore';
 import { useNetworkStore } from '@/store/useNetworkStore';
 import { RigidBody, RapierRigidBody } from '@react-three/rapier';
-import { touchInput } from '@/lib/touchInput';
-import { gameData } from '@/shared/loader';
 import { Sprite } from './Sprite';
 import { directionFromAngle, type Direction, type AnimState } from '@/lib/spriteManager';
+import { getMovementInput, getTargetDirection } from '@/lib/movementController';
+import { createPlayerStateMachine, updatePlayerStateMachine } from '@/lib/playerStateMachine';
+import { gameData } from '@/shared/loader';
 
 const { balance } = gameData;
 
@@ -23,25 +26,13 @@ const JOB_TO_ENTITY: Record<string, string> = {
 export function Player() {
   const rigidBodyRef = useRef<RapierRigidBody>(null);
   const groupRef = useRef<TGroup>(null);
-
   const [initialPos] = useState(() => useGameStore.getState().position);
-  const lastAttackTimeRef = useRef(0);
-  const keys = useRef<{ [key: string]: boolean }>({});
   const firstFrameRef = useRef(true);
+  const lastAttackTimeRef = useRef(0);
 
+  const smRef = useRef(createPlayerStateMachine());
   const animStateRef = useRef<AnimState>('idle');
   const directionRef = useRef<Direction>('S');
-
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => { keys.current[e.code] = true; };
-    const handleKeyUp = (e: KeyboardEvent) => { keys.current[e.code] = false; };
-    window.addEventListener('keydown', handleKeyDown);
-    window.addEventListener('keyup', handleKeyUp);
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-      window.removeEventListener('keyup', handleKeyUp);
-    };
-  }, []);
 
   const jobClass = useGameStore(s => s.player.jobClass);
   const entityId = JOB_TO_ENTITY[jobClass] || 'novice_m';
@@ -59,16 +50,17 @@ export function Player() {
     const networkStore = useNetworkStore.getState();
     const {
       targetPosition, setTargetPosition, setInputDirection, position: storePos,
-      selectedTargetId, enemies, player
+      selectedTargetId, enemies, player,
     } = gameStore;
 
     const SPEED = balance.movement.playerSpeed;
     const ATTACK_RANGE = balance.combat.attackRange;
-    const AGI_COOLDOWN_REDUCTION = Math.max(0, player.stats.agi) * 0.005;
-    const ATTACK_COOLDOWN = Math.max(0.1, (balance.combat.attackCooldownMs / 1000) - AGI_COOLDOWN_REDUCTION);
+    const ATTACK_COOLDOWN = Math.max(0.1, (balance.combat.attackCooldownMs / 1000));
 
     let pos = rigidBodyRef.current.translation();
+    const currentVec = new Vector3(pos.x, pos.y, pos.z);
 
+    // ── Server reconciliation ──
     const corrDx = storePos.x - pos.x;
     const corrDz = storePos.z - pos.z;
     const corrDistSq = corrDx * corrDx + corrDz * corrDz;
@@ -82,49 +74,20 @@ export function Player() {
       rigidBodyRef.current.setTranslation(pos, true);
     }
 
-    const current = new Vector3(pos.x, pos.y, pos.z);
+    // ── Get input ──
+    const { input: rawInput } = getMovementInput();
+    let inputDir = { x: rawInput.x, z: rawInput.z };
 
-    const keyLeft = keys.current['KeyA'] || keys.current['ArrowLeft'];
-    const keyRight = keys.current['KeyD'] || keys.current['ArrowRight'];
-    const keyUp = keys.current['KeyW'] || keys.current['ArrowUp'];
-    const keyDown = keys.current['KeyS'] || keys.current['ArrowDown'];
-
-    let inputDir = { x: 0, z: 0 };
-    let hasKeyboardInput = false;
-
-    if (keyLeft) { inputDir.x -= 1; hasKeyboardInput = true; }
-    if (keyRight) { inputDir.x += 1; hasKeyboardInput = true; }
-    if (keyUp) { inputDir.z -= 1; hasKeyboardInput = true; }
-    if (keyDown) { inputDir.z += 1; hasKeyboardInput = true; }
-
-    if (!hasKeyboardInput) {
-      const joyX = touchInput.x;
-      const joyZ = touchInput.z;
-      if (Math.abs(joyX) > 0.1 || Math.abs(joyZ) > 0.1) {
-        inputDir.x = joyX;
-        inputDir.z = joyZ;
-      }
-    }
-
-    if (inputDir.x !== 0 || inputDir.z !== 0) {
-      const len = Math.sqrt(inputDir.x * inputDir.x + inputDir.z * inputDir.z);
-      if (len > 0) {
-        inputDir.x /= len;
-        inputDir.z /= len;
-      }
-    }
-
+    // ── Auto-follow enemy if selected ──
     let isAttacking = false;
-
     if (selectedTargetId) {
       const enemy = enemies[selectedTargetId];
       if (enemy && !enemy.isDead) {
-        const enemyObj = new Vector3(enemy.position.x, enemy.position.y, enemy.position.z);
-        const distanceToEnemy = current.distanceTo(enemyObj);
+        const enemyPos = new Vector3(enemy.position.x, enemy.position.y, enemy.position.z);
+        const dist = currentVec.distanceTo(enemyPos);
 
-        if (distanceToEnemy <= ATTACK_RANGE) {
+        if (dist <= ATTACK_RANGE) {
           if (targetPosition) setTargetPosition(null);
-
           const now = state.clock.elapsedTime;
           if (now - lastAttackTimeRef.current >= ATTACK_COOLDOWN) {
             lastAttackTimeRef.current = now;
@@ -132,31 +95,33 @@ export function Player() {
             networkStore.attackTarget(selectedTargetId);
           }
         } else {
-          const dx = enemy.position.x - current.x;
-          const dz = enemy.position.z - current.z;
-          const dist = Math.sqrt(dx * dx + dz * dz);
-          if (dist > 0.1) {
-            inputDir.x = dx / dist;
-            inputDir.z = dz / dist;
+          const dir = getTargetDirection(
+            { x: pos.x, z: pos.z },
+            { x: enemy.position.x, z: enemy.position.z },
+          );
+          if (dir.x !== 0 || dir.z !== 0) {
+            inputDir = dir;
           }
         }
       }
     }
 
+    // ── Click-to-move target ──
     if (inputDir.x === 0 && inputDir.z === 0 && targetPosition) {
-      const dx = targetPosition.x - current.x;
-      const dz = targetPosition.z - current.z;
-      const dist = Math.sqrt(dx * dx + dz * dz);
-      if (dist > 0.3) {
-        inputDir.x = dx / dist;
-        inputDir.z = dz / dist;
+      const dir = getTargetDirection(
+        { x: pos.x, z: pos.z },
+        { x: targetPosition.x, z: targetPosition.z },
+      );
+      if (dir.x !== 0 || dir.z !== 0) {
+        inputDir = dir;
       } else {
         setTargetPosition(null);
       }
     }
 
-    setInputDirection({ x: inputDir.x, z: inputDir.z });
+    setInputDirection(inputDir);
 
+    // ── Apply movement ──
     const isMoving = inputDir.x !== 0 || inputDir.z !== 0;
     if (isMoving) {
       rigidBodyRef.current.setTranslation({
@@ -166,14 +131,27 @@ export function Player() {
       }, true);
     }
 
-    // ── Update animation state ──
-    animStateRef.current = isAttacking ? 'attack' : isMoving ? 'walk' : 'idle';
+    // ── Update state machine ──
+    smRef.current = updatePlayerStateMachine(
+      smRef.current,
+      delta,
+      inputDir,
+      { x: pos.x, z: pos.z },
+    );
+
+    if (isAttacking) {
+      animStateRef.current = 'attack';
+    } else if (isMoving) {
+      animStateRef.current = 'walk';
+    } else {
+      animStateRef.current = 'idle';
+    }
 
     if (inputDir.x !== 0 || inputDir.z !== 0) {
       directionRef.current = directionFromAngle(inputDir.x, inputDir.z);
     }
 
-    // ── Visual effects (bob) ──
+    // ── Bob animation ──
     if (groupRef.current) {
       if (isMoving) {
         const bob = Math.sin(state.clock.elapsedTime * 15);

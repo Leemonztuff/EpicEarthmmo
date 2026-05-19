@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useRef } from 'react';
+import { useFrame } from '@react-three/fiber';
 import { useNetworkStore } from '@/store/useNetworkStore';
 import { Billboard, Text } from '@react-three/drei';
 import { Sprite } from './Sprite';
@@ -18,12 +19,40 @@ export function RemotePlayers() {
   );
 }
 
-function RemotePlayerSprite({ id, player }: { id: string; player: { x: number; y: number; z: number; name?: string } }) {
-  const animStateRef = useRef<AnimState>('idle');
-  const directionRef = useRef<Direction>('S');
+function RemotePlayerSprite({
+  id,
+  player,
+}: {
+  id: string;
+  player: {
+    x: number;
+    y: number;
+    z: number;
+    name?: string;
+    direction?: string;
+    animState?: string;
+  };
+}) {
+  const displayPos = useRef({ x: player.x || 0, y: player.y || 0.5, z: player.z || 0 });
+  const directionRef = useRef<Direction>((player.direction as Direction) || 'S');
+  const animStateRef = useRef<AnimState>((player.animState as AnimState) || 'idle');
+
+  useFrame((_state, delta) => {
+    const smoothing = 6;
+    displayPos.current.x += ((player.x || 0) - displayPos.current.x) * smoothing * delta;
+    displayPos.current.y += ((player.y || 0.5) - displayPos.current.y) * smoothing * delta;
+    displayPos.current.z += ((player.z || 0) - displayPos.current.z) * smoothing * delta;
+
+    if (player.direction) {
+      directionRef.current = player.direction as Direction;
+    }
+    if (player.animState) {
+      animStateRef.current = player.animState as AnimState;
+    }
+  });
 
   return (
-    <group position={[player.x || 0, player.y || 0.5, player.z || 0]}>
+    <group position={[displayPos.current.x, displayPos.current.y, displayPos.current.z]}>
       <Billboard follow>
         <Sprite
           entityId="novice_m"

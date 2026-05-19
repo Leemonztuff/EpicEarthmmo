@@ -5,7 +5,13 @@
     "fullSnapshotInterval": 10
   },
   "movement": {
-    "playerSpeed": 8
+    "playerSpeed": 8,
+    "clickMoveRange": 30,
+    "interactRange": 2.5,
+    "npcTalkRange": 2.0,
+    "pathfindingGridSize": 0.5,
+    "pathfindingUpdateMs": 200,
+    "stuckTimeoutMs": 3000
   },
   "combat": {
     "attackRange": 3.0,

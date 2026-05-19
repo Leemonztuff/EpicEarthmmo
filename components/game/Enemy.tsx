@@ -1,11 +1,14 @@
+'use client';
+
 import React, { useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
-import { Group as TGroup } from 'three';
+import { Group as TGroup, Vector3 } from 'three';
 import { Billboard, Text } from '@react-three/drei';
 import { useGameStore } from '@/store/useGameStore';
-import { RigidBody } from '@react-three/rapier';
+import { RigidBody, CuboidCollider, interactionGroups } from '@react-three/rapier';
 import { Sprite } from './Sprite';
 import { type AnimState } from '@/lib/spriteManager';
+import { CollisionGroup } from '@/lib/collisionSystem';
 
 const ENEMY_TO_ENTITY: Record<string, string> = {
   Poring: 'poring',
@@ -62,7 +65,12 @@ export function Enemy({ id }: { id: string }) {
 
   return (
     <group ref={groupRef} position={[displayPos.current.x, displayPos.current.y, displayPos.current.z]}>
-      <RigidBody type="fixed">
+      <RigidBody type="fixed" colliders={false}>
+        <CuboidCollider
+          args={[0.4, 0.5, 0.4]}
+          position={[0, 0.5, 0]}
+          collisionGroups={interactionGroups([CollisionGroup.ENEMY], [CollisionGroup.WALL, CollisionGroup.PLAYER])}
+        />
         <Billboard follow lockX={false} lockY={false} lockZ={false}>
           <group
             ref={spriteRef}

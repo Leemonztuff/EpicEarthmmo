@@ -16,6 +16,8 @@ import pronteraMap from '../data/maps/prontera.json';
 import pronteraFieldsMap from '../data/maps/prontera_fields.json';
 import geffenDungeonMap from '../data/maps/geffen_dungeon.json';
 
+export type { BalanceConfig, EnemyData, SkillTree, ItemDatabase, JobDatabase, MapConfig };
+
 export interface LoadedGameData {
   balance: BalanceConfig;
   enemies: EnemyData;

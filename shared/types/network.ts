@@ -3,6 +3,8 @@ export interface PeerPlayerState {
   y: number;
   z: number;
   name: string;
+  direction?: string;
+  animState?: string;
 }
 
 export interface ChatMessage {
@@ -31,6 +33,8 @@ export interface SnapshotPlayer {
   hp: number; maxHp: number;
   sp: number; maxSp: number;
   lastProcessedSeq?: number;
+  direction?: string;
+  animState?: string;
 }
 
 export interface SnapshotEnemy {
