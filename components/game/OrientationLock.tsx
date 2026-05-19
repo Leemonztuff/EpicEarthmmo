@@ -11,10 +11,9 @@ export function OrientationLock() {
     if (typeof window === 'undefined') return;
 
     const checkOrientation = () => {
-      // Logic for mobile landscape locking if desired
-      // For now we allow both but show a hint if aspect is too extreme
-      const isExtremeLandscape = window.innerWidth / window.innerHeight > 2;
-      // setIsOrientation(isExtremeLandscape);
+      // User requested Portrait mode specifically
+      const isLandscape = window.innerWidth > window.innerHeight;
+      setIsOrientation(isLandscape);
     };
 
     window.addEventListener('resize', checkOrientation);
@@ -32,10 +31,15 @@ export function OrientationLock() {
           className="fixed inset-0 z-[200] bg-slate-950 flex flex-col items-center justify-center p-8 text-center"
         >
           <div className="w-20 h-20 rounded-3xl bg-blue-500/10 flex items-center justify-center mb-6">
-            <Smartphone size={40} className="text-blue-500 animate-bounce" />
+            <motion.div
+               animate={{ rotate: [0, 90, 90, 0] }}
+               transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+            >
+              <Smartphone size={40} className="text-blue-500" />
+            </motion.div>
           </div>
-          <h2 className="text-white font-black text-xl uppercase tracking-tighter mb-2 italic">Optimal View</h2>
-          <p className="text-slate-500 text-sm font-medium">Please adjust your viewport for the best combat experience.</p>
+          <h2 className="text-white font-black text-xl uppercase tracking-tighter mb-2 italic">Portrait Mode Recommended</h2>
+          <p className="text-slate-500 text-sm font-medium">Please rotate your device to portrait for the best experience.</p>
         </motion.div>
       )}
     </AnimatePresence>
