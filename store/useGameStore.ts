@@ -73,6 +73,7 @@ interface GameStore {
   pathIndex: number;
   selectedTargetId: string | null;
   activeSkill: string | null;
+  skillCooldowns: Record<string, number>;
   collisionGrid: CollisionGridData | null;
   interactionTarget: InteractionTarget | null;
   dialogState: DialogState;
@@ -95,6 +96,7 @@ interface GameStore {
   setInteractionTarget: (target: InteractionTarget | null) => void;
   setDialogState: (state: Partial<DialogState>) => void;
   setActiveSkill: (skillId: string | null) => void;
+  setSkillCooldown: (skillId: string, durationMs: number) => void;
   updateEnemyState: (id: string, state: Partial<EnemyState>) => void;
   updatePlayerHp: (hp: number) => void;
   setSp: (sp: number) => void;
@@ -128,6 +130,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   pathIndex: 0,
   selectedTargetId: null,
   activeSkill: null,
+  skillCooldowns: {},
   collisionGrid: null,
   interactionTarget: null,
   dialogState: { isOpen: false, dialog: null, currentLineIndex: 0, selectedResponse: null },
@@ -160,6 +163,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
   setInteractionTarget: (target) => set({ interactionTarget: target }),
   setDialogState: (state) => set((s) => ({ dialogState: { ...s.dialogState, ...state } })),
   setActiveSkill: (skillId) => set({ activeSkill: skillId }),
+  setSkillCooldown: (skillId, durationMs) => set((s) => ({
+    skillCooldowns: { ...s.skillCooldowns, [skillId]: Date.now() + durationMs },
+  })),
   setCollisionGrid: (grid) => set({ collisionGrid: grid }),
   updateEnemyState: (id, state) => set((s) => ({
     enemies: { ...s.enemies, [id]: { ...s.enemies[id], ...state } }

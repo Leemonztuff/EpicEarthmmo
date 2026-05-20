@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useGameStore } from '@/store/useGameStore';
 import { useNetworkStore } from '@/store/useNetworkStore';
 import { gameData } from '@/shared/loader';
@@ -15,11 +15,18 @@ export function Hotbar() {
   const player = useGameStore((state) => state.player);
   const activeSkill = useGameStore((state) => state.activeSkill);
   const setActiveSkill = useGameStore((state) => state.setActiveSkill);
+  const skillCooldowns = useGameStore((state) => state.skillCooldowns);
   const selectedTargetId = useGameStore((state) => state.selectedTargetId);
   const position = useGameStore((state) => state.position);
   const attackTarget = useNetworkStore((state) => state.attackTarget);
   const castSkill = useNetworkStore((state) => state.castSkill);
   const consumeItem = useGameStore((state) => state.consumeItem);
+  const [now, setNow] = useState(Date.now());
+
+  useEffect(() => {
+    const interval = setInterval(() => setNow(Date.now()), 100);
+    return () => clearInterval(interval);
+  }, []);
 
   if (!player) return null;
 
@@ -40,7 +47,7 @@ export function Hotbar() {
       return;
     }
 
-    const targetType = (skillDef as any).targetType;
+    const targetType = skillDef.targetType;
 
     if (targetType === 'self') {
       castSkill(skillId);
@@ -140,14 +147,18 @@ export function Hotbar() {
               const skillDef = skills.find(s => s.id === skillId);
               if (!skillDef) return null;
               const isActive = activeSkill === skillId;
+              const cdExpires = skillCooldowns[skillId] ?? 0;
+              const cdRemaining = Math.max(0, cdExpires - now);
+              const onCooldown = cdRemaining > 0;
 
               return (
                 <motion.button
                   key={skillId}
                   whileTap={{ scale: 0.9 }}
-                  onClick={() => handleSkillClick(skillId)}
+                  onClick={() => !onCooldown && handleSkillClick(skillId)}
                   className={cn(
                     "w-9 h-9 sm:w-11 sm:h-11 rounded-lg sm:rounded-xl flex flex-col items-center justify-center border transition-all cursor-pointer relative overflow-hidden",
+                    onCooldown && "opacity-50 cursor-not-allowed",
                     isActive
                       ? "bg-amber-500/20 border-amber-500/50 shadow-[0_0_10px_rgba(245,158,11,0.3)]"
                       : "bg-slate-900/50 border-slate-800 hover:border-slate-700"
@@ -161,6 +172,13 @@ export function Hotbar() {
                     size={22}
                   />
                   <span className="text-[6px] sm:text-[7px] font-black text-white/50 absolute bottom-0.5 sm:bottom-1">{skillDef.spCost}</span>
+                  {onCooldown && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-black/60 rounded-lg sm:rounded-xl">
+                      <span className="text-[9px] sm:text-[10px] font-bold text-white/90">
+                        {(cdRemaining / 1000).toFixed(1)}s
+                      </span>
+                    </div>
+                  )}
                   {isActive && (
                     <motion.div
                       layoutId="active-skill"

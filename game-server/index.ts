@@ -10,6 +10,10 @@ import { SkillEngine } from './SkillEngine';
 import type { BuffableEntity } from './BuffManager';
 import type { GroundEffectTarget } from './GroundEffectManager';
 import type { SpatialEntity } from '@/lib/spatialQuery';
+import type {
+  SkillDefinition, EffectDefinition, EffectFormula,
+  GroundEffectDefinition, BuffDefinition,
+} from '@/shared/schemas';
 
 // ── Load all game data from JSON files (validated with Zod) ──
 const gameData = loadGameData();
@@ -33,7 +37,7 @@ for (const skillDef of skills) {
 }
 
 // Register ground effect definitions
-skillEngine.registerGroundEffect({
+const fireWallGe: GroundEffectDefinition = {
   id: 'fire_wall_ge',
   name: 'Fire Wall',
   durationMs: 10000,
@@ -50,9 +54,10 @@ skillEngine.registerGroundEffect({
   color: '#ff4400',
   opacity: 0.5,
   vfxId: 'fire_wall_ground',
-} as any);
+};
+skillEngine.registerGroundEffect(fireWallGe);
 
-skillEngine.registerGroundEffect({
+const safetyWallGe: GroundEffectDefinition = {
   id: 'safety_wall_ge',
   name: 'Safety Wall',
   durationMs: 8000,
@@ -69,10 +74,10 @@ skillEngine.registerGroundEffect({
   color: '#44aaff',
   opacity: 0.4,
   vfxId: 'safety_wall_ground',
-} as any);
+};
+skillEngine.registerGroundEffect(safetyWallGe);
 
-// Register buff definitions
-skillEngine.registerBuff({
+const buffTaunt: BuffDefinition = {
   id: 'taunt',
   name: 'Taunt',
   isDebuff: true,
@@ -83,9 +88,10 @@ skillEngine.registerBuff({
   drReductionPerStack: 0,
   behaviorModifiers: [{ type: 'taunt', durationMs: 5000 }],
   color: '#ff8800',
-} as any);
+};
+skillEngine.registerBuff(buffTaunt);
 
-skillEngine.registerBuff({
+const buffStun: BuffDefinition = {
   id: 'stun',
   name: 'Stun',
   isDebuff: true,
@@ -96,9 +102,10 @@ skillEngine.registerBuff({
   drReductionPerStack: 0,
   behaviorModifiers: [{ type: 'stun', durationMs: 2000 }],
   color: '#ffff00',
-} as any);
+};
+skillEngine.registerBuff(buffStun);
 
-skillEngine.registerBuff({
+const buffFreeze: BuffDefinition = {
   id: 'freeze',
   name: 'Freeze',
   isDebuff: true,
@@ -109,9 +116,10 @@ skillEngine.registerBuff({
   drReductionPerStack: 0,
   behaviorModifiers: [{ type: 'freeze', durationMs: 3000 }],
   color: '#88ccff',
-} as any);
+};
+skillEngine.registerBuff(buffFreeze);
 
-skillEngine.registerBuff({
+const buffSilence: BuffDefinition = {
   id: 'silence',
   name: 'Silence',
   isDebuff: true,
@@ -122,9 +130,10 @@ skillEngine.registerBuff({
   drReductionPerStack: 0,
   behaviorModifiers: [{ type: 'silence', durationMs: 4000 }],
   color: '#aa44ff',
-} as any);
+};
+skillEngine.registerBuff(buffSilence);
 
-skillEngine.registerBuff({
+const buffRoot: BuffDefinition = {
   id: 'root',
   name: 'Root',
   isDebuff: true,
@@ -135,9 +144,10 @@ skillEngine.registerBuff({
   drReductionPerStack: 0,
   behaviorModifiers: [{ type: 'root', durationMs: 3000 }],
   color: '#884400',
-} as any);
+};
+skillEngine.registerBuff(buffRoot);
 
-skillEngine.registerBuff({
+const buffDotBasic: BuffDefinition = {
   id: 'dot_basic',
   name: 'Poison',
   isDebuff: true,
@@ -152,9 +162,10 @@ skillEngine.registerBuff({
     applyToSelf: false,
   }],
   color: '#44aa44',
-} as any);
+};
+skillEngine.registerBuff(buffDotBasic);
 
-skillEngine.registerBuff({
+const buffStr: BuffDefinition = {
   id: 'buff_str',
   name: 'Strength Buff',
   isDebuff: false,
@@ -165,9 +176,10 @@ skillEngine.registerBuff({
   drReductionPerStack: 0,
   statModifiers: [{ stat: 'str', flat: 0, percent: 20 }],
   color: '#ff4444',
-} as any);
+};
+skillEngine.registerBuff(buffStr);
 
-skillEngine.registerBuff({
+const buffAgi: BuffDefinition = {
   id: 'buff_agi',
   name: 'Agility Buff',
   isDebuff: false,
@@ -178,9 +190,10 @@ skillEngine.registerBuff({
   drReductionPerStack: 0,
   statModifiers: [{ stat: 'agi', flat: 0, percent: 20 }, { stat: 'moveSpeed', flat: 0, percent: 15 }],
   color: '#44ff44',
-} as any);
+};
+skillEngine.registerBuff(buffAgi);
 
-skillEngine.registerBuff({
+const buffShield: BuffDefinition = {
   id: 'shield',
   name: 'Shield',
   isDebuff: false,
@@ -190,7 +203,8 @@ skillEngine.registerBuff({
   diminishingReturns: false,
   drReductionPerStack: 0,
   color: '#8888ff',
-} as any);
+};
+skillEngine.registerBuff(buffShield);
 
 // Build lookup maps
 const jobMap = new Map(jobs.map(j => [j.id, j]));
@@ -731,7 +745,10 @@ io.on('connection', (socket) => {
     if (player.stats.statPoints <= 0) { callback?.({ success: false, error: 'No stat points available.' }); return; }
     if (player.stats[data.stat as keyof typeof player.stats] >= balance.stats.cap) { callback?.({ success: false, error: `Stat ${data.stat} is at max (${balance.stats.cap}).` }); return; }
 
-    (player.stats as any)[data.stat] += 1;
+    const statKey = data.stat as keyof typeof player.stats;
+    if (statKey !== 'statPoints') {
+      (player.stats[statKey] as number) += 1;
+    }
     player.stats.statPoints -= 1;
     callback?.({ success: true, stats: { ...player.stats } });
   });
@@ -869,6 +886,33 @@ io.on('connection', (socket) => {
         break;
       }
     }
+  });
+
+  socket.on('useItem', (data: { itemId: string }, callback?: (res: { success: boolean; error?: string }) => void) => {
+    if (!player) return;
+    const itemDef = items.find(i => i.id === data.itemId);
+    if (!itemDef || itemDef.type !== 'usable') {
+      callback?.({ success: false, error: 'Item not usable' });
+      return;
+    }
+    const effect = itemDef.effect;
+    if (effect) {
+      switch (effect.type) {
+        case 'restore_hp':
+          player.hp = Math.min(player.maxHp, player.hp + (effect.value ?? 0));
+          break;
+        case 'restore_sp':
+          player.sp = Math.min(player.maxSp, player.sp + (effect.value ?? 0));
+          break;
+        case 'restore_hp_percent':
+          player.hp = Math.min(player.maxHp, player.hp + Math.floor(player.maxHp * (effect.percent ?? 0) / 100));
+          break;
+        case 'restore_sp_percent':
+          player.sp = Math.min(player.maxSp, player.sp + Math.floor(player.maxSp * (effect.percent ?? 0) / 100));
+          break;
+      }
+    }
+    callback?.({ success: true });
   });
 
   socket.on('chat', (msg: string) => {

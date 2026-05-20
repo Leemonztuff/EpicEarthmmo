@@ -385,8 +385,8 @@ export class SkillEngine {
     effect: EffectDefinition,
     request: SkillCastRequest,
     target: { id: string; x: number; z: number; isAlly: boolean },
-  ): { damage?: number; heal?: number; isCritical?: boolean; buffApplied?: string; groundEffectId?: string } {
-    const result: { damage?: number; heal?: number; isCritical?: boolean; buffApplied?: string; groundEffectId?: string } = {};
+  ): { damage?: number; heal?: number; isCritical?: boolean; buffApplied?: string; groundEffectId?: string; knockbackTarget?: { x: number; z: number } } {
+    const result: { damage?: number; heal?: number; isCritical?: boolean; buffApplied?: string; groundEffectId?: string; knockbackTarget?: { x: number; z: number } } = {};
 
     switch (effect.type) {
       case 'damage':
@@ -402,10 +402,34 @@ export class SkillEngine {
         break;
       }
       case 'heal':
-      case 'aoe_heal':
-      case 'hot': {
+      case 'aoe_heal': {
         if (effect.formula) {
           result.heal = Math.floor(this.calculateFormula(effect.formula, request));
+        }
+        break;
+      }
+      case 'hot': {
+        if (effect.formula) {
+          const hotBuffId = `hot_${request.skillId}`;
+          const tickDmg = Math.floor(this.calculateFormula(effect.formula, request));
+          const def: BuffDefinition = {
+            id: hotBuffId,
+            name: `${request.skillId} HoT`,
+            isDebuff: false,
+            durationMs: effect.durationMs ?? 10000,
+            stackLimit: 3,
+            stackRule: 'refresh',
+            diminishingReturns: false,
+            drReductionPerStack: 0,
+            onTick: [{
+              type: 'heal',
+              formula: { type: 'flat', baseValue: Math.round(tickDmg / ((effect.durationMs ?? 10000) / (effect.tickIntervalMs ?? 1000))), multiplier: 1, variance: 0, critChance: 0, critMultiplier: 1.5 },
+            }],
+            color: '#44ff44',
+          };
+          this.buffManager.registerDefinition(def);
+          this.buffManager.applyBuff(target.id, hotBuffId, request.casterId, effect.durationMs);
+          result.buffApplied = hotBuffId;
         }
         break;
       }
@@ -429,6 +453,15 @@ export class SkillEngine {
         break;
       }
       case 'knockback': {
+        const dist = effect.knockbackDist ?? 3;
+        if (request.directionX !== undefined && request.directionZ !== undefined) {
+          const len = Math.sqrt(request.directionX ** 2 + request.directionZ ** 2);
+          if (len > 0) {
+            const nx = request.directionX / len;
+            const nz = request.directionZ / len;
+            result.knockbackTarget = { x: target.x + nx * dist, z: target.z + nz * dist };
+          }
+        }
         break;
       }
       case 'ground_effect': {
@@ -451,8 +484,54 @@ export class SkillEngine {
       case 'dot': {
         if (effect.formula) {
           const dotBuffId = `dot_${request.skillId}`;
+          if (!this.buffManager.getDefinition(dotBuffId)) {
+            const tickDmg = Math.floor(this.calculateFormula(effect.formula, request));
+            const tickCount = Math.ceil((effect.durationMs ?? 10000) / (effect.tickIntervalMs ?? 1000));
+            this.buffManager.registerDefinition({
+              id: dotBuffId,
+              name: `${request.skillId} DoT`,
+              isDebuff: true,
+              durationMs: effect.durationMs ?? 10000,
+              stackLimit: 3,
+              stackRule: 'stack',
+              diminishingReturns: false,
+              drReductionPerStack: 0,
+              onTick: [{
+                type: 'damage',
+                formula: { type: 'flat', baseValue: Math.round(tickDmg / Math.max(1, tickCount)), multiplier: 1, variance: 0, critChance: 0, critMultiplier: 1.5 },
+              }],
+              color: '#44aa44',
+            });
+          }
           this.buffManager.applyBuff(target.id, dotBuffId, request.casterId, effect.durationMs);
           result.buffApplied = dotBuffId;
+        }
+        break;
+      }
+      case 'hot': {
+        if (effect.formula) {
+          const hotBuffId = `hot_${request.skillId}`;
+          if (!this.buffManager.getDefinition(hotBuffId)) {
+            const tickHeal = Math.floor(this.calculateFormula(effect.formula, request));
+            const tickCount = Math.ceil((effect.durationMs ?? 10000) / (effect.tickIntervalMs ?? 1000));
+            this.buffManager.registerDefinition({
+              id: hotBuffId,
+              name: `${request.skillId} HoT`,
+              isDebuff: false,
+              durationMs: effect.durationMs ?? 10000,
+              stackLimit: 3,
+              stackRule: 'refresh',
+              diminishingReturns: false,
+              drReductionPerStack: 0,
+              onTick: [{
+                type: 'heal',
+                formula: { type: 'flat', baseValue: Math.round(tickHeal / Math.max(1, tickCount)), multiplier: 1, variance: 0, critChance: 0, critMultiplier: 1.5 },
+              }],
+              color: '#44ff44',
+            });
+          }
+          this.buffManager.applyBuff(target.id, hotBuffId, request.casterId, effect.durationMs);
+          result.buffApplied = hotBuffId;
         }
         break;
       }

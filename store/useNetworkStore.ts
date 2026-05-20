@@ -304,6 +304,10 @@ export const useNetworkStore = create<NetworkStore>((set, get) => ({
         return;
       }
 
+      if (res.cooldownMs) {
+        gs.setSkillCooldown(skillId, res.cooldownMs);
+      }
+
       if (res.castTimeMs) {
         showToast(`Casting ${skillId}...`, 'info');
         return;

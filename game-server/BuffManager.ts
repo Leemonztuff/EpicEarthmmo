@@ -34,6 +34,10 @@ export class BuffManager {
     this.definitions.set(def.id, def);
   }
 
+  getDefinition(id: string): BuffDefinition | undefined {
+    return this.definitions.get(id);
+  }
+
   tick(now: number, entities: Map<string, BuffableEntity>, onEffect: (targetId: string, effect: EffectDefinition, sourceId: string) => void): void {
     this.now = now;
 
