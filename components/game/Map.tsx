@@ -4,7 +4,6 @@ import React, { useCallback, useMemo, useState, useEffect, useRef } from 'react'
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { RigidBody } from '@react-three/rapier';
-import { Enemy } from './Enemy';
 import { DamageNumbers } from './DamageNumbers';
 import { WarpPortal } from './WarpPortal';
 import { useNetworkStore } from '@/store/useNetworkStore';
