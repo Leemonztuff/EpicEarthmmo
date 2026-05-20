@@ -70,7 +70,13 @@ export interface MapInitData {
   spawnPoints: Array<{ id: string; position: { x: number; y: number; z: number }; label?: string }>;
   warps: WarpInfo[];
   safeZones: Array<{ id: string; center: { x: number; z: number }; radius: number; name?: string }>;
-  decorations: Array<{ position: [number, number, number]; type: string; scale: number }>;
+  decorations: Array<{ position: [number, number, number]; type: string; scale: number; hasCollision?: boolean; lodNear?: number; lodFar?: number; layer?: string }>;
+  tiles?: Array<{ position: [number, number]; terrainType: string; height: number; textureId: string; blendNorth: number; blendSouth: number; blendEast: number; blendWest: number }>;
+  navGrid?: { cellSize: number; rows: number; cols: number; cells: Array<{ walkable: boolean; height: number; terrainType: string; moveCost: number; isWater: boolean; isBlocked: boolean; specialProperty?: string }> } | null;
+  regions?: Array<{ id: string; bounds: { minX: number; minZ: number; maxX: number; maxZ: number }; chunkSize: number; ambientSound?: string; ambientVolume: number; fogDensity: number; fogColor: string; lightColor: string; lightIntensity: number }>;
+  triggers?: Array<{ id: string; type: string; position: { x: number; z: number }; radius: number; target?: string; data?: Record<string, any> }>;
+  bakedLighting?: { ambientColor: string; ambientIntensity: number; sunColor: string; sunIntensity: number; sunDirection: [number, number, number]; hemisphereSky: string; hemisphereGround: string; fogColor: string; fogNear: number; fogFar: number; fakeAOIntensity: number };
+  colliders?: Array<{ position: [number, number, number]; size: [number, number, number] }>;
   grassTuftCount: number;
   grassTexture: { baseColor: string; repeatX: number; repeatY: number };
   floorColor: string;

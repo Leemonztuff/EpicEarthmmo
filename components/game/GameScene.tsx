@@ -20,9 +20,7 @@ function getDefaultMapData() {
   const prontera = gameData.maps.find(m => m.id === 'prontera');
   if (!prontera) {
     return {
-      mapId: 'prontera',
-      mapName: 'Prontera',
-      mapType: 'town',
+      mapId: 'prontera', mapName: 'Prontera', mapType: 'town',
       dimensions: { width: 80, height: 80 },
       npcs: [], chests: [], warps: [], safeZones: [], decorations: [], colliders: [],
       grassTuftCount: 50,
@@ -32,16 +30,12 @@ function getDefaultMapData() {
   }
   const p = prontera as any;
   return {
-    mapId: p.id,
-    mapName: p.name,
-    mapType: p.type,
-    dimensions: p.dimensions,
-    npcs: p.npcs || [],
-    chests: p.chests || [],
-    warps: p.warps || [],
-    safeZones: p.safeZones || [],
-    decorations: p.decorations || [],
-    colliders: p.colliders || [],
+    mapId: p.id, mapName: p.name, mapType: p.type, dimensions: p.dimensions,
+    npcs: p.npcs || [], chests: p.chests || [], warps: p.warps || [],
+    safeZones: p.safeZones || [], decorations: p.decorations || [],
+    colliders: p.colliders || [], tiles: p.tiles || [],
+    navGrid: p.navGrid, regions: p.regions || [], triggers: p.triggers || [],
+    bakedLighting: p.bakedLighting,
     grassTuftCount: p.grassTuftCount || 50,
     grassTexture: p.grassTexture || { baseColor: '#c4a882', repeatX: 20, repeatY: 20 },
     floorColor: p.floorColor || '#c4a882',
@@ -53,77 +47,31 @@ function DynamicMap() {
   return <Map mapData={mapData || (getDefaultMapData() as any)} />;
 }
 
-function MapAtmosphere() {
-  const mapType = useNetworkStore(state => state.currentMapData?.mapType);
-
-  if (mapType === 'dungeon') {
-    return (
-      <>
-        <color attach="background" args={['#1a1a2e']} />
-        <fog attach="fog" args={['#1a1a2e', 5, 35]} />
-        <ambientLight intensity={0.15} />
-        <hemisphereLight args={['#2a2a3e', '#1a1a1a', 0.1]} />
-      </>
-    );
-  }
-
-  if (mapType === 'field') {
-    return (
-      <>
-        <color attach="background" args={['#87CEEB']} />
-        <fog attach="fog" args={['#c9e8f0', 25, 60]} />
-        <hemisphereLight args={['#87CEEB', '#3a7d3a', 0.7]} />
-        <ambientLight intensity={0.5} />
-      </>
-    );
-  }
-
-  return (
-    <>
-      <color attach="background" args={['#a8d8ea']} />
-      <fog attach="fog" args={['#d4e8f0', 20, 50]} />
-      <hemisphereLight args={['#a8d8ea', '#5a9d5a', 0.6]} />
-      <ambientLight intensity={0.4} />
-    </>
-  );
-}
-
 export function GameScene({ characterName }: { characterName?: string }) {
   const mapType = useNetworkStore(state => state.currentMapData?.mapType);
+  const mapData = useNetworkStore(state => state.currentMapData);
 
   return (
     <div className="w-full h-full" style={{ touchAction: 'none' }}>
       <NetworkManager playerName={characterName || 'Player'} />
       <Canvas shadows orthographic={false} dpr={[1, 2]} camera={{ fov: 50, position: [0, 14, 16], near: 0.1, far: 100 }}>
         <Suspense fallback={null}>
-          <MapAtmosphere />
-
-          {mapType !== 'dungeon' && (
-            <directionalLight
-              castShadow
-              position={[15, 25, 10]}
-              intensity={mapType === 'field' ? 1.3 : 1.2}
-              shadow-mapSize={[2048, 2048]}
-              shadow-camera-left={-25}
-              shadow-camera-right={25}
-              shadow-camera-top={25}
-              shadow-camera-bottom={-25}
-            />
-          )}
-
-          {mapType !== 'dungeon' && (
-            <directionalLight position={[-10, 10, -10]} intensity={0.3} color="#b4d4ff" />
-          )}
+          <DynamicMap />
 
           <QuarksRenderer />
 
           <Physics debug={false}>
-             <DynamicMap />
-             <Player />
-             <RemotePlayers />
+            <Player />
+            <RemotePlayers />
           </Physics>
 
-          <CameraController />
+          <CameraController
+            mapDimensions={mapData?.dimensions}
+            zoomEnabled={true}
+            minZoom={5}
+            maxZoom={22}
+            fixedAngle={true}
+          />
           <ScreenShake />
 
           <EffectComposer>

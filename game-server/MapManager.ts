@@ -1,4 +1,4 @@
-import type { MapConfig, Warp, EnemyArea, SafeZone, EnemyTemplate, MapSpawnPoint, MapDecoration, SafeZone as SafeZoneType } from '../shared/schemas';
+import type { MapConfig, Warp, EnemyArea, SafeZone, EnemyTemplate, MapSpawnPoint, MapDecoration, SafeZone as SafeZoneType, NavGrid } from '../shared/schemas';
 import type { ServerPlayer } from './types';
 
 export type MobAIState = 'idle' | 'patrol' | 'chase' | 'attack' | 'return';
@@ -41,6 +41,7 @@ export interface MapInstance {
   players: Map<string, ServerPlayer>;
   enemies: Map<string, RuntimeEnemy>;
   enemyIdCounter: number;
+  navGrid: NavGrid | null;
 }
 
 export class MapManager {
@@ -62,6 +63,7 @@ export class MapManager {
       players: new Map(),
       enemies: new Map(),
       enemyIdCounter: 0,
+      navGrid: config.navGrid ?? null,
     };
 
     this.spawnEnemies(instance);
@@ -235,7 +237,17 @@ export class MapManager {
         position: d.position,
         type: d.type,
         scale: d.scale,
+        hasCollision: d.hasCollision,
+        lodNear: d.lodNear,
+        lodFar: d.lodFar,
+        layer: d.layer,
       })),
+      tiles: config.tiles ?? [],
+      navGrid: config.navGrid ?? null,
+      regions: config.regions ?? [],
+      triggers: config.triggers ?? [],
+      bakedLighting: config.bakedLighting,
+      colliders: config.colliders ?? [],
       grassTuftCount: config.grassTuftCount,
       grassTexture: config.grassTexture,
       floorColor: config.floorColor,
