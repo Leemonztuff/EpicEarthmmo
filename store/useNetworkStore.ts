@@ -7,6 +7,7 @@ import { addCombatLog } from '@/components/game/hud/CombatLog';
 import { showToast } from '@/components/ui';
 import { triggerShake } from '@/components/game/ScreenShake';
 import { showExpGain } from '@/components/game/ExpPopups';
+import { spawnProjectile } from '@/components/game/ProjectileRenderer';
 
 const { balance } = gameData;
 
@@ -155,6 +156,27 @@ export const useNetworkStore = create<NetworkStore>((set, get) => ({
           import('@/components/game/QuarksParticleSystem').then(m => {
             m.createHitEffect(pos, color);
           }).catch(() => {});
+
+          const isLocal = data.attackerId === newSocket.id;
+          const casterPos = isLocal ? gs.position : (() => {
+            const rp = get().remotePlayers[data.attackerId];
+            return rp ? { x: rp.x, y: rp.y, z: rp.z } : null;
+          })();
+          if (casterPos) {
+            if (data.usedSkill) {
+              spawnProjectile({
+                startX: casterPos.x, startY: (casterPos.y || 0.5) + 0.8, startZ: casterPos.z,
+                endX: enemy.position.x, endY: enemy.position.y + 0.5, endZ: enemy.position.z,
+                type: 'bolt', color: '#ffaa00',
+              });
+            } else {
+              spawnProjectile({
+                startX: casterPos.x, startY: (casterPos.y || 0.5) + 0.8, startZ: casterPos.z,
+                endX: enemy.position.x, endY: enemy.position.y + 0.5, endZ: enemy.position.z,
+                type: 'arrow', color: '#ffdd88',
+              });
+            }
+          }
         }
       }
     });
@@ -221,6 +243,36 @@ export const useNetworkStore = create<NetworkStore>((set, get) => ({
             const color = data.isCritical ? '#ffcc00' : '#ff4444';
             gs.addDamageText(perTargetDamage, pos, color);
             if (data.isCritical) triggerShake(0.15, 0.3);
+          }
+        }
+
+        if (typeof window !== 'undefined' && data.targetPositions && data.targetsHit) {
+          const casterPos = data.casterId === newSocket.id
+            ? gs.position
+            : (() => {
+                const rp = get().remotePlayers[data.casterId];
+                return rp ? { x: rp.x, y: rp.y, z: rp.z } : null;
+              })();
+          if (casterPos) {
+            const projType = data.vfxId === 'lightning_vfx' ? 'bolt'
+              : data.vfxId === 'meteor_vfx' ? 'missile'
+              : data.vfxId === 'fire_vfx' ? 'sphere'
+              : 'bolt';
+            const color = data.vfxId === 'lightning_vfx' ? '#4488ff'
+              : data.vfxId === 'meteor_vfx' ? '#ff4400'
+              : data.vfxId === 'fire_vfx' ? '#ff6600'
+              : '#ffaa00';
+            const speed = data.vfxId === 'lightning_vfx' ? 30 : 12;
+
+            for (const tid of data.targetsHit) {
+              const tpos = data.targetPositions[tid];
+              if (!tpos) continue;
+              spawnProjectile({
+                startX: casterPos.x, startY: (casterPos.y || 0.5) + 0.8, startZ: casterPos.z,
+                endX: tpos.x, endY: 0.5, endZ: tpos.z,
+                type: projType, color, speed,
+              });
+            }
           }
         }
         addCombatLog(`${data.casterId === newSocket.id ? 'You' : data.casterId} cast ${data.skillId} for ${data.damage} damage${data.isCritical ? ' (CRIT!)' : ''}`);

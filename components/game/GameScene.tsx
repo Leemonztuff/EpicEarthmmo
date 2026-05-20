@@ -12,6 +12,7 @@ import { RemotePlayers } from './RemotePlayers';
 import { QuarksRenderer } from './QuarksParticleSystem';
 import { ScreenShake } from './ScreenShake';
 import { SkillRenderer } from './SkillRenderer';
+import { ProjectileRenderer } from './ProjectileRenderer';
 import { BuffOverlay } from './BuffOverlay';
 import { DialogWindow } from './ui/DialogWindow';
 import { useNetworkStore } from '@/store/useNetworkStore';
@@ -65,6 +66,7 @@ export function GameScene({ characterName }: { characterName?: string }) {
 
           <QuarksRenderer />
           <SkillRenderer />
+          <ProjectileRenderer />
 
           <CameraController
             mapDimensions={mapData?.dimensions}
