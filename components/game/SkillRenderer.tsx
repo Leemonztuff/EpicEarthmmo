@@ -2,7 +2,6 @@ import React, { useRef, useEffect, useState } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Circle } from '@react-three/drei';
 import * as THREE from 'three';
-import { useGameStore } from '@/store/useGameStore';
 import { useNetworkStore } from '@/store/useNetworkStore';
 
 interface ActiveGroundEffect {
@@ -15,16 +14,6 @@ interface ActiveGroundEffect {
   expiresAt: number;
   angle?: number;
   length?: number;
-}
-
-interface ActiveBuff {
-  id: string;
-  buffId: string;
-  stacks: number;
-  expiresAt: number;
-  isDebuff: boolean;
-  icon?: string;
-  color: string;
 }
 
 interface PendingSkillVFX {
@@ -133,52 +122,10 @@ function SkillVFX({ vfx }: { vfx: PendingSkillVFX }) {
   );
 }
 
-function BuffIcon({ buff, index }: { buff: ActiveBuff; index: number }) {
-  const remaining = Math.max(0, (buff.expiresAt || 0) - Date.now());
-  const duration = 10000;
-  const progress = remaining / duration;
-
-  return (
-    <div
-      style={{
-        position: 'absolute',
-        bottom: `${60 + index * 40}px`,
-        left: '10px',
-        width: 32,
-        height: 32,
-        borderRadius: 4,
-        border: `2px solid ${buff.isDebuff ? '#ff4444' : '#44ff44'}`,
-        backgroundColor: buff.color || '#888888',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        fontSize: 12,
-        color: 'white',
-        fontWeight: 'bold',
-      }}
-    >
-      {buff.stacks > 1 ? buff.stacks : ''}
-      <div
-        style={{
-          position: 'absolute',
-          bottom: 0,
-          left: 0,
-          right: 0,
-          height: `${Math.max(0, Math.min(100, progress * 100))}%`,
-          backgroundColor: 'rgba(0,0,0,0.5)',
-          borderRadius: '0 0 2px 2px',
-        }}
-      />
-    </div>
-  );
-}
-
 export function SkillRenderer() {
   const socket = useNetworkStore((s) => s.socket);
   const [groundEffects, setGroundEffects] = useState<ActiveGroundEffect[]>([]);
-  const [buffs, setBuffs] = useState<ActiveBuff[]>([]);
   const [vfxList, setVfxList] = useState<PendingSkillVFX[]>([]);
-  const playerId = useGameStore((s) => s.player.name);
 
   useEffect(() => {
     if (!socket) return;
@@ -189,10 +136,6 @@ export function SkillRenderer() {
 
     const handleGroundEffectsUpdate = (data: ActiveGroundEffect[]) => {
       setGroundEffects(data);
-    };
-
-    const handleBuffsUpdate = (data: ActiveBuff[]) => {
-      setBuffs(data);
     };
 
     const handleSkillCastResult = (data: {
@@ -231,13 +174,11 @@ export function SkillRenderer() {
 
     socket.on('groundEffectCreated', handleGroundEffectCreated);
     socket.on('groundEffectsUpdate', handleGroundEffectsUpdate);
-    socket.on('buffsUpdate', handleBuffsUpdate);
     socket.on('skillCastResult', handleSkillCastResult);
 
     return () => {
       socket.off('groundEffectCreated', handleGroundEffectCreated);
       socket.off('groundEffectsUpdate', handleGroundEffectsUpdate);
-      socket.off('buffsUpdate', handleBuffsUpdate);
       socket.off('skillCastResult', handleSkillCastResult);
     };
   }, [socket]);
@@ -246,38 +187,19 @@ export function SkillRenderer() {
     const interval = setInterval(() => {
       const now = Date.now();
       setGroundEffects(prev => prev.filter(ge => ge.expiresAt > now));
-      setBuffs(prev => prev.filter(b => b.expiresAt > now));
       setVfxList(prev => prev.filter(v => now - v.createdAt < v.duration));
     }, 100);
     return () => clearInterval(interval);
   }, []);
 
   return (
-    <>
-      <group>
-        {groundEffects.map(ge => (
-          <GroundEffectRenderer key={ge.id} effect={ge} />
-        ))}
-        {vfxList.map(vfx => (
-          <SkillVFX key={vfx.id} vfx={vfx} />
-        ))}
-      </group>
-
-      {typeof window !== 'undefined' && (
-        <div
-          style={{
-            position: 'fixed',
-            bottom: 0,
-            left: 0,
-            pointerEvents: 'none',
-            zIndex: 100,
-          }}
-        >
-          {buffs.map((buff, i) => (
-            <BuffIcon key={buff.id} buff={buff} index={i} />
-          ))}
-        </div>
-      )}
-    </>
+    <group>
+      {groundEffects.map(ge => (
+        <GroundEffectRenderer key={ge.id} effect={ge} />
+      ))}
+      {vfxList.map(vfx => (
+        <SkillVFX key={vfx.id} vfx={vfx} />
+      ))}
+    </group>
   );
 }
