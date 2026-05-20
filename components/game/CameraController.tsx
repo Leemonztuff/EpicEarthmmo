@@ -39,23 +39,23 @@ export function CameraController({
   const lastInputTime = useRef(0);
 
   useEffect(() => {
-    const pp = playerPosition;
-    const aspect = size.width / size.height;
-    const portraitScale = Math.max(0.7, Math.min(1.3, (16 / 9) / aspect));
-    const dist = BASE_DIST * portraitScale;
+    if (!initialized.current) {
+      const pp = playerPosition;
+      const aspect = size.width / size.height;
+      const portraitScale = Math.max(0.7, Math.min(1.3, (16 / 9) / aspect));
+      const dist = BASE_DIST * portraitScale;
+      const theta = FIXED_YAW;
+      const phi = FIXED_PITCH;
 
-    const theta = FIXED_YAW;
-    const phi = FIXED_PITCH;
-
-    camera.position.set(
-      pp.x + dist * Math.sin(phi) * Math.sin(theta),
-      pp.y + dist * Math.cos(phi) + 2,
-      pp.z + dist * Math.sin(phi) * Math.cos(theta),
-    );
-    camera.lookAt(pp.x, pp.y + 0.5, pp.z);
-    camTarget.current.copy(camera.position);
-    lookTarget.current.set(pp.x, pp.y + 0.5, pp.z);
-    initialized.current = false;
+      camera.position.set(
+        pp.x + dist * Math.sin(phi) * Math.sin(theta),
+        pp.y + dist * Math.cos(phi) + 2,
+        pp.z + dist * Math.sin(phi) * Math.cos(theta),
+      );
+      camera.lookAt(pp.x, pp.y + 0.5, pp.z);
+      camTarget.current.copy(camera.position);
+      lookTarget.current.set(pp.x, pp.y + 0.5, pp.z);
+    }
   }, [camera, size]);
 
   useEffect(() => {
@@ -103,8 +103,10 @@ export function CameraController({
     lookTarget.current.set(lookX, pp.y + 0.5, lookZ);
 
     if (mapDimensions) {
-      const halfW = mapDimensions.width / 2 + MAP_BOUND_PADDING;
-      const halfH = mapDimensions.height / 2 + MAP_BOUND_PADDING;
+      const zoomScale = currentDist.current / BASE_DIST;
+      const padding = MAP_BOUND_PADDING * zoomScale;
+      const halfW = mapDimensions.width / 2 + padding;
+      const halfH = mapDimensions.height / 2 + padding;
       camTarget.current.x = Math.max(-halfW, Math.min(halfW, camTarget.current.x));
       camTarget.current.z = Math.max(-halfH, Math.min(halfH, camTarget.current.z));
     }

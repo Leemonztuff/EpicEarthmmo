@@ -192,6 +192,7 @@ export function Map({ mapData }: { mapData: MapData }) {
 
   const handlePointerDown = useCallback((e: any) => {
     if (e.button !== 0) return;
+    if (e.object?.userData?.raycastable) return;
     e.stopPropagation();
     const point = e.point;
     const target = { x: point.x, y: 0.5, z: point.z };

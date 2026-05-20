@@ -89,13 +89,13 @@ export function SpriteEntity({
 
   return (
     <group position={[position.x, yPos + depthOffset, position.z]}>
-      <mesh ref={meshRef} onClick={onClick}>
+      <mesh ref={meshRef} onClick={onClick} userData={{ raycastable: true }}>
         <planeGeometry args={[1.5 * scale, 1.5 * scale]} />
         <meshBasicMaterial
           map={activeTexture}
           transparent
           opacity={opacity}
-          depthWrite={true}
+          depthWrite={false}
           side={2}
         />
       </mesh>

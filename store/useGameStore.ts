@@ -2,7 +2,6 @@ import { create } from 'zustand';
 import { gameData } from '@/shared/loader';
 import { supabase } from '@/lib/supabase';
 import { PlayerState, PlayerStats, DamageText, EnemyState, GameUIState } from '@/types/game';
-import { CollisionGridData } from '@/lib/collisionGrid';
 import { InteractionTarget } from '@/lib/interactionManager';
 import { Dialog } from '@/shared/schemas';
 import { processLevelUp } from '@/shared/loader/formulaEngine';
@@ -74,7 +73,6 @@ interface GameStore {
   selectedTargetId: string | null;
   activeSkill: string | null;
   skillCooldowns: Record<string, number>;
-  collisionGrid: CollisionGridData | null;
   interactionTarget: InteractionTarget | null;
   dialogState: DialogState;
   enemies: Record<string, EnemyState>;
@@ -86,7 +84,6 @@ interface GameStore {
   getCombatStats: () => { atk: number; matk: number; def: number; flee: number };
 
   setMap: (mapId: string, mapName: string, mapType: string) => void;
-  setCollisionGrid: (grid: CollisionGridData | null) => void;
   setTargetPosition: (pos: { x: number; z: number } | null) => void;
   setPath: (path: Array<{ x: number; z: number }> | null) => void;
   setPathIndex: (index: number) => void;
@@ -131,7 +128,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
   selectedTargetId: null,
   activeSkill: null,
   skillCooldowns: {},
-  collisionGrid: null,
   interactionTarget: null,
   dialogState: { isOpen: false, dialog: null, currentLineIndex: 0, selectedResponse: null },
   enemies: buildInitialEnemies(),
@@ -166,7 +162,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
   setSkillCooldown: (skillId, durationMs) => set((s) => ({
     skillCooldowns: { ...s.skillCooldowns, [skillId]: Date.now() + durationMs },
   })),
-  setCollisionGrid: (grid) => set({ collisionGrid: grid }),
   updateEnemyState: (id, state) => set((s) => ({
     enemies: { ...s.enemies, [id]: { ...s.enemies[id], ...state } }
   })),

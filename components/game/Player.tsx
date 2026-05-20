@@ -10,7 +10,6 @@ import { Sprite } from './Sprite';
 import { directionFromAngle, type Direction, type AnimState } from '@/lib/spriteManager';
 import { getMovementInput } from '@/lib/movementController';
 import { createPlayerStateMachine, updatePlayerStateMachine } from '@/lib/playerStateMachine';
-import { createPathFollower, setPathTarget, getPathDirection, type PathFollower } from '@/lib/pathFollower';
 import { performInteraction } from '@/lib/interactionManager';
 import { playerPosition } from '@/lib/playerPosition';
 import { gameData } from '@/shared/loader';
@@ -44,7 +43,6 @@ export function Player() {
   const lastAttackTimeRef = useRef(0);
 
   const smRef = useRef(createPlayerStateMachine());
-  const pathRef = useRef<PathFollower>(createPathFollower());
   const animStateRef = useRef<AnimState>('idle');
   const directionRef = useRef<Direction>('S');
   const reconciledRef = useRef(false);
@@ -78,7 +76,7 @@ export function Player() {
     const networkStore = useNetworkStore.getState();
     const {
       targetPosition, setTargetPosition, setInputDirection, position: storePos,
-      selectedTargetId, enemies, player, collisionGrid,
+      selectedTargetId, enemies, player,
     } = gameStore;
 
     const SPEED = balance.movement.playerSpeed;
@@ -100,7 +98,7 @@ export function Player() {
     // ── Direct input clears pathfinding target ──
     if (hasKeyboardInput && (inputDir.x !== 0 || inputDir.z !== 0)) {
       if (targetPosition) setTargetPosition(null);
-      pathRef.current = createPathFollower();
+      gameStore.setPath(null);
     }
 
     // ── Auto-follow enemy if selected ──
@@ -113,7 +111,6 @@ export function Player() {
 
         if (dist <= ATTACK_RANGE) {
           if (targetPosition) setTargetPosition(null);
-          pathRef.current = createPathFollower();
           const now = state.clock.elapsedTime;
           if (now - lastAttackTimeRef.current >= ATTACK_COOLDOWN) {
             lastAttackTimeRef.current = now;
@@ -134,31 +131,6 @@ export function Player() {
       }
     }
 
-    // ── Click-to-move with pathfinding ──
-    if (inputDir.x === 0 && inputDir.z === 0 && targetPosition && !selectedTargetId) {
-      const arrived = pathRef.current.arrived;
-      const targetChanged =
-        pathRef.current.target &&
-        (Math.abs(pathRef.current.target.x - targetPosition.x) > 0.1 ||
-         Math.abs(pathRef.current.target.z - targetPosition.z) > 0.1);
-
-      if (targetChanged || (!pathRef.current.target && !arrived)) {
-        pathRef.current = setPathTarget(
-          pathRef.current,
-          collisionGrid,
-          pos.x, pos.z,
-          targetPosition.x, targetPosition.z,
-        );
-      }
-
-      const dir = getPathDirection(pathRef.current, pos.x, pos.z, 0.5);
-      if (dir.x !== 0 || dir.z !== 0) {
-        inputDir = dir;
-      } else if (pathRef.current.arrived) {
-        setTargetPosition(null);
-      }
-    }
-
     // ── Grid-based path following (from navGrid) ──
     if (inputDir.x === 0 && inputDir.z === 0 && gameStore.path && gameStore.pathIndex < gameStore.path.length && !selectedTargetId) {
       const waypoint = gameStore.path[gameStore.pathIndex];
@@ -172,17 +144,11 @@ export function Player() {
         if (gameStore.pathIndex + 1 >= gameStore.path.length) {
           gameStore.setPath(null);
           setTargetPosition(null);
+          const interactionTarget = gameStore.interactionTarget;
+          if (interactionTarget) {
+            performInteraction(interactionTarget);
+          }
         }
-      }
-    }
-
-    // ── If path finished, perform interaction or clear target ──
-    if (pathRef.current.arrived && targetPosition && !selectedTargetId) {
-      const interactionTarget = gameStore.interactionTarget;
-      if (interactionTarget) {
-        performInteraction(interactionTarget);
-      } else {
-        setTargetPosition(null);
       }
     }
 
