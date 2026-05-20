@@ -71,7 +71,7 @@ export function Enemy({ id }: { id: string }) {
           position={[0, 0.5, 0]}
           collisionGroups={interactionGroups([CollisionGroup.ENEMY], [CollisionGroup.WALL, CollisionGroup.PLAYER])}
         />
-        <Billboard follow lockX={false} lockY={false} lockZ={false}>
+        <Billboard follow lockX={true} lockY={false} lockZ={true}>
           <group
             ref={spriteRef}
             onPointerDown={(e) => {

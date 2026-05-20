@@ -15,7 +15,7 @@ import { playerPosition } from '@/lib/playerPosition';
 import { gameData } from '@/shared/loader';
 
 const { balance } = gameData;
-const FIXED_YAW = 0.85;
+const FIXED_YAW = 0.7854;
 const COSYAW = Math.cos(-FIXED_YAW);
 const SINYAW = Math.sin(-FIXED_YAW);
 

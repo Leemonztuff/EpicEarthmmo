@@ -103,7 +103,7 @@ export function Sprite({
   );
 
   if (billboard) {
-    return <Billboard follow lockX={false} lockY={false} lockZ={false}>{content}</Billboard>;
+    return <Billboard follow lockX={true} lockY={false} lockZ={true}>{content}</Billboard>;
   }
 
   return content;
