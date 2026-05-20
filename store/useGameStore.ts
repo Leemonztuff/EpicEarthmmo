@@ -154,6 +154,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
   setInputDirection: (dir) => set({ inputDirection: dir }),
   setSelectedTargetId: (id) => set((s) => ({
     selectedTargetId: id,
+    path: null,
+    pathIndex: 0,
     interactionTarget: id ? { type: 'enemy', id, position: s.enemies[id] ? { x: s.enemies[id].position.x, z: s.enemies[id].position.z } : { x: 0, z: 0 } } : null,
   })),
   setInteractionTarget: (target) => set({ interactionTarget: target }),
