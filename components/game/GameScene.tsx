@@ -56,14 +56,13 @@ export function GameScene({ characterName }: { characterName?: string }) {
       <NetworkManager playerName={characterName || 'Player'} />
       <Canvas shadows orthographic={false} dpr={[1, 2]} camera={{ fov: 50, position: [0, 14, 16], near: 0.1, far: 100 }}>
         <Suspense fallback={null}>
-          <DynamicMap />
-
-          <QuarksRenderer />
-
           <Physics debug={false}>
+            <DynamicMap />
             <Player />
             <RemotePlayers />
           </Physics>
+
+          <QuarksRenderer />
 
           <CameraController
             mapDimensions={mapData?.dimensions}
