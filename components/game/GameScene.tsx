@@ -13,6 +13,7 @@ import { QuarksRenderer } from './QuarksParticleSystem';
 import { VirtualJoystick } from './VirtualJoystick';
 import { ScreenShake } from './ScreenShake';
 import { SkillRenderer } from './SkillRenderer';
+import { BuffOverlay } from './BuffOverlay';
 import { DialogWindow } from './ui/DialogWindow';
 import { useNetworkStore } from '@/store/useNetworkStore';
 import { gameData } from '@/shared/loader';
@@ -84,6 +85,7 @@ export function GameScene({ characterName }: { characterName?: string }) {
           </EffectComposer>
         </Suspense>
       </Canvas>
+      <BuffOverlay />
       <VirtualJoystick />
       <DialogWindow />
     </div>
