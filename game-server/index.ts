@@ -5,7 +5,11 @@ import { loadGameData } from '../shared/loader/serverLoader';
 import { calculateDamage, calculateExpReward, getSkillSpCost, getSkillMultiplier } from '../shared/loader/formulaEngine';
 import { MapManager, type RuntimeEnemy } from './MapManager';
 import type { ServerPlayer } from './types';
-import type { PlayerInput, WorldSnapshot, SnapshotPlayer, MapChangeData } from '../shared/types/network';
+import type { PlayerInput, WorldSnapshot, SnapshotPlayer, MapChangeData, SkillCastRequest } from '../shared/types/network';
+import { SkillEngine } from './SkillEngine';
+import type { BuffableEntity } from './BuffManager';
+import type { GroundEffectTarget } from './GroundEffectManager';
+import type { SpatialEntity } from '@/lib/spatialQuery';
 
 // ── Load all game data from JSON files (validated with Zod) ──
 const gameData = loadGameData();
@@ -21,6 +25,172 @@ for (const template of enemyData.templates) {
 for (const mapConfig of mapConfigs) {
   mapManager.loadMap(mapConfig);
 }
+
+// ── Initialize SkillEngine ──
+const skillEngine = new SkillEngine();
+for (const skillDef of skills) {
+  skillEngine.registerSkill(skillDef);
+}
+
+// Register ground effect definitions
+skillEngine.registerGroundEffect({
+  id: 'fire_wall_ge',
+  name: 'Fire Wall',
+  durationMs: 10000,
+  radius: 3,
+  tickIntervalMs: 1000,
+  effects: [{
+    type: 'aoe_damage',
+    formula: { type: 'stat_based', stat: 'int', baseValue: 15, multiplier: 1.0, variance: 5, critChance: 0.05, critMultiplier: 1.5 },
+    applyToSelf: false,
+  }],
+  targetAllies: false,
+  targetEnemies: true,
+  shape: 'circle',
+  color: '#ff4400',
+  opacity: 0.5,
+  vfxId: 'fire_wall_ground',
+} as any);
+
+skillEngine.registerGroundEffect({
+  id: 'safety_wall_ge',
+  name: 'Safety Wall',
+  durationMs: 8000,
+  radius: 4,
+  tickIntervalMs: 2000,
+  effects: [{
+    type: 'heal',
+    formula: { type: 'stat_based', stat: 'int', baseValue: 20, multiplier: 0.5, variance: 5, critChance: 0, critMultiplier: 1.5 },
+    applyToSelf: false,
+  }],
+  targetAllies: true,
+  targetEnemies: false,
+  shape: 'circle',
+  color: '#44aaff',
+  opacity: 0.4,
+  vfxId: 'safety_wall_ground',
+} as any);
+
+// Register buff definitions
+skillEngine.registerBuff({
+  id: 'taunt',
+  name: 'Taunt',
+  isDebuff: true,
+  durationMs: 5000,
+  stackLimit: 1,
+  stackRule: 'refresh',
+  diminishingReturns: false,
+  drReductionPerStack: 0,
+  behaviorModifiers: [{ type: 'taunt', durationMs: 5000 }],
+  color: '#ff8800',
+} as any);
+
+skillEngine.registerBuff({
+  id: 'stun',
+  name: 'Stun',
+  isDebuff: true,
+  durationMs: 2000,
+  stackLimit: 1,
+  stackRule: 'refresh',
+  diminishingReturns: false,
+  drReductionPerStack: 0,
+  behaviorModifiers: [{ type: 'stun', durationMs: 2000 }],
+  color: '#ffff00',
+} as any);
+
+skillEngine.registerBuff({
+  id: 'freeze',
+  name: 'Freeze',
+  isDebuff: true,
+  durationMs: 3000,
+  stackLimit: 1,
+  stackRule: 'refresh',
+  diminishingReturns: false,
+  drReductionPerStack: 0,
+  behaviorModifiers: [{ type: 'freeze', durationMs: 3000 }],
+  color: '#88ccff',
+} as any);
+
+skillEngine.registerBuff({
+  id: 'silence',
+  name: 'Silence',
+  isDebuff: true,
+  durationMs: 4000,
+  stackLimit: 1,
+  stackRule: 'refresh',
+  diminishingReturns: false,
+  drReductionPerStack: 0,
+  behaviorModifiers: [{ type: 'silence', durationMs: 4000 }],
+  color: '#aa44ff',
+} as any);
+
+skillEngine.registerBuff({
+  id: 'root',
+  name: 'Root',
+  isDebuff: true,
+  durationMs: 3000,
+  stackLimit: 1,
+  stackRule: 'refresh',
+  diminishingReturns: false,
+  drReductionPerStack: 0,
+  behaviorModifiers: [{ type: 'root', durationMs: 3000 }],
+  color: '#884400',
+} as any);
+
+skillEngine.registerBuff({
+  id: 'dot_basic',
+  name: 'Poison',
+  isDebuff: true,
+  durationMs: 10000,
+  stackLimit: 3,
+  stackRule: 'stack',
+  diminishingReturns: false,
+  drReductionPerStack: 0,
+  onTick: [{
+    type: 'damage',
+    formula: { type: 'flat', baseValue: 10, multiplier: 1.0, variance: 3, critChance: 0, critMultiplier: 1.5 },
+    applyToSelf: false,
+  }],
+  color: '#44aa44',
+} as any);
+
+skillEngine.registerBuff({
+  id: 'buff_str',
+  name: 'Strength Buff',
+  isDebuff: false,
+  durationMs: 60000,
+  stackLimit: 1,
+  stackRule: 'refresh',
+  diminishingReturns: false,
+  drReductionPerStack: 0,
+  statModifiers: [{ stat: 'str', flat: 0, percent: 20 }],
+  color: '#ff4444',
+} as any);
+
+skillEngine.registerBuff({
+  id: 'buff_agi',
+  name: 'Agility Buff',
+  isDebuff: false,
+  durationMs: 60000,
+  stackLimit: 1,
+  stackRule: 'refresh',
+  diminishingReturns: false,
+  drReductionPerStack: 0,
+  statModifiers: [{ stat: 'agi', flat: 0, percent: 20 }, { stat: 'moveSpeed', flat: 0, percent: 15 }],
+  color: '#44ff44',
+} as any);
+
+skillEngine.registerBuff({
+  id: 'shield',
+  name: 'Shield',
+  isDebuff: false,
+  durationMs: 10000,
+  stackLimit: 1,
+  stackRule: 'replace',
+  diminishingReturns: false,
+  drReductionPerStack: 0,
+  color: '#8888ff',
+} as any);
 
 // Build lookup maps
 const jobMap = new Map(jobs.map(j => [j.id, j]));
@@ -244,6 +414,225 @@ io.on('connection', (socket) => {
       targetId: data.targetId, damage, usedSkill,
       attackerId: socket.id, hp: enemy.hp, isDead: enemy.isDead,
     });
+  });
+
+  socket.on('skillCast', (data: SkillCastRequest, callback?: (res: any) => void) => {
+    if (!player) return;
+
+    if (mapManager.isInSafeZone(player.currentMapId, player.x, player.z)) {
+      callback?.({ success: false, error: 'Cannot use skills in safe zone' });
+      return;
+    }
+
+    const instance = mapManager.getMap(player.currentMapId);
+    if (!instance) return;
+
+    const casterStats: Record<string, number> = {
+      str: player.stats.str,
+      agi: player.stats.agi,
+      vit: player.stats.vit,
+      int: player.stats.int,
+      dex: player.stats.dex,
+      luk: player.stats.luk,
+      maxHp: player.maxHp,
+    };
+
+    const request: any = {
+      skillId: data.skillId,
+      targetId: data.targetId,
+      targetX: data.targetX,
+      targetZ: data.targetZ,
+      directionX: data.directionX,
+      directionZ: data.directionZ,
+      casterId: player.id,
+      casterPosition: { x: player.x, y: player.y, z: player.z },
+      casterStats,
+      casterLevel: player.baseLevel,
+      sp: player.sp,
+      hp: player.hp,
+    };
+
+    if (skillEngine.isCasting(player.id)) {
+      callback?.({ success: false, error: 'Already casting' });
+      return;
+    }
+
+    const result = skillEngine.executeCast(request);
+
+    if (!result.success) {
+      callback?.({ success: false, error: result.error });
+      return;
+    }
+
+    if (result.castTimeMs) {
+      player.isCasting = true;
+      player.castingSkillId = data.skillId;
+      callback?.({ success: true, castTimeMs: result.castTimeMs, animationId: result.animationId });
+      return;
+    }
+
+    player.sp = result.newSp ?? player.sp;
+    player.hp = result.newHp ?? player.hp;
+
+    if (result.damage) {
+      for (const targetId of result.targetsHit ?? []) {
+        const enemy = mapManager.getEnemy(player.currentMapId, targetId);
+        if (enemy && !enemy.isDead) {
+          enemy.hp = Math.max(0, enemy.hp - result.damage!);
+          if (enemy.hp === 0) {
+            enemy.isDead = true;
+            enemy.deathTime = Date.now();
+            const { baseExp: expBase, jobExp: expJob } = calculateExpReward(enemy.level, balance);
+            const drops = mapManager.getEnemyDrops(enemy.templateId);
+            const loot: any[] = [];
+            for (const drop of drops) {
+              if (Math.random() <= drop.chance) {
+                const amount = drop.minAmount + Math.floor(Math.random() * (drop.maxAmount - drop.minAmount + 1));
+                const itemDef = items.find(i => i.id === drop.itemId);
+                loot.push({ id: drop.itemId, name: itemDef?.name ?? drop.itemId, type: itemDef?.type ?? 'misc', amount, description: itemDef?.description ?? '' });
+              }
+            }
+            socket.emit('enemyKilled', { targetId, expBase, expJob, loot, newSp: player.sp, damage: result.damage, usedSkill: true, hp: 0, isDead: true });
+          }
+        }
+      }
+    }
+
+    if (result.groundEffectId) {
+      const ge = skillEngine.getGroundEffectManager().getEffectById(result.groundEffectId);
+      if (ge) {
+        io.to(player.currentMapId).emit('groundEffectCreated', {
+          id: ge.id,
+          definitionId: ge.definitionId,
+          casterId: ge.casterId,
+          x: ge.x,
+          z: ge.z,
+          createdAt: ge.createdAt,
+          expiresAt: ge.expiresAt,
+          angle: ge.angle,
+          length: ge.length,
+        });
+      }
+    }
+
+    callback?.({
+      success: true,
+      damage: result.damage,
+      heal: result.heal,
+      isCritical: result.isCritical,
+      targetsHit: result.targetsHit,
+      newSp: result.newSp,
+      newHp: result.newHp,
+      cooldownMs: result.cooldownMs,
+      animationId: result.animationId,
+      vfxId: result.vfxId,
+      soundId: result.soundId,
+    });
+
+    io.to(player.currentMapId).emit('skillCastResult', {
+      casterId: player.id,
+      skillId: data.skillId,
+      damage: result.damage,
+      heal: result.heal,
+      isCritical: result.isCritical,
+      targetsHit: result.targetsHit,
+      animationId: result.animationId,
+      vfxId: result.vfxId,
+      soundId: result.soundId,
+    });
+  });
+
+  socket.on('skillCastComplete', (data: { skillId: string }, callback?: (res: any) => void) => {
+    if (!player) return;
+
+    const instance = mapManager.getMap(player.currentMapId);
+    if (!instance) return;
+
+    const casterStats: Record<string, number> = {
+      str: player.stats.str,
+      agi: player.stats.agi,
+      vit: player.stats.vit,
+      int: player.stats.int,
+      dex: player.stats.dex,
+      luk: player.stats.luk,
+      maxHp: player.maxHp,
+    };
+
+    const request: any = {
+      skillId: data.skillId,
+      casterId: player.id,
+      casterPosition: { x: player.x, y: player.y, z: player.z },
+      casterStats,
+      casterLevel: player.baseLevel,
+      sp: player.sp,
+      hp: player.hp,
+    };
+
+    const result = skillEngine.completeCast(player.id, request);
+
+    player.isCasting = false;
+    player.castingSkillId = undefined;
+    player.sp = result.newSp ?? player.sp;
+    player.hp = result.newHp ?? player.hp;
+
+    if (result.damage) {
+      for (const targetId of result.targetsHit ?? []) {
+        const enemy = mapManager.getEnemy(player.currentMapId, targetId);
+        if (enemy && !enemy.isDead) {
+          enemy.hp = Math.max(0, enemy.hp - result.damage!);
+          if (enemy.hp === 0) {
+            enemy.isDead = true;
+            enemy.deathTime = Date.now();
+            const { baseExp: expBase, jobExp: expJob } = calculateExpReward(enemy.level, balance);
+            socket.emit('enemyKilled', { targetId, expBase, expJob, loot: [], newSp: player.sp, damage: result.damage, usedSkill: true, hp: 0, isDead: true });
+          }
+        }
+      }
+    }
+
+    if (result.groundEffectId) {
+      const ge = skillEngine.getGroundEffectManager().getEffectById(result.groundEffectId);
+      if (ge) {
+        io.to(player.currentMapId).emit('groundEffectCreated', {
+          id: ge.id, definitionId: ge.definitionId, casterId: ge.casterId,
+          x: ge.x, z: ge.z, createdAt: ge.createdAt, expiresAt: ge.expiresAt,
+          angle: ge.angle, length: ge.length,
+        });
+      }
+    }
+
+    callback?.({
+      success: true,
+      damage: result.damage,
+      heal: result.heal,
+      isCritical: result.isCritical,
+      targetsHit: result.targetsHit,
+      newSp: result.newSp,
+      newHp: result.newHp,
+      cooldownMs: result.cooldownMs,
+      animationId: result.animationId,
+      vfxId: result.vfxId,
+      soundId: result.soundId,
+    });
+
+    io.to(player.currentMapId).emit('skillCastResult', {
+      casterId: player.id,
+      skillId: data.skillId,
+      damage: result.damage,
+      heal: result.heal,
+      isCritical: result.isCritical,
+      targetsHit: result.targetsHit,
+      animationId: result.animationId,
+      vfxId: result.vfxId,
+      soundId: result.soundId,
+    });
+  });
+
+  socket.on('skillCastInterrupt', () => {
+    if (!player) return;
+    skillEngine.interruptCast(player.id);
+    player.isCasting = false;
+    player.castingSkillId = undefined;
   });
 
   socket.on('requestWarp', (data: { warpId: string }, callback?: (res: { success: boolean; error?: string }) => void) => {
@@ -561,6 +950,79 @@ function tick() {
   const now = Date.now();
 
   for (const [mapId, instance] of mapManager.getAllMaps()) {
+    // ── Build spatial entities for SkillEngine ──
+    const spatialEntities: SpatialEntity[] = [];
+    for (const [id, p] of instance.players) {
+      spatialEntities.push({ id, x: p.x, z: p.z });
+    }
+    for (const [id, e] of instance.enemies) {
+      if (!e.isDead) {
+        spatialEntities.push({ id, x: e.position.x, z: e.position.z });
+      }
+    }
+    skillEngine.rebuildSpatialIndex(spatialEntities);
+
+    // ── Build buffable entities ──
+    const buffableEntities = new Map<string, BuffableEntity>();
+    for (const [id, p] of instance.players) {
+      buffableEntities.set(id, {
+        id,
+        position: { x: p.x, y: p.y, z: p.z },
+        isAlive: p.hp > 0,
+      });
+    }
+    for (const [id, e] of instance.enemies) {
+      if (!e.isDead) {
+        buffableEntities.set(id, {
+          id,
+          position: { x: e.position.x, y: e.position.y, z: e.position.z },
+          isAlive: true,
+        });
+      }
+    }
+
+    // ── Tick SkillEngine (buffs, ground effects) ──
+    skillEngine.tick(now, buffableEntities, (targetId, effect, sourceId) => {
+      if (effect.type === 'damage') {
+        const enemy = mapManager.getEnemy(mapId, targetId);
+        if (enemy && !enemy.isDead) {
+          const dmg = Math.max(1, Math.floor(effect.formula?.baseValue ?? 10));
+          enemy.hp = Math.max(0, enemy.hp - dmg);
+          if (enemy.hp === 0) {
+            enemy.isDead = true;
+            enemy.deathTime = now;
+          }
+        }
+        const player = instance.players.get(targetId);
+        if (player) {
+          const dmg = Math.max(1, Math.floor(effect.formula?.baseValue ?? 10));
+          player.hp = Math.max(0, player.hp - dmg);
+          if (player.hp === 0) {
+            const halfW = instance.config.dimensions.width / 4;
+            const halfH = instance.config.dimensions.height / 4;
+            const spawnPoint = instance.config.spawnPoints[0];
+            if (spawnPoint) {
+              player.x = spawnPoint.position.x;
+              player.y = spawnPoint.position.y;
+              player.z = spawnPoint.position.z;
+            } else {
+              player.x = (Math.random() - 0.5) * halfW;
+              player.z = (Math.random() - 0.5) * halfH;
+            }
+            player.hp = player.maxHp;
+            player.sp = player.maxSp;
+            io.to(targetId).emit('playerDied', { respawnPosition: { x: player.x, y: player.y, z: player.z } });
+          }
+        }
+      } else if (effect.type === 'heal') {
+        const player = instance.players.get(targetId);
+        if (player) {
+          const healAmt = Math.floor(effect.formula?.baseValue ?? 10);
+          player.hp = Math.min(player.maxHp, player.hp + healAmt);
+        }
+      }
+    });
+
     // ── Process input queues ──
     for (const p of instance.players.values()) {
       let dx = 0, dz = 0;
@@ -676,6 +1138,38 @@ function tick() {
 
     // ── Build snapshots ──
     const isFullTick = tickNum % balance.server.fullSnapshotInterval === 0;
+
+    // Emit ground effect updates
+    const activeGroundEffects = skillEngine.getGroundEffectManager().getActiveEffects();
+    if (activeGroundEffects.length > 0 || isFullTick) {
+      io.to(mapId).emit('groundEffectsUpdate', activeGroundEffects.map(ge => ({
+        id: ge.id,
+        definitionId: ge.definitionId,
+        casterId: ge.casterId,
+        x: ge.x,
+        z: ge.z,
+        createdAt: ge.createdAt,
+        expiresAt: ge.expiresAt,
+        angle: ge.angle,
+        length: ge.length,
+      })));
+    }
+
+    // Emit buff updates for players
+    for (const [socketId, p] of instance.players) {
+      const buffs = skillEngine.getBuffManager().getBuffsByTarget(socketId);
+      if (buffs.length > 0 || isFullTick) {
+        io.to(socketId).emit('buffsUpdate', buffs.map(b => ({
+          id: b.id,
+          buffId: b.buffId,
+          stacks: b.stacks,
+          expiresAt: b.expiresAt,
+          isDebuff: b.isDebuff,
+          icon: b.icon,
+          color: b.color,
+        })));
+      }
+    }
 
     if (isFullTick) {
       const full: WorldSnapshot = { tick: tickNum, players: {}, enemies: {} };

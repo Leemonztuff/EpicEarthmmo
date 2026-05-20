@@ -91,3 +91,54 @@ export interface MapChangeData {
   enemies: Record<string, { id: string; name: string; hp: number; maxHp: number; level: number; position: { x: number; y: number; z: number }; isDead: boolean }>;
   players: Record<string, { id: string; x: number; y: number; z: number; name: string }>;
 }
+
+export interface SkillCastRequest {
+  skillId: string;
+  targetId?: string;
+  targetX?: number;
+  targetZ?: number;
+  directionX?: number;
+  directionZ?: number;
+  seq: number;
+}
+
+export interface SkillCastResult {
+  success: boolean;
+  error?: string;
+  damage?: number;
+  heal?: number;
+  isCritical?: boolean;
+  targetsHit?: string[];
+  groundEffectId?: string;
+  buffApplied?: string[];
+  newSp?: number;
+  newHp?: number;
+  cooldownMs?: number;
+  castTimeMs?: number;
+  animationId?: string;
+  vfxId?: string;
+  soundId?: string;
+}
+
+export interface ActiveGroundEffectData {
+  id: string;
+  definitionId: string;
+  casterId: string;
+  x: number;
+  z: number;
+  createdAt: number;
+  expiresAt: number;
+  angle?: number;
+  length?: number;
+}
+
+export interface ActiveBuffData {
+  id: string;
+  buffId: string;
+  stacks: number;
+  expiresAt: number;
+  isDebuff: boolean;
+  icon?: string;
+  color: string;
+}
+

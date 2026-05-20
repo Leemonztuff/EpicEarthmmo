@@ -94,8 +94,9 @@ export function getSkillSpCost(skills: import('../schemas').SkillTree, skillId: 
 export function getSkillMultiplier(skills: import('../schemas').SkillTree, skillId: string): number {
   const skill = skills.find(s => s.id === skillId);
   if (!skill) return 1.0;
-  if (skill.effect.type === 'damage' || skill.effect.type === 'aoe_damage') {
-    return skill.effect.statMultiplier ?? 1.0;
+  const damageEffect = skill.effects.find(e => e.type === 'damage' || e.type === 'aoe_damage');
+  if (damageEffect?.formula) {
+    return damageEffect.formula.multiplier ?? 1.0;
   }
   return 1.0;
 }

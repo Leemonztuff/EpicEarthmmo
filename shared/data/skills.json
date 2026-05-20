@@ -4,48 +4,419 @@
     "name": "Ataque Basico",
     "description": "Ataque cuerpo a cuerpo.",
     "spCost": 0,
+    "hpCost": 0,
     "requirements": [],
     "skillPointCost": 0,
-    "effect": {
-      "type": "damage",
-      "statMultiplier": 1.0
-    }
+    "castType": "instant",
+    "castTimeMs": 0,
+    "channelTimeMs": 0,
+    "cooldownMs": 500,
+    "range": 3,
+    "targetType": "single_enemy",
+    "effects": [
+      {
+        "type": "damage",
+        "formula": { "type": "stat_based", "stat": "str", "baseValue": 10, "multiplier": 1.0, "variance": 5, "critChance": 0.05, "critMultiplier": 1.5 }
+      }
+    ],
+    "interruptible": false,
+    "movementLock": false,
+    "animationId": "attack_basic",
+    "maxLevel": 10
   },
   {
     "id": "bash",
     "name": "Golpe Fuerte (Bash)",
     "description": "Golpe poderoso.",
     "spCost": 5,
+    "hpCost": 0,
     "requirements": ["basic_attack"],
     "skillPointCost": 1,
-    "effect": {
-      "type": "damage",
-      "statMultiplier": 2.5
-    }
+    "castType": "instant",
+    "castTimeMs": 0,
+    "channelTimeMs": 0,
+    "cooldownMs": 2000,
+    "range": 3,
+    "targetType": "single_enemy",
+    "effects": [
+      {
+        "type": "damage",
+        "formula": { "type": "stat_based", "stat": "str", "baseValue": 20, "multiplier": 2.5, "variance": 10, "critChance": 0.1, "critMultiplier": 2.0 }
+      },
+      {
+        "type": "knockback",
+        "knockbackDist": 2
+      }
+    ],
+    "interruptible": false,
+    "movementLock": true,
+    "animationId": "attack_bash",
+    "maxLevel": 10
   },
   {
     "id": "provoke",
     "name": "Provocar",
     "description": "Atrae la atencion del enemigo.",
     "spCost": 3,
+    "hpCost": 0,
     "requirements": ["basic_attack"],
     "skillPointCost": 1,
-    "effect": {
-      "type": "taunt",
-      "durationMs": 5000
-    }
+    "castType": "instant",
+    "castTimeMs": 0,
+    "channelTimeMs": 0,
+    "cooldownMs": 8000,
+    "range": 5,
+    "targetType": "single_enemy",
+    "effects": [
+      {
+        "type": "taunt",
+        "durationMs": 5000
+      },
+      {
+        "type": "debuff",
+        "behaviorModifiers": [{ "type": "taunt", "durationMs": 5000 }]
+      }
+    ],
+    "interruptible": false,
+    "movementLock": false,
+    "animationId": "taunt",
+    "maxLevel": 5
   },
   {
     "id": "magnum_break",
     "name": "Magnum Break",
     "description": "Ataque de area de fuego.",
     "spCost": 10,
+    "hpCost": 0,
     "requirements": ["bash", "provoke"],
     "skillPointCost": 2,
-    "effect": {
-      "type": "aoe_damage",
-      "statMultiplier": 2.0,
-      "range": 5
-    }
+    "castType": "cast",
+    "castTimeMs": 500,
+    "channelTimeMs": 0,
+    "cooldownMs": 5000,
+    "range": 5,
+    "targetType": "aoe_enemy",
+    "effects": [
+      {
+        "type": "aoe_damage",
+        "formula": { "type": "stat_based", "stat": "str", "baseValue": 30, "multiplier": 2.0, "variance": 15, "critChance": 0.05, "critMultiplier": 1.5 },
+        "radius": 5
+      }
+    ],
+    "interruptible": true,
+    "movementLock": true,
+    "animationId": "magnum_break",
+    "vfxId": "fire_aoe",
+    "soundId": "fire_explosion",
+    "maxLevel": 10
+  },
+  {
+    "id": "heal",
+    "name": "Curar",
+    "description": "Restaura puntos de vida.",
+    "spCost": 8,
+    "hpCost": 0,
+    "requirements": ["basic_attack"],
+    "skillPointCost": 1,
+    "castType": "cast",
+    "castTimeMs": 1000,
+    "channelTimeMs": 0,
+    "cooldownMs": 3000,
+    "range": 5,
+    "targetType": "single_ally",
+    "effects": [
+      {
+        "type": "heal",
+        "formula": { "type": "stat_based", "stat": "int", "baseValue": 50, "multiplier": 1.5, "variance": 10 }
+      }
+    ],
+    "interruptible": true,
+    "movementLock": true,
+    "animationId": "heal",
+    "vfxId": "heal_glow",
+    "maxLevel": 10
+  },
+  {
+    "id": "increase_agi",
+    "name": "Aumentar Agilidad",
+    "description": "Aumenta la agilidad y velocidad de movimiento.",
+    "spCost": 12,
+    "hpCost": 0,
+    "requirements": ["heal"],
+    "skillPointCost": 2,
+    "castType": "instant",
+    "castTimeMs": 0,
+    "channelTimeMs": 0,
+    "cooldownMs": 10000,
+    "range": 5,
+    "targetType": "single_ally",
+    "effects": [
+      {
+        "type": "buff",
+        "durationMs": 60000,
+        "statModifiers": [{ "stat": "agi", "percent": 20 }, { "stat": "moveSpeed", "percent": 15 }]
+      }
+    ],
+    "interruptible": false,
+    "movementLock": false,
+    "animationId": "buff_agi",
+    "maxLevel": 5
+  },
+  {
+    "id": "fire_wall",
+    "name": "Muro de Fuego",
+    "description": "Crea un muro de fuego en el suelo que dana a los enemigos.",
+    "spCost": 15,
+    "hpCost": 0,
+    "requirements": ["magnum_break"],
+    "skillPointCost": 3,
+    "castType": "cast",
+    "castTimeMs": 800,
+    "channelTimeMs": 0,
+    "cooldownMs": 10000,
+    "range": 7,
+    "targetType": "ground_target",
+    "effects": [
+      {
+        "type": "ground_effect",
+        "groundEffectId": "fire_wall_ge",
+        "durationMs": 10000,
+        "radius": 3
+      }
+    ],
+    "interruptible": true,
+    "movementLock": true,
+    "animationId": "fire_wall",
+    "vfxId": "fire_wall_vfx",
+    "maxLevel": 5
+  },
+  {
+    "id": "lightning_bolt",
+    "name": "Rayo",
+    "description": "Dispara un rayo en una direccion.",
+    "spCost": 10,
+    "hpCost": 0,
+    "requirements": ["basic_attack"],
+    "skillPointCost": 2,
+    "castType": "instant",
+    "castTimeMs": 0,
+    "channelTimeMs": 0,
+    "cooldownMs": 3000,
+    "range": 10,
+    "targetType": "directional",
+    "effects": [
+      {
+        "type": "damage",
+        "formula": { "type": "stat_based", "stat": "int", "baseValue": 40, "multiplier": 1.8, "variance": 10, "critChance": 0.1, "critMultiplier": 2.0 }
+      }
+    ],
+    "interruptible": false,
+    "movementLock": false,
+    "animationId": "lightning_bolt",
+    "vfxId": "lightning_vfx",
+    "soundId": "lightning_strike",
+    "maxLevel": 10
+  },
+  {
+    "id": "frost_diver",
+    "name": "Diver de Escarcha",
+    "description": "Congela a un enemigo en su lugar.",
+    "spCost": 12,
+    "hpCost": 0,
+    "requirements": ["heal"],
+    "skillPointCost": 2,
+    "castType": "cast",
+    "castTimeMs": 500,
+    "channelTimeMs": 0,
+    "cooldownMs": 6000,
+    "range": 7,
+    "targetType": "single_enemy",
+    "effects": [
+      {
+        "type": "damage",
+        "formula": { "type": "stat_based", "stat": "int", "baseValue": 25, "multiplier": 1.2, "variance": 8, "critChance": 0.05, "critMultiplier": 1.5 }
+      },
+      {
+        "type": "freeze",
+        "durationMs": 3000
+      }
+    ],
+    "interruptible": true,
+    "movementLock": true,
+    "animationId": "frost_diver",
+    "vfxId": "freeze_vfx",
+    "soundId": "ice_shatter",
+    "maxLevel": 5
+  },
+  {
+    "id": "safety_wall",
+    "name": "Muro de Seguridad",
+    "description": "Crea un area que protege a los aliados.",
+    "spCost": 20,
+    "hpCost": 0,
+    "requirements": ["heal", "increase_agi"],
+    "skillPointCost": 3,
+    "castType": "cast",
+    "castTimeMs": 1000,
+    "channelTimeMs": 0,
+    "cooldownMs": 15000,
+    "range": 7,
+    "targetType": "ground_target",
+    "effects": [
+      {
+        "type": "ground_effect",
+        "groundEffectId": "safety_wall_ge",
+        "durationMs": 8000,
+        "radius": 4
+      }
+    ],
+    "interruptible": true,
+    "movementLock": true,
+    "animationId": "safety_wall",
+    "vfxId": "safety_wall_vfx",
+    "maxLevel": 5
+  },
+  {
+    "id": "cone_attack",
+    "name": "Golpe Conico",
+    "description": "Ataque en area conica frente al jugador.",
+    "spCost": 8,
+    "hpCost": 0,
+    "requirements": ["bash"],
+    "skillPointCost": 2,
+    "castType": "instant",
+    "castTimeMs": 0,
+    "channelTimeMs": 0,
+    "cooldownMs": 4000,
+    "range": 5,
+    "targetType": "cone",
+    "effects": [
+      {
+        "type": "aoe_damage",
+        "formula": { "type": "stat_based", "stat": "str", "baseValue": 15, "multiplier": 1.5, "variance": 8, "critChance": 0.08, "critMultiplier": 1.8 },
+        "radius": 5
+      }
+    ],
+    "interruptible": false,
+    "movementLock": true,
+    "animationId": "cone_attack",
+    "vfxId": "slash_cone",
+    "maxLevel": 5
+  },
+  {
+    "id": "chain_lightning",
+    "name": "Rayo Encadenado",
+    "description": "Un rayo que salta entre multiples enemigos.",
+    "spCost": 18,
+    "hpCost": 0,
+    "requirements": ["lightning_bolt"],
+    "skillPointCost": 3,
+    "castType": "cast",
+    "castTimeMs": 800,
+    "channelTimeMs": 0,
+    "cooldownMs": 8000,
+    "range": 8,
+    "targetType": "chain",
+    "effects": [
+      {
+        "type": "damage",
+        "formula": { "type": "stat_based", "stat": "int", "baseValue": 30, "multiplier": 1.3, "variance": 10, "critChance": 0.1, "critMultiplier": 1.8 },
+        "chainCount": 5,
+        "chainRange": 6
+      }
+    ],
+    "interruptible": true,
+    "movementLock": true,
+    "animationId": "chain_lightning",
+    "vfxId": "chain_lightning_vfx",
+    "soundId": "lightning_chain",
+    "maxLevel": 5
+  },
+  {
+    "id": "berserk",
+    "name": "Furia",
+    "description": "Aumenta el dano a cambio de defensa.",
+    "spCost": 25,
+    "hpCost": 10,
+    "requirements": ["bash", "provoke"],
+    "skillPointCost": 3,
+    "castType": "instant",
+    "castTimeMs": 0,
+    "channelTimeMs": 0,
+    "cooldownMs": 30000,
+    "range": 3,
+    "targetType": "self",
+    "effects": [
+      {
+        "type": "buff",
+        "durationMs": 15000,
+        "statModifiers": [{ "stat": "str", "percent": 50 }, { "stat": "def", "percent": -30 }]
+      }
+    ],
+    "interruptible": false,
+    "movementLock": false,
+    "animationId": "berserk",
+    "vfxId": "rage_aura",
+    "maxLevel": 1
+  },
+  {
+    "id": "meteor",
+    "name": "Meteorito",
+    "description": "Llama un meteorito del cielo con un largo tiempo de invocacion.",
+    "spCost": 40,
+    "hpCost": 0,
+    "requirements": ["magnum_break", "fire_wall"],
+    "skillPointCost": 5,
+    "castType": "cast",
+    "castTimeMs": 3000,
+    "channelTimeMs": 0,
+    "cooldownMs": 20000,
+    "range": 10,
+    "targetType": "aoe_enemy",
+    "effects": [
+      {
+        "type": "aoe_damage",
+        "formula": { "type": "stat_based", "stat": "int", "baseValue": 100, "multiplier": 3.0, "variance": 30, "critChance": 0.15, "critMultiplier": 2.5 },
+        "radius": 6
+      },
+      {
+        "type": "stun",
+        "durationMs": 2000
+      }
+    ],
+    "interruptible": true,
+    "movementLock": true,
+    "animationId": "meteor",
+    "vfxId": "meteor_vfx",
+    "soundId": "meteor_impact",
+    "maxLevel": 5
+  },
+  {
+    "id": "poison",
+    "name": "Veneno",
+    "description": "Envenena al enemigo causando dano en el tiempo.",
+    "spCost": 10,
+    "hpCost": 0,
+    "requirements": ["basic_attack"],
+    "skillPointCost": 2,
+    "castType": "instant",
+    "castTimeMs": 0,
+    "channelTimeMs": 0,
+    "cooldownMs": 6000,
+    "range": 5,
+    "targetType": "single_enemy",
+    "effects": [
+      {
+        "type": "dot",
+        "formula": { "type": "stat_based", "stat": "int", "baseValue": 10, "multiplier": 0.8, "variance": 5 },
+        "durationMs": 10000,
+        "tickIntervalMs": 1000
+      }
+    ],
+    "interruptible": false,
+    "movementLock": false,
+    "animationId": "poison",
+    "vfxId": "poison_vfx",
+    "maxLevel": 5
   }
 ]
