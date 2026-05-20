@@ -44,6 +44,15 @@ function createGrassTexture(grassTexture: { baseColor: string; repeatX: number; 
 
 type DecoType = 'tree' | 'bush' | 'rock' | 'flower' | 'building' | 'fence' | 'well' | 'sign' | 'castle' | 'castle_tower_left' | 'castle_tower_right' | 'castle_gate' | 'building_large' | 'building_medium' | 'building_small' | 'fountain' | 'stone_path' | 'lamppost' | 'bench' | 'tree_ornamental' | 'torch' | 'pillar' | 'mushroom' | 'crack' | 'chest' | 'dungeon_wall' | 'dungeon_floor_tile';
 
+const DECO_SHADOW_SIZES: Partial<Record<DecoType, number>> = {
+  tree: 2, tree_ornamental: 1.5, bush: 1, rock: 0.6,
+  castle: 6, castle_tower_left: 3, castle_tower_right: 3, castle_gate: 2.5,
+  building_large: 3.5, building_medium: 2.5, building_small: 2,
+  fountain: 1.8, lamppost: 0.5, bench: 1, fence: 1.5,
+  well: 1, sign: 0.5, torch: 0.3, pillar: 0.8,
+  mushroom: 0.4, chest: 0.8,
+};
+
 export function Decoration({ position, scale = 1, type = 'tree', hasCollision = false, lodDistance = 50 }: { position: [number, number, number]; scale?: number; type?: DecoType; hasCollision?: boolean; lodDistance?: number }) {
   const variant = useMemo(() => Math.floor(Math.random() * 3), []);
   const [visible, setVisible] = useState(true);
@@ -58,8 +67,17 @@ export function Decoration({ position, scale = 1, type = 'tree', hasCollision = 
 
   if (!visible) return null;
 
+  const shadowSize = DECO_SHADOW_SIZES[type];
+  const shadow = shadowSize ? (
+    <mesh position={[position[0], 0.01, position[2]]} rotation={[-Math.PI / 2, 0, 0]}>
+      <planeGeometry args={[shadowSize * scale, shadowSize * scale]} />
+      <meshBasicMaterial color="black" transparent opacity={0.15} depthWrite={false} />
+    </mesh>
+  ) : null;
+
   const content = (
     <>
+      {shadow}
       {type === 'tree' && (
         <group position={position}>
           <mesh position={[0, 0.5 * scale, 0]} castShadow><cylinderGeometry args={[0.08 * scale, 0.15 * scale, 1 * scale, 6]} /><meshStandardMaterial color="#6B4226" /></mesh>

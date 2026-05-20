@@ -2,10 +2,12 @@
 
 import React, { useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
+import * as THREE from 'three';
 import { useNetworkStore } from '@/store/useNetworkStore';
 import { Billboard, Text } from '@react-three/drei';
 import { Sprite } from './Sprite';
 import { type AnimState, type Direction } from '@/lib/spriteManager';
+import type { PeerPlayerState } from '@/shared/types/network';
 
 export function RemotePlayers() {
   const remotePlayers = useNetworkStore(state => state.remotePlayers || {});
@@ -19,29 +21,22 @@ export function RemotePlayers() {
   );
 }
 
-function RemotePlayerSprite({
-  id,
-  player,
-}: {
-  id: string;
-  player: {
-    x: number;
-    y: number;
-    z: number;
-    name?: string;
-    direction?: string;
-    animState?: string;
-  };
-}) {
+const smoothing = 6;
+
+function RemotePlayerSprite({ id, player }: { id: string; player: PeerPlayerState }) {
+  const groupRef = useRef<THREE.Group>(null);
   const displayPos = useRef({ x: player.x || 0, y: player.y || 0.5, z: player.z || 0 });
   const directionRef = useRef<Direction>((player.direction as Direction) || 'S');
   const animStateRef = useRef<AnimState>((player.animState as AnimState) || 'idle');
 
   useFrame((_state, delta) => {
-    const smoothing = 6;
     displayPos.current.x += ((player.x || 0) - displayPos.current.x) * smoothing * delta;
     displayPos.current.y += ((player.y || 0.5) - displayPos.current.y) * smoothing * delta;
     displayPos.current.z += ((player.z || 0) - displayPos.current.z) * smoothing * delta;
+
+    if (groupRef.current) {
+      groupRef.current.position.set(displayPos.current.x, displayPos.current.y, displayPos.current.z);
+    }
 
     if (player.direction) {
       directionRef.current = player.direction as Direction;
@@ -52,7 +47,7 @@ function RemotePlayerSprite({
   });
 
   return (
-    <group position={[displayPos.current.x, displayPos.current.y, displayPos.current.z]}>
+    <group ref={groupRef}>
       <Billboard follow>
         <Sprite
           entityId="novice_m"
