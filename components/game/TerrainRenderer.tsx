@@ -1,11 +1,20 @@
 'use client';
 
 import React, { useMemo, useRef, useEffect } from 'react';
-import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
-import type { MapRegion, BakedLighting, Tile } from '@/shared/schemas';
+import type { Tile } from '@/shared/schemas';
 
 const textureCache: Record<string, THREE.CanvasTexture> = {};
+const materialCache: Record<string, THREE.MeshStandardMaterial> = {};
+const geoCache: Record<string, THREE.PlaneGeometry> = {};
+
+function getPlaneGeometry(tileSize: number): THREE.PlaneGeometry {
+  const key = `plane_${tileSize}`;
+  if (!geoCache[key]) {
+    geoCache[key] = new THREE.PlaneGeometry(tileSize, tileSize);
+  }
+  return geoCache[key];
+}
 
 function createTerrainTexture(terrainType: string, baseColor: string): THREE.CanvasTexture {
   const key = `${terrainType}_${baseColor}`;
@@ -71,68 +80,14 @@ function createTerrainTexture(terrainType: string, baseColor: string): THREE.Can
   return tex;
 }
 
-function createBlendedTexture(
-  baseType: string,
-  baseColor: string,
-  blends: { north: number; south: number; east: number; west: number },
-  neighborTypes: { north?: string; south?: string; east?: string; west?: string },
-): THREE.CanvasTexture {
-  const baseTex = createTerrainTexture(baseType, baseColor);
-  const hasBlend = blends.north > 0 || blends.south > 0 || blends.east > 0 || blends.west > 0;
-  if (!hasBlend) return baseTex;
+function getTerrainMaterial(terrainType: string): THREE.MeshStandardMaterial {
+  if (materialCache[terrainType]) return materialCache[terrainType];
 
-  const key = `blend_${baseType}_${JSON.stringify(blends)}_${JSON.stringify(neighborTypes)}`;
-  if (textureCache[key]) return textureCache[key];
-
-  const canvas = document.createElement('canvas');
-  canvas.width = 128;
-  canvas.height = 128;
-  const ctx = canvas.getContext('2d')!;
-
-  ctx.drawImage(baseTex.image as HTMLCanvasElement, 0, 0);
-
-  const blendColor = (x: number, y: number, blendAmount: number, type: string) => {
-    if (blendAmount <= 0) return;
-    const neighborTex = createTerrainTexture(type, '#888888');
-    ctx.globalAlpha = blendAmount * 0.5;
-    ctx.drawImage(neighborTex.image as HTMLCanvasElement, 0, 0);
-    ctx.globalAlpha = 1;
-  };
-
-  const edgeSize = 16;
-  if (blends.north > 0 && neighborTypes.north) {
-    const gradient = ctx.createLinearGradient(0, 0, 0, edgeSize);
-    gradient.addColorStop(0, `rgba(0,0,0,${blends.north * 0.4})`);
-    gradient.addColorStop(1, 'rgba(0,0,0,0)');
-    ctx.fillStyle = gradient;
-    ctx.fillRect(0, 0, 128, edgeSize);
-  }
-  if (blends.south > 0 && neighborTypes.south) {
-    const gradient = ctx.createLinearGradient(0, 128 - edgeSize, 0, 128);
-    gradient.addColorStop(0, 'rgba(0,0,0,0)');
-    gradient.addColorStop(1, `rgba(0,0,0,${blends.south * 0.4})`);
-    ctx.fillStyle = gradient;
-    ctx.fillRect(0, 128 - edgeSize, 128, edgeSize);
-  }
-  if (blends.east > 0 && neighborTypes.east) {
-    const gradient = ctx.createLinearGradient(128 - edgeSize, 0, 128, 0);
-    gradient.addColorStop(0, 'rgba(0,0,0,0)');
-    gradient.addColorStop(1, `rgba(0,0,0,${blends.east * 0.4})`);
-    ctx.fillStyle = gradient;
-    ctx.fillRect(128 - edgeSize, 0, edgeSize, 128);
-  }
-  if (blends.west > 0 && neighborTypes.west) {
-    const gradient = ctx.createLinearGradient(0, 0, edgeSize, 0);
-    gradient.addColorStop(0, `rgba(0,0,0,${blends.west * 0.4})`);
-    gradient.addColorStop(1, 'rgba(0,0,0,0)');
-    ctx.fillStyle = gradient;
-    ctx.fillRect(0, 0, edgeSize, 128);
-  }
-
-  const tex = new THREE.CanvasTexture(canvas);
-  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
-  textureCache[key] = tex;
-  return tex;
+  const color = TERRAIN_COLORS[terrainType] ?? '#888888';
+  const tex = createTerrainTexture(terrainType, color);
+  const mat = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.8, metalness: 0 });
+  materialCache[terrainType] = mat;
+  return mat;
 }
 
 const TERRAIN_COLORS: Record<string, string> = {
@@ -141,33 +96,122 @@ const TERRAIN_COLORS: Record<string, string> = {
   carpet: '#aa3a3a', ice: '#aaddcc', swamp: '#5a6a3a', bridge: '#9a7a5a',
 };
 
-interface TileInstanceProps {
+function tileWorldX(col: number, tileSize: number, offsetX: number): number {
+  return col * tileSize + offsetX + tileSize / 2;
+}
+
+function tileWorldZ(row: number, tileSize: number, offsetZ: number): number {
+  return row * tileSize + offsetZ + tileSize / 2;
+}
+
+interface InstancedTerrainGroupProps {
+  terrainType: string;
+  instances: Array<{ col: number; row: number; height: number }>;
+  tileSize: number;
+  worldOffsetX: number;
+  worldOffsetZ: number;
+}
+
+function InstancedTerrainGroup({ terrainType, instances, tileSize, worldOffsetX, worldOffsetZ }: InstancedTerrainGroupProps) {
+  const meshRef = useRef<THREE.InstancedMesh>(null);
+  const mat = getTerrainMaterial(terrainType);
+
+  useEffect(() => {
+    const mesh = meshRef.current;
+    if (!mesh) return;
+
+    const m = new THREE.Matrix4();
+    const pos = new THREE.Vector3();
+    const rot = new THREE.Euler(-Math.PI / 2, 0, 0);
+    const quat = new THREE.Quaternion().setFromEuler(rot);
+    const scl = new THREE.Vector3(1, 1, 1);
+
+    for (let i = 0; i < instances.length; i++) {
+      const inst = instances[i];
+      pos.set(
+        tileWorldX(inst.col, tileSize, worldOffsetX),
+        inst.height - 0.01,
+        tileWorldZ(inst.row, tileSize, worldOffsetZ),
+      );
+      m.compose(pos, quat, scl);
+      mesh.setMatrixAt(i, m);
+    }
+    mesh.instanceMatrix.needsUpdate = true;
+  }, [instances, tileSize, worldOffsetX, worldOffsetZ]);
+
+  return (
+    <instancedMesh
+      ref={meshRef}
+      args={[getPlaneGeometry(tileSize), mat, instances.length]}
+      receiveShadow
+    />
+  );
+}
+
+interface BlendedTileProps {
   tile: Tile;
   tileSize: number;
   worldOffsetX: number;
   worldOffsetZ: number;
-  neighbors?: { north?: string; south?: string; east?: string; west?: string };
+  neighbors: { north?: string; south?: string; east?: string; west?: string };
 }
 
-function TileInstance({ tile, tileSize, worldOffsetX, worldOffsetZ, neighbors }: TileInstanceProps) {
-  const meshRef = useRef<THREE.Mesh>(null);
+function BlendedTile({ tile, tileSize, worldOffsetX, worldOffsetZ, neighbors }: BlendedTileProps) {
   const tex = useMemo(() => {
     const color = TERRAIN_COLORS[tile.terrainType] ?? '#888888';
-    if (tile.blendNorth || tile.blendSouth || tile.blendEast || tile.blendWest) {
-      return createBlendedTexture(tile.terrainType, color, {
-        north: tile.blendNorth, south: tile.blendSouth,
-        east: tile.blendEast, west: tile.blendWest,
-      }, neighbors ?? {});
+    const baseTex = createTerrainTexture(tile.terrainType, color);
+
+    const key = `blend_${tile.terrainType}_${tile.blendNorth}_${tile.blendSouth}_${tile.blendEast}_${tile.blendWest}_${JSON.stringify(neighbors)}`;
+    if (textureCache[key]) return textureCache[key];
+
+    const canvas = document.createElement('canvas');
+    canvas.width = 128;
+    canvas.height = 128;
+    const ctx = canvas.getContext('2d')!;
+
+    ctx.drawImage(baseTex.image as HTMLCanvasElement, 0, 0);
+
+    const edgeSize = 16;
+    if (tile.blendNorth > 0 && neighbors.north) {
+      const gradient = ctx.createLinearGradient(0, 0, 0, edgeSize);
+      gradient.addColorStop(0, `rgba(0,0,0,${tile.blendNorth * 0.4})`);
+      gradient.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, 128, edgeSize);
     }
-    return createTerrainTexture(tile.terrainType, color);
+    if (tile.blendSouth > 0 && neighbors.south) {
+      const gradient = ctx.createLinearGradient(0, 128 - edgeSize, 0, 128);
+      gradient.addColorStop(0, 'rgba(0,0,0,0)');
+      gradient.addColorStop(1, `rgba(0,0,0,${tile.blendSouth * 0.4})`);
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 128 - edgeSize, 128, edgeSize);
+    }
+    if (tile.blendEast > 0 && neighbors.east) {
+      const gradient = ctx.createLinearGradient(128 - edgeSize, 0, 128, 0);
+      gradient.addColorStop(0, 'rgba(0,0,0,0)');
+      gradient.addColorStop(1, `rgba(0,0,0,${tile.blendEast * 0.4})`);
+      ctx.fillStyle = gradient;
+      ctx.fillRect(128 - edgeSize, 0, edgeSize, 128);
+    }
+    if (tile.blendWest > 0 && neighbors.west) {
+      const gradient = ctx.createLinearGradient(0, 0, edgeSize, 0);
+      gradient.addColorStop(0, 'rgba(0,0,0,0)');
+      gradient.addColorStop(1, `rgba(0,0,0,${tile.blendWest * 0.4})`);
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, edgeSize, 128);
+    }
+
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+    textureCache[key] = tex;
+    return tex;
   }, [tile.terrainType, tile.blendNorth, tile.blendSouth, tile.blendEast, tile.blendWest, neighbors]);
 
-  const wx = tile.position[0] * tileSize + worldOffsetX + tileSize / 2;
-  const wz = tile.position[1] * tileSize + worldOffsetZ + tileSize / 2;
-  const y = tile.height;
+  const wx = tileWorldX(tile.position[0], tileSize, worldOffsetX);
+  const wz = tileWorldZ(tile.position[1], tileSize, worldOffsetZ);
 
   return (
-    <mesh ref={meshRef} position={[wx, y - 0.01, wz]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
+    <mesh position={[wx, tile.height - 0.01, wz]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
       <planeGeometry args={[tileSize, tileSize]} />
       <meshStandardMaterial map={tex} roughness={0.8} metalness={0} />
     </mesh>
@@ -183,41 +227,47 @@ interface TerrainRendererProps {
 }
 
 export function TerrainRenderer({ tiles, tileSize = 1, worldOffsetX = 0, worldOffsetZ = 0, dimensions }: TerrainRendererProps) {
-  const tileMap = useMemo(() => {
-    const map = new Map<string, Tile>();
+  const { plainGroups, blendedTiles } = useMemo(() => {
+    const tileMap = new Map<string, Tile>();
     for (const tile of tiles) {
-      map.set(`${tile.position[0]},${tile.position[1]}`, tile);
+      tileMap.set(`${tile.position[0]},${tile.position[1]}`, tile);
     }
-    return map;
+
+    const plainByType = new Map<string, Array<{ col: number; row: number; height: number }>>();
+    const blended: Array<{ tile: Tile; neighbors: { north?: string; south?: string; east?: string; west?: string } }> = [];
+
+    for (const tile of tiles) {
+      const hasBlend = tile.blendNorth > 0 || tile.blendSouth > 0 || tile.blendEast > 0 || tile.blendWest > 0;
+
+      if (hasBlend) {
+        const [tx, tz] = tile.position;
+        const north = tileMap.get(`${tx},${tz - 1}`);
+        const south = tileMap.get(`${tx},${tz + 1}`);
+        const east = tileMap.get(`${tx + 1},${tz}`);
+        const west = tileMap.get(`${tx - 1},${tz}`);
+        blended.push({
+          tile,
+          neighbors: {
+            north: north?.terrainType,
+            south: south?.terrainType,
+            east: east?.terrainType,
+            west: west?.terrainType,
+          },
+        });
+      } else {
+        const group = plainByType.get(tile.terrainType);
+        if (group) {
+          group.push({ col: tile.position[0], row: tile.position[1], height: tile.height });
+        } else {
+          plainByType.set(tile.terrainType, [{ col: tile.position[0], row: tile.position[1], height: tile.height }]);
+        }
+      }
+    }
+
+    return { plainGroups: plainByType, blendedTiles: blended };
   }, [tiles]);
 
-  const tileInstances = useMemo(() => {
-    const instances: Array<{ tile: Tile; neighbors: { north?: string; south?: string; east?: string; west?: string } }> = [];
-
-    for (const tile of tiles) {
-      const [tx, tz] = tile.position;
-      const north = tileMap.get(`${tx},${tz - 1}`);
-      const south = tileMap.get(`${tx},${tz + 1}`);
-      const east = tileMap.get(`${tx + 1},${tz}`);
-      const west = tileMap.get(`${tx - 1},${tz}`);
-
-      instances.push({
-        tile,
-        neighbors: {
-          north: north?.terrainType,
-          south: south?.terrainType,
-          east: east?.terrainType,
-          west: west?.terrainType,
-        },
-      });
-    }
-
-    return instances;
-  }, [tiles, tileMap]);
-
   if (tiles.length === 0) {
-    const halfW = dimensions.width / 2;
-    const halfH = dimensions.height / 2;
     return (
       <mesh position={[0, -0.01, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
         <planeGeometry args={[dimensions.width, dimensions.height]} />
@@ -228,9 +278,19 @@ export function TerrainRenderer({ tiles, tileSize = 1, worldOffsetX = 0, worldOf
 
   return (
     <group>
-      {tileInstances.map(({ tile, neighbors }, i) => (
-        <TileInstance
-          key={i}
+      {Array.from(plainGroups.entries()).map(([terrainType, instances]) => (
+        <InstancedTerrainGroup
+          key={terrainType}
+          terrainType={terrainType}
+          instances={instances}
+          tileSize={tileSize}
+          worldOffsetX={worldOffsetX}
+          worldOffsetZ={worldOffsetZ}
+        />
+      ))}
+      {blendedTiles.map(({ tile, neighbors }, i) => (
+        <BlendedTile
+          key={`blend-${i}`}
           tile={tile}
           tileSize={tileSize}
           worldOffsetX={worldOffsetX}
