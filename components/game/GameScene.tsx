@@ -10,7 +10,6 @@ import { CameraController } from './CameraController';
 import { NetworkManager } from './NetworkManager';
 import { RemotePlayers } from './RemotePlayers';
 import { QuarksRenderer } from './QuarksParticleSystem';
-import { VirtualJoystick } from './VirtualJoystick';
 import { ScreenShake } from './ScreenShake';
 import { SkillRenderer } from './SkillRenderer';
 import { BuffOverlay } from './BuffOverlay';
@@ -86,7 +85,6 @@ export function GameScene({ characterName }: { characterName?: string }) {
         </Suspense>
       </Canvas>
       <BuffOverlay />
-      <VirtualJoystick />
       <DialogWindow />
     </div>
   );
