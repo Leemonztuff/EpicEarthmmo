@@ -42,12 +42,13 @@ const GROUND_EFFECT_RADII: Record<string, number> = {
 function GroundEffectRenderer({ effect }: { effect: ActiveGroundEffect }) {
   const ref = useRef<any>(null);
   const meshRef = useRef<any>(null);
+  const mountTime = useRef(Date.now());
   const colors = GROUND_EFFECT_COLORS[effect.definitionId] ?? { color: '#ff4444', opacity: 0.4 };
   const radius = GROUND_EFFECT_RADII[effect.definitionId] ?? 2;
 
-  useFrame((state) => {
+  useFrame(() => {
     if (!ref.current || !meshRef.current) return;
-    const now = state.clock.elapsedTime * 1000;
+    const now = Date.now();
     const remaining = effect.expiresAt - now;
 
     if (remaining <= 0) {
@@ -55,7 +56,8 @@ function GroundEffectRenderer({ effect }: { effect: ActiveGroundEffect }) {
       return;
     }
 
-    const pulse = Math.sin(now * 0.005) * 0.1 + 1;
+    const elapsed = now - mountTime.current;
+    const pulse = Math.sin(elapsed * 0.005) * 0.1 + 1;
     meshRef.current.scale.setScalar(pulse);
     const fadeOut = remaining < 2000 ? remaining / 2000 : 1;
     meshRef.current.material.opacity = colors.opacity * fadeOut;
@@ -145,23 +147,47 @@ export function SkillRenderer() {
       heal?: number;
       isCritical?: boolean;
       targetsHit?: string[];
+      targetPositions?: Record<string, { x: number; z: number }>;
       animationId?: string;
       vfxId?: string;
       soundId?: string;
     }) => {
-      const vfx: PendingSkillVFX = {
-        id: `vfx_${Date.now()}_${Math.random()}`,
-        position: [0, 1, 0],
-        animationId: data.animationId,
-        vfxId: data.vfxId,
-        soundId: data.soundId,
-        isCritical: data.isCritical,
-        damage: data.damage,
-        heal: data.heal,
-        createdAt: Date.now(),
-        duration: 800,
-      };
-      setVfxList(prev => [...prev, vfx]);
+      const targets = data.targetsHit ?? [];
+      const positions = data.targetPositions ?? {};
+
+      if (targets.length > 0 && Object.keys(positions).length > 0) {
+        for (const tid of targets) {
+          const pos = positions[tid];
+          if (!pos) continue;
+          const vfx: PendingSkillVFX = {
+            id: `vfx_${Date.now()}_${Math.random()}`,
+            position: [pos.x, 1, pos.z],
+            animationId: data.animationId,
+            vfxId: data.vfxId,
+            soundId: data.soundId,
+            isCritical: data.isCritical,
+            damage: data.damage,
+            heal: data.heal,
+            createdAt: Date.now(),
+            duration: 800,
+          };
+          setVfxList(prev => [...prev, vfx]);
+        }
+      } else {
+        const vfx: PendingSkillVFX = {
+          id: `vfx_${Date.now()}_${Math.random()}`,
+          position: [0, 1, 0],
+          animationId: data.animationId,
+          vfxId: data.vfxId,
+          soundId: data.soundId,
+          isCritical: data.isCritical,
+          damage: data.damage,
+          heal: data.heal,
+          createdAt: Date.now(),
+          duration: 800,
+        };
+        setVfxList(prev => [...prev, vfx]);
+      }
 
       if (data.soundId) {
         try {

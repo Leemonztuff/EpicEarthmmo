@@ -109,6 +109,9 @@ export interface SkillCastResult {
   heal?: number;
   isCritical?: boolean;
   targetsHit?: string[];
+  targetDamages?: Record<string, number>;
+  targetHeals?: Record<string, number>;
+  targetPositions?: Record<string, { x: number; z: number }>;
   groundEffectId?: string;
   buffApplied?: string[];
   newSp?: number;

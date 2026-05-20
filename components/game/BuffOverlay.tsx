@@ -11,10 +11,10 @@ interface ActiveBuff {
   color: string;
 }
 
-function BuffIcon({ buff, index }: { buff: ActiveBuff; index: number }) {
-  const remaining = Math.max(0, (buff.expiresAt || 0) - Date.now());
+function BuffIcon({ buff, index, now }: { buff: ActiveBuff; index: number; now: number }) {
+  const remaining = Math.max(0, (buff.expiresAt || 0) - now);
   const duration = 10000;
-  const progress = remaining / duration;
+  const progress = duration > 0 ? remaining / duration : 0;
 
   return (
     <div
@@ -54,6 +54,7 @@ function BuffIcon({ buff, index }: { buff: ActiveBuff; index: number }) {
 export function BuffOverlay() {
   const socket = useNetworkStore((s) => s.socket);
   const [buffs, setBuffs] = useState<ActiveBuff[]>([]);
+  const [now, setNow] = useState(Date.now());
 
   useEffect(() => {
     if (!socket) return;
@@ -71,8 +72,9 @@ export function BuffOverlay() {
 
   useEffect(() => {
     const interval = setInterval(() => {
-      const now = Date.now();
-      setBuffs(prev => prev.filter(b => b.expiresAt > now));
+      const t = Date.now();
+      setNow(t);
+      setBuffs(prev => prev.filter(b => b.expiresAt > t));
     }, 100);
     return () => clearInterval(interval);
   }, []);
@@ -90,7 +92,7 @@ export function BuffOverlay() {
       }}
     >
       {buffs.map((buff, i) => (
-        <BuffIcon key={buff.id} buff={buff} index={i} />
+        <BuffIcon key={buff.id} buff={buff} index={i} now={now} />
       ))}
     </div>
   );

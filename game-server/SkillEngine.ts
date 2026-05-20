@@ -28,6 +28,9 @@ export interface SkillCastResult {
   heal?: number;
   isCritical?: boolean;
   targetsHit?: string[];
+  targetDamages?: Record<string, number>;
+  targetHeals?: Record<string, number>;
+  targetPositions?: Record<string, { x: number; z: number }>;
   groundEffectId?: string;
   buffApplied?: string[];
   newSp?: number;
@@ -47,6 +50,9 @@ export interface ActiveCast {
   targetZ?: number;
   directionX?: number;
   directionZ?: number;
+  casterPosition: { x: number; y: number; z: number };
+  casterStats: Record<string, number>;
+  casterLevel: number;
   startedAt: number;
   castTimeMs: number;
   channelTimeMs: number;
@@ -154,6 +160,9 @@ export class SkillEngine {
         targetZ: request.targetZ,
         directionX: request.directionX,
         directionZ: request.directionZ,
+        casterPosition: { ...request.casterPosition },
+        casterStats: { ...request.casterStats },
+        casterLevel: request.casterLevel,
         startedAt: now,
         castTimeMs: skill.castTimeMs,
         channelTimeMs: skill.channelTimeMs,
@@ -183,6 +192,9 @@ export class SkillEngine {
 
     return this.resolveSkill(skill, {
       ...request,
+      casterPosition: cast.casterPosition,
+      casterStats: cast.casterStats,
+      casterLevel: cast.casterLevel,
       targetId: cast.targetId,
       targetX: cast.targetX,
       targetZ: cast.targetZ,
@@ -209,29 +221,44 @@ export class SkillEngine {
 
     const targets = this.resolveTargets(skill, request);
     const result: SkillCastResult = { success: true, targetsHit: [], buffApplied: [] };
+    const targetDamages: Record<string, number> = {};
+    const targetHeals: Record<string, number> = {};
+    const targetPositions: Record<string, { x: number; z: number }> = {};
 
     let totalDamage = 0;
     let totalHeal = 0;
     let isCritical = false;
 
     for (const target of targets) {
+      let perTargetDamage = 0;
+      let perTargetHeal = 0;
+
       for (const effect of skill.effects) {
         const effectResult = this.applyEffect(effect, request, target);
 
         if (effectResult.damage) {
-          totalDamage += effectResult.damage;
+          perTargetDamage += effectResult.damage;
           if (effectResult.isCritical) isCritical = true;
         }
-        if (effectResult.heal) totalHeal += effectResult.heal;
+        if (effectResult.heal) perTargetHeal += effectResult.heal;
         if (effectResult.buffApplied) result.buffApplied!.push(effectResult.buffApplied);
         if (effectResult.groundEffectId) result.groundEffectId = effectResult.groundEffectId;
       }
+
+      totalDamage += perTargetDamage;
+      totalHeal += perTargetHeal;
+      if (perTargetDamage > 0) targetDamages[target.id] = perTargetDamage;
+      if (perTargetHeal > 0) targetHeals[target.id] = perTargetHeal;
+      targetPositions[target.id] = { x: target.x, z: target.z };
 
       result.targetsHit!.push(target.id);
     }
 
     if (totalDamage > 0) result.damage = totalDamage;
     if (totalHeal > 0) result.heal = totalHeal;
+    if (Object.keys(targetDamages).length > 0) result.targetDamages = targetDamages;
+    if (Object.keys(targetHeals).length > 0) result.targetHeals = targetHeals;
+    if (Object.keys(targetPositions).length > 0) result.targetPositions = targetPositions;
     if (isCritical) result.isCritical = true;
 
     const newSp = request.sp - skill.spCost;
@@ -459,7 +486,7 @@ export class SkillEngine {
     return result;
   }
 
-  private calculateFormula(formula: EffectFormula, request: SkillCastRequest): number {
+  calculateFormula(formula: EffectFormula, request: SkillCastRequest): number {
     let baseValue = formula.baseValue;
 
     switch (formula.type) {

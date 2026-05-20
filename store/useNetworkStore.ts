@@ -171,6 +171,31 @@ export const useNetworkStore = create<NetworkStore>((set, get) => ({
       gs.setSelectedTargetId(null);
     });
 
+    newSocket.on('attackResult', (data) => {
+      if (!data) return;
+      const gs = useGameStore.getState();
+
+      if (data.error) {
+        showToast(data.error, 'error');
+        return;
+      }
+
+      if (data.newSp !== undefined) gs.setSp(data.newSp);
+      gs.updateEnemyState(data.targetId, { hp: data.hp, isDead: data.isDead });
+
+      if (data.damage > 0) {
+        const enemy = gs.enemies[data.targetId];
+        if (enemy && enemy.position) {
+          const pos = {
+            x: enemy.position.x + (Math.random() * 0.5 - 0.25),
+            y: enemy.position.y + 1,
+            z: enemy.position.z,
+          };
+          gs.addDamageText(data.damage, pos, 'white');
+        }
+      }
+    });
+
     newSocket.on('playerDamaged', (data) => {
       if (!data) return;
       const gs = useGameStore.getState();
@@ -185,6 +210,7 @@ export const useNetworkStore = create<NetworkStore>((set, get) => ({
 
       if (data.damage) {
         for (const tid of data.targetsHit || []) {
+          const perTargetDamage = data.targetDamages?.[tid] ?? data.damage;
           const enemy = gs.enemies[tid];
           if (enemy && enemy.position) {
             const pos = {
@@ -193,7 +219,7 @@ export const useNetworkStore = create<NetworkStore>((set, get) => ({
               z: enemy.position.z,
             };
             const color = data.isCritical ? '#ffcc00' : '#ff4444';
-            gs.addDamageText(data.damage, pos, color);
+            gs.addDamageText(perTargetDamage, pos, color);
             if (data.isCritical) triggerShake(0.15, 0.3);
           }
         }

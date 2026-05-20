@@ -477,8 +477,9 @@ io.on('connection', (socket) => {
     if (result.damage) {
       for (const targetId of result.targetsHit ?? []) {
         const enemy = mapManager.getEnemy(player.currentMapId, targetId);
+        const perTargetDamage = result.targetDamages?.[targetId] ?? result.damage;
         if (enemy && !enemy.isDead) {
-          enemy.hp = Math.max(0, enemy.hp - result.damage!);
+          enemy.hp = Math.max(0, enemy.hp - perTargetDamage);
           if (enemy.hp === 0) {
             enemy.isDead = true;
             enemy.deathTime = Date.now();
@@ -492,7 +493,7 @@ io.on('connection', (socket) => {
                 loot.push({ id: drop.itemId, name: itemDef?.name ?? drop.itemId, type: itemDef?.type ?? 'misc', amount, description: itemDef?.description ?? '' });
               }
             }
-            socket.emit('enemyKilled', { targetId, expBase, expJob, loot, newSp: player.sp, damage: result.damage, usedSkill: true, hp: 0, isDead: true });
+            socket.emit('enemyKilled', { targetId, expBase, expJob, loot, newSp: player.sp, damage: perTargetDamage, usedSkill: true, hp: 0, isDead: true });
           }
         }
       }
@@ -521,6 +522,9 @@ io.on('connection', (socket) => {
       heal: result.heal,
       isCritical: result.isCritical,
       targetsHit: result.targetsHit,
+      targetDamages: result.targetDamages,
+      targetHeals: result.targetHeals,
+      targetPositions: result.targetPositions,
       newSp: result.newSp,
       newHp: result.newHp,
       cooldownMs: result.cooldownMs,
@@ -536,6 +540,9 @@ io.on('connection', (socket) => {
       heal: result.heal,
       isCritical: result.isCritical,
       targetsHit: result.targetsHit,
+      targetDamages: result.targetDamages,
+      targetHeals: result.targetHeals,
+      targetPositions: result.targetPositions,
       animationId: result.animationId,
       vfxId: result.vfxId,
       soundId: result.soundId,
@@ -578,13 +585,14 @@ io.on('connection', (socket) => {
     if (result.damage) {
       for (const targetId of result.targetsHit ?? []) {
         const enemy = mapManager.getEnemy(player.currentMapId, targetId);
+        const perTargetDamage = result.targetDamages?.[targetId] ?? result.damage;
         if (enemy && !enemy.isDead) {
-          enemy.hp = Math.max(0, enemy.hp - result.damage!);
+          enemy.hp = Math.max(0, enemy.hp - perTargetDamage);
           if (enemy.hp === 0) {
             enemy.isDead = true;
             enemy.deathTime = Date.now();
             const { baseExp: expBase, jobExp: expJob } = calculateExpReward(enemy.level, balance);
-            socket.emit('enemyKilled', { targetId, expBase, expJob, loot: [], newSp: player.sp, damage: result.damage, usedSkill: true, hp: 0, isDead: true });
+            socket.emit('enemyKilled', { targetId, expBase, expJob, loot: [], newSp: player.sp, damage: perTargetDamage, usedSkill: true, hp: 0, isDead: true });
           }
         }
       }
@@ -607,6 +615,9 @@ io.on('connection', (socket) => {
       heal: result.heal,
       isCritical: result.isCritical,
       targetsHit: result.targetsHit,
+      targetDamages: result.targetDamages,
+      targetHeals: result.targetHeals,
+      targetPositions: result.targetPositions,
       newSp: result.newSp,
       newHp: result.newHp,
       cooldownMs: result.cooldownMs,
@@ -622,6 +633,9 @@ io.on('connection', (socket) => {
       heal: result.heal,
       isCritical: result.isCritical,
       targetsHit: result.targetsHit,
+      targetDamages: result.targetDamages,
+      targetHeals: result.targetHeals,
+      targetPositions: result.targetPositions,
       animationId: result.animationId,
       vfxId: result.vfxId,
       soundId: result.soundId,
@@ -983,11 +997,32 @@ function tick() {
 
     // ── Tick SkillEngine (buffs, ground effects) ──
     skillEngine.tick(now, buffableEntities, (targetId, effect, sourceId) => {
-      if (effect.type === 'damage') {
+      const casterPlayer = instance.players.get(sourceId);
+      const casterStats: Record<string, number> = casterPlayer ? {
+        str: casterPlayer.stats.str,
+        agi: casterPlayer.stats.agi,
+        vit: casterPlayer.stats.vit,
+        int: casterPlayer.stats.int,
+        dex: casterPlayer.stats.dex,
+        luk: casterPlayer.stats.luk,
+        maxHp: casterPlayer.maxHp,
+      } : {};
+
+      const formulaRequest: any = {
+        casterStats,
+        casterLevel: casterPlayer?.baseLevel ?? 1,
+        sp: casterPlayer?.sp ?? 0,
+        hp: casterPlayer?.hp ?? 0,
+        casterPosition: { x: 0, y: 0, z: 0 },
+        casterId: sourceId,
+        skillId: '',
+      };
+
+      if (effect.type === 'damage' || effect.type === 'aoe_damage') {
+        const calcDmg = effect.formula ? skillEngine.calculateFormula(effect.formula, formulaRequest) : 10;
         const enemy = mapManager.getEnemy(mapId, targetId);
         if (enemy && !enemy.isDead) {
-          const dmg = Math.max(1, Math.floor(effect.formula?.baseValue ?? 10));
-          enemy.hp = Math.max(0, enemy.hp - dmg);
+          enemy.hp = Math.max(0, enemy.hp - calcDmg);
           if (enemy.hp === 0) {
             enemy.isDead = true;
             enemy.deathTime = now;
@@ -995,8 +1030,7 @@ function tick() {
         }
         const player = instance.players.get(targetId);
         if (player) {
-          const dmg = Math.max(1, Math.floor(effect.formula?.baseValue ?? 10));
-          player.hp = Math.max(0, player.hp - dmg);
+          player.hp = Math.max(0, player.hp - calcDmg);
           if (player.hp === 0) {
             const halfW = instance.config.dimensions.width / 4;
             const halfH = instance.config.dimensions.height / 4;
@@ -1014,10 +1048,10 @@ function tick() {
             io.to(targetId).emit('playerDied', { respawnPosition: { x: player.x, y: player.y, z: player.z } });
           }
         }
-      } else if (effect.type === 'heal') {
+      } else if (effect.type === 'heal' || effect.type === 'aoe_heal' || effect.type === 'hot') {
+        const healAmt = effect.formula ? skillEngine.calculateFormula(effect.formula, formulaRequest) : 10;
         const player = instance.players.get(targetId);
         if (player) {
-          const healAmt = Math.floor(effect.formula?.baseValue ?? 10);
           player.hp = Math.min(player.maxHp, player.hp + healAmt);
         }
       }
