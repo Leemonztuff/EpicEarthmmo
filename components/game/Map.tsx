@@ -13,6 +13,7 @@ import { MapLayers, EnvironmentLayer, LightingLayer } from './MapLayers';
 import { SortedEntities } from './SpriteEntity';
 import { findPath, smoothPath, createNavGridFromConfig, worldToGrid, gridToWorld } from '@/lib/navGrid';
 import { computeChunks, getVisibleChunks, getActiveRegions } from '@/lib/chunkSystem';
+import { currentNavGrid } from '@/lib/currentNavGrid';
 import type { MapDecoration, Tile, NavGrid, MapRegion, MapTrigger, BakedLighting } from '@/shared/schemas';
 
 const grassTextureCache: Record<string, THREE.CanvasTexture> = {};
@@ -173,6 +174,11 @@ export function Map({ mapData }: { mapData: MapData }) {
     return null;
   }, [mapData.navGrid]);
 
+  useEffect(() => {
+    currentNavGrid.grid = navGrid;
+    return () => { currentNavGrid.grid = null; };
+  }, [navGrid]);
+
   const visibleChunks = useMemo(() => {
     if (!mapData.regions || mapData.regions.length === 0) return null;
     const chunks = computeChunks(
@@ -189,6 +195,39 @@ export function Map({ mapData }: { mapData: MapData }) {
     if (!mapData.regions) return [];
     return getActiveRegions(mapData.regions, playerPos.x, playerPos.z);
   }, [mapData.regions, playerPos.x, playerPos.z]);
+
+  const visibleDecorations = useMemo(() => {
+    if (!visibleChunks) return mapData.decorations;
+    const decos: MapDecoration[] = [];
+    const seen = new Set<string>();
+    for (const chunk of visibleChunks) {
+      for (const d of chunk.decorations) {
+        const key = `${d.position[0]},${d.position[1]},${d.type}`;
+        if (!seen.has(key)) {
+          seen.add(key);
+          decos.push(d);
+        }
+      }
+    }
+    return decos.length > 0 ? decos : mapData.decorations;
+  }, [visibleChunks, mapData.decorations]);
+
+  const visibleTiles = useMemo(() => {
+    if (!mapData.tiles) return [];
+    if (!visibleChunks) return mapData.tiles;
+    const tiles: Tile[] = [];
+    const seen = new Set<string>();
+    for (const chunk of visibleChunks) {
+      for (const t of chunk.tiles) {
+        const key = `${t.position[0]},${t.position[1]}`;
+        if (!seen.has(key)) {
+          seen.add(key);
+          tiles.push(t);
+        }
+      }
+    }
+    return tiles.length > 0 ? tiles : mapData.tiles;
+  }, [visibleChunks, mapData.tiles]);
 
   const handlePointerDown = useCallback((e: any) => {
     if (e.button !== 0) return;
@@ -243,7 +282,7 @@ export function Map({ mapData }: { mapData: MapData }) {
 
       {hasTiles ? (
         <TerrainRenderer
-          tiles={mapData.tiles!}
+          tiles={visibleTiles}
           tileSize={1}
           dimensions={mapData.dimensions}
         />
@@ -259,7 +298,7 @@ export function Map({ mapData }: { mapData: MapData }) {
       {mapData.grassTuftCount > 0 && <GrassTufts count={mapData.grassTuftCount} />}
 
       <MapLayers
-        decorations={mapData.decorations as any}
+        decorations={visibleDecorations as any}
         playerPosition={playerPos}
         activeRegions={activeRegions}
         lodEnabled={true}

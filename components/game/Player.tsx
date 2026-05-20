@@ -12,6 +12,7 @@ import { getMovementInput } from '@/lib/movementController';
 import { createPlayerStateMachine, updatePlayerStateMachine } from '@/lib/playerStateMachine';
 import { performInteraction } from '@/lib/interactionManager';
 import { playerPosition } from '@/lib/playerPosition';
+import { slideMove } from '@/lib/currentNavGrid';
 import { gameData } from '@/shared/loader';
 
 const { balance } = gameData;
@@ -169,10 +170,15 @@ export function Player() {
 
     const hasVelocity = velocityRef.current.x !== 0 || velocityRef.current.z !== 0;
     if (hasVelocity) {
+      const newPos = slideMove(
+        { x: pos.x, z: pos.z },
+        velocityRef.current,
+        delta,
+      );
       pos = {
-        x: pos.x + velocityRef.current.x * delta,
+        x: newPos.x,
         y: pos.y,
-        z: pos.z + velocityRef.current.z * delta,
+        z: newPos.z,
       };
       rigidBodyRef.current.setTranslation(pos, true);
     }
