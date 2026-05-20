@@ -28,6 +28,7 @@ interface NetworkStore {
   sendChatMessage: (text: string) => void;
   addChatMessage: (msg: ChatMessage) => void;
   attackTarget: (targetId: string) => void;
+  castSkill: (skillId: string, targetId?: string, targetX?: number, targetZ?: number, directionX?: number, directionZ?: number) => void;
   requestWarp: (warpId: string) => void;
   updateRemotePlayer: (id: string, state: Partial<PeerPlayerState>) => void;
 
@@ -178,6 +179,53 @@ export const useNetworkStore = create<NetworkStore>((set, get) => ({
       triggerShake(0.1, 0.2);
     });
 
+    newSocket.on('skillCastResult', (data) => {
+      if (!data) return;
+      const gs = useGameStore.getState();
+
+      if (data.damage) {
+        for (const tid of data.targetsHit || []) {
+          const enemy = gs.enemies[tid];
+          if (enemy && enemy.position) {
+            const pos = {
+              x: enemy.position.x + (Math.random() * 0.5 - 0.25),
+              y: enemy.position.y + 1,
+              z: enemy.position.z,
+            };
+            const color = data.isCritical ? '#ffcc00' : '#ff4444';
+            gs.addDamageText(data.damage, pos, color);
+            if (data.isCritical) triggerShake(0.15, 0.3);
+          }
+        }
+        addCombatLog(`${data.casterId === newSocket.id ? 'You' : data.casterId} cast ${data.skillId} for ${data.damage} damage${data.isCritical ? ' (CRIT!)' : ''}`);
+      }
+
+      if (data.heal) {
+        addCombatLog(`${data.casterId === newSocket.id ? 'You' : data.casterId} healed for ${data.heal}`);
+      }
+    });
+
+    newSocket.on('playerDied', (data) => {
+      if (!data) return;
+      const gs = useGameStore.getState();
+      if (data.respawnPosition) {
+        gs.setPosition(data.respawnPosition);
+        showToast('You died! Respawning...', 'error');
+      }
+    });
+
+    newSocket.on('groundEffectCreated', (data) => {
+      // Handled by SkillRenderer
+    });
+
+    newSocket.on('groundEffectsUpdate', (data) => {
+      // Handled by SkillRenderer
+    });
+
+    newSocket.on('buffsUpdate', (data) => {
+      // Handled by SkillRenderer
+    });
+
     set({ socket: newSocket });
   },
 
@@ -205,6 +253,72 @@ export const useNetworkStore = create<NetworkStore>((set, get) => ({
         position: gs.position,
       });
     }
+  },
+
+  castSkill: async (skillId: string, targetId?: string, targetX?: number, targetZ?: number, directionX?: number, directionZ?: number) => {
+    const s = get().socket;
+    if (!s?.connected) return;
+
+    const { useGameStore } = await import('./useGameStore');
+    const gs = useGameStore.getState();
+
+    s.emit('skillCast', {
+      skillId,
+      targetId,
+      targetX,
+      targetZ,
+      directionX,
+      directionZ,
+      seq: 0,
+    }, (res: any) => {
+      if (!res) return;
+
+      if (!res.success) {
+        showToast(res.error || 'Skill failed', 'error');
+        return;
+      }
+
+      if (res.castTimeMs) {
+        showToast(`Casting ${skillId}...`, 'info');
+        return;
+      }
+
+      if (res.damage) {
+        addCombatLog(`Hit for ${res.damage} damage${res.isCritical ? ' (CRIT!)' : ''}`);
+        triggerShake(res.isCritical ? 0.15 : 0.08, res.isCritical ? 0.3 : 0.15);
+      }
+
+      if (res.heal) {
+        addCombatLog(`Healed for ${res.heal}`);
+      }
+
+      if (res.newSp !== undefined) {
+        gs.setSp(res.newSp);
+      }
+
+      if (res.newHp !== undefined) {
+        gs.updatePlayerHp(res.newHp);
+      }
+
+      if (res.targetsHit && res.targetsHit.length > 0) {
+        for (const tid of res.targetsHit) {
+          const enemy = gs.enemies[tid];
+          if (enemy && enemy.position) {
+            const pos = {
+              x: enemy.position.x + (Math.random() * 0.5 - 0.25),
+              y: enemy.position.y + 1,
+              z: enemy.position.z,
+            };
+            const color = res.damage ? (res.isCritical ? '#ffcc00' : '#ff4444') : '#4ade80';
+            gs.addDamageText(res.damage || res.heal || 0, pos, color);
+          }
+        }
+      }
+
+      if (res.cooldownMs) {
+        showToast(`${skillId} cooldown: ${(res.cooldownMs / 1000).toFixed(1)}s`, 'info');
+      }
+    });
   },
 
   requestWarp: (warpId: string) => {

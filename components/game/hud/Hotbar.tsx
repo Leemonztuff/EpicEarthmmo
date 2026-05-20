@@ -4,7 +4,7 @@ import React from 'react';
 import { useGameStore } from '@/store/useGameStore';
 import { useNetworkStore } from '@/store/useNetworkStore';
 import { gameData } from '@/shared/loader';
-import { Badge, GameIcon } from '@/components/ui';
+import { Badge, GameIcon, showToast } from '@/components/ui';
 import { Sword } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/cn';
@@ -16,7 +16,9 @@ export function Hotbar() {
   const activeSkill = useGameStore((state) => state.activeSkill);
   const setActiveSkill = useGameStore((state) => state.setActiveSkill);
   const selectedTargetId = useGameStore((state) => state.selectedTargetId);
+  const position = useGameStore((state) => state.position);
   const attackTarget = useNetworkStore((state) => state.attackTarget);
+  const castSkill = useNetworkStore((state) => state.castSkill);
   const consumeItem = useGameStore((state) => state.consumeItem);
 
   if (!player) return null;
@@ -27,6 +29,49 @@ export function Hotbar() {
     if (selectedTargetId) {
       attackTarget(selectedTargetId);
     }
+  };
+
+  const handleSkillClick = (skillId: string) => {
+    const skillDef = skills.find(s => s.id === skillId);
+    if (!skillDef) return;
+
+    if (player.sp < skillDef.spCost) {
+      showToast('Not enough SP', 'error');
+      return;
+    }
+
+    const targetType = (skillDef as any).targetType;
+
+    if (targetType === 'self') {
+      castSkill(skillId);
+      return;
+    }
+
+    if (selectedTargetId && (targetType === 'single_enemy' || targetType === 'single_ally')) {
+      castSkill(skillId, selectedTargetId);
+      return;
+    }
+
+    if (targetType === 'aoe_enemy' || targetType === 'aoe_ally' || targetType === 'ground_target') {
+      castSkill(skillId, undefined, position.x, position.z);
+      return;
+    }
+
+    if (targetType === 'directional' || targetType === 'cone' || targetType === 'line') {
+      const dirX = 0;
+      const dirZ = 1;
+      castSkill(skillId, selectedTargetId ?? undefined, position.x, position.z, dirX, dirZ);
+      return;
+    }
+
+    if (targetType === 'chain') {
+      if (selectedTargetId) {
+        castSkill(skillId, selectedTargetId);
+      }
+      return;
+    }
+
+    castSkill(skillId, selectedTargetId ?? undefined);
   };
 
   return (
@@ -100,7 +145,7 @@ export function Hotbar() {
                 <motion.button
                   key={skillId}
                   whileTap={{ scale: 0.9 }}
-                  onClick={() => setActiveSkill(isActive ? null : skillId)}
+                  onClick={() => handleSkillClick(skillId)}
                   className={cn(
                     "w-9 h-9 sm:w-11 sm:h-11 rounded-lg sm:rounded-xl flex flex-col items-center justify-center border transition-all cursor-pointer relative overflow-hidden",
                     isActive

@@ -27,4 +27,9 @@ export interface ServerPlayer {
   currentMapId: string;
   warpCooldownUntil: number;
   equippedItems: Partial<Record<EquipmentSlot, string>>;
+  isCasting?: boolean;
+  castingSkillId?: string;
+  path?: { x: number; z: number }[];
+  pathIndex?: number;
+  facing?: string;
 }
