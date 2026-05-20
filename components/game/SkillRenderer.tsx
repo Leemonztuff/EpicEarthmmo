@@ -1,6 +1,6 @@
-import React, { useRef, useEffect, useState, useCallback } from 'react';
-import { useFrame, useThree } from '@react-three/fiber';
-import { Text, Circle } from '@react-three/drei';
+import React, { useRef, useEffect, useState } from 'react';
+import { useFrame } from '@react-three/fiber';
+import { Circle } from '@react-three/drei';
 import * as THREE from 'three';
 import { useGameStore } from '@/store/useGameStore';
 import { useNetworkStore } from '@/store/useNetworkStore';
@@ -53,34 +53,30 @@ const GROUND_EFFECT_RADII: Record<string, number> = {
 function GroundEffectRenderer({ effect }: { effect: ActiveGroundEffect }) {
   const ref = useRef<any>(null);
   const meshRef = useRef<any>(null);
-  const [elapsed, setElapsed] = useState(0);
   const colors = GROUND_EFFECT_COLORS[effect.definitionId] ?? { color: '#ff4444', opacity: 0.4 };
   const radius = GROUND_EFFECT_RADII[effect.definitionId] ?? 2;
 
   useFrame((state) => {
-    if (!ref.current) return;
+    if (!ref.current || !meshRef.current) return;
     const now = state.clock.elapsedTime * 1000;
-    const age = now - effect.createdAt;
     const remaining = effect.expiresAt - now;
-    const totalDuration = effect.expiresAt - effect.createdAt;
 
     if (remaining <= 0) {
       ref.current.visible = false;
       return;
     }
 
-    setElapsed(age);
-
-    const pulse = Math.sin(age * 0.005) * 0.1 + 1;
-    if (meshRef.current) {
-      meshRef.current.scale.setScalar(pulse);
-      const fadeOut = remaining < 2000 ? remaining / 2000 : 1;
-      meshRef.current.material.opacity = colors.opacity * fadeOut;
-    }
+    const pulse = Math.sin(now * 0.005) * 0.1 + 1;
+    meshRef.current.scale.setScalar(pulse);
+    const fadeOut = remaining < 2000 ? remaining / 2000 : 1;
+    meshRef.current.material.opacity = colors.opacity * fadeOut;
   });
 
+  const posX = Number(effect.x) || 0;
+  const posZ = Number(effect.z) || 0;
+
   return (
-    <group ref={ref} position={[effect.x, 0.05, effect.z]}>
+    <group ref={ref} position={[posX, 0.05, posZ]}>
       <Circle ref={meshRef} args={[radius, 32]} rotation={[-Math.PI / 2, 0, 0]}>
         <meshStandardMaterial
           color={colors.color}
@@ -90,16 +86,6 @@ function GroundEffectRenderer({ effect }: { effect: ActiveGroundEffect }) {
           depthWrite={false}
         />
       </Circle>
-      {effect.angle !== undefined && (
-        <arrowHelper
-          args={[
-            new THREE.Vector3(Math.cos(effect.angle), 0, Math.sin(effect.angle)),
-            new THREE.Vector3(0, 0, 0),
-            radius * 0.8,
-            colors.color,
-          ]}
-        />
-      )}
     </group>
   );
 }
@@ -129,9 +115,12 @@ function SkillVFX({ vfx }: { vfx: PendingSkillVFX }) {
   });
 
   const color = vfx.heal ? '#4ade80' : vfx.isCritical ? '#ffcc00' : '#ff4444';
+  const posX = Number(vfx.position[0]) || 0;
+  const posY = Number(vfx.position[1]) || 1;
+  const posZ = Number(vfx.position[2]) || 0;
 
   return (
-    <mesh ref={ref} position={vfx.position}>
+    <mesh ref={ref} position={[posX, posY, posZ]}>
       <sphereGeometry args={[0.3, 16, 16]} />
       <meshStandardMaterial
         color={color}
@@ -145,7 +134,7 @@ function SkillVFX({ vfx }: { vfx: PendingSkillVFX }) {
 }
 
 function BuffIcon({ buff, index }: { buff: ActiveBuff; index: number }) {
-  const remaining = Math.max(0, buff.expiresAt - Date.now());
+  const remaining = Math.max(0, (buff.expiresAt || 0) - Date.now());
   const duration = 10000;
   const progress = remaining / duration;
 
@@ -159,7 +148,7 @@ function BuffIcon({ buff, index }: { buff: ActiveBuff; index: number }) {
         height: 32,
         borderRadius: 4,
         border: `2px solid ${buff.isDebuff ? '#ff4444' : '#44ff44'}`,
-        backgroundColor: buff.color,
+        backgroundColor: buff.color || '#888888',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -175,7 +164,7 @@ function BuffIcon({ buff, index }: { buff: ActiveBuff; index: number }) {
           bottom: 0,
           left: 0,
           right: 0,
-          height: `${progress * 100}%`,
+          height: `${Math.max(0, Math.min(100, progress * 100))}%`,
           backgroundColor: 'rgba(0,0,0,0.5)',
           borderRadius: '0 0 2px 2px',
         }}
