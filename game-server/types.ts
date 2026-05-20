@@ -31,5 +31,4 @@ export interface ServerPlayer {
   castingSkillId?: string;
   path?: { x: number; z: number }[];
   pathIndex?: number;
-  facing?: string;
 }
