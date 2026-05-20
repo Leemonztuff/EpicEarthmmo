@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useRef, useEffect, useCallback } from 'react';
+import React, { useRef, useEffect } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import { playerPosition } from '@/lib/playerPosition';
 import * as THREE from 'three';
@@ -11,7 +11,6 @@ const BASE_DIST = 12;
 const MIN_DIST = 5;
 const MAX_DIST = 22;
 const FOLLOW_SPEED = 0.04;
-const LOOK_AHEAD_FACTOR = 0.3;
 const MAP_BOUND_PADDING = 5;
 
 interface CameraControllerProps {
@@ -35,8 +34,6 @@ export function CameraController({
   const currentDist = useRef(BASE_DIST);
   const targetDist = useRef(BASE_DIST);
   const initialized = useRef(false);
-  const inputDir = useRef({ x: 0, z: 0 });
-  const lastInputTime = useRef(0);
 
   useEffect(() => {
     if (!initialized.current) {
@@ -69,15 +66,6 @@ export function CameraController({
     return () => window.removeEventListener('wheel', handleWheel);
   }, [zoomEnabled, minZoom, maxZoom]);
 
-  const setInputDirection = useCallback((dir: { x: number; z: number }) => {
-    inputDir.current = dir;
-    lastInputTime.current = Date.now();
-  }, []);
-
-  useEffect(() => {
-    (window as any).__cameraSetInputDir = setInputDirection;
-  }, [setInputDirection]);
-
   useFrame((_state, delta) => {
     const pp = playerPosition;
     const aspect = size.width / size.height;
@@ -90,10 +78,8 @@ export function CameraController({
     const theta = fixedAngle ? FIXED_YAW : FIXED_YAW;
     const phi = fixedAngle ? FIXED_PITCH : FIXED_PITCH;
 
-    const timeSinceInput = Date.now() - lastInputTime.current;
-    const lookAhead = timeSinceInput < 500 ? LOOK_AHEAD_FACTOR : 0;
-    const lookX = pp.x + inputDir.current.x * lookAhead * 3;
-    const lookZ = pp.z + inputDir.current.z * lookAhead * 3;
+    const lookX = pp.x;
+    const lookZ = pp.z;
 
     const targetCamX = lookX + dist * Math.sin(phi) * Math.sin(theta);
     const targetCamY = pp.y + dist * Math.cos(phi) + 2;

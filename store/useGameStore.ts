@@ -1,6 +1,5 @@
 import { create } from 'zustand';
 import { gameData } from '@/shared/loader';
-import { supabase } from '@/lib/supabase';
 import { PlayerState, PlayerStats, DamageText, EnemyState, GameUIState } from '@/types/game';
 import { InteractionTarget } from '@/lib/interactionManager';
 import { Dialog } from '@/shared/schemas';
@@ -8,7 +7,7 @@ import { processLevelUp } from '@/shared/loader/formulaEngine';
 import { hotReloadData } from '@/shared/loader/clientLoader';
 import { showToast } from '@/components/ui';
 
-const { balance, items, skills, enemies: enemyTemplates } = gameData;
+const { balance, enemies: enemyTemplates } = gameData;
 
 const INITIAL_PLAYER_STATE: PlayerState = {
   name: 'Novice',

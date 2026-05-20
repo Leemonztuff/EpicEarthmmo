@@ -1,7 +1,4 @@
 import { touchInput } from './touchInput';
-import { gameData } from '@/shared/loader';
-
-const { balance } = gameData;
 
 const keys: Record<string, boolean> = {};
 
