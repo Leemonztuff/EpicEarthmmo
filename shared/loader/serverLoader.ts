@@ -1,6 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-import { ZodSchema, ZodError } from 'zod';
+import { z, ZodSchema, ZodError } from 'zod';
 import {
   BalanceSchema, BalanceConfig,
   EnemyDataSchema, EnemyData,
@@ -19,7 +19,7 @@ interface LoadedGameData {
   maps: MapConfig[];
 }
 
-function loadAndValidate<T>(filePath: string, schema: ZodSchema<T>): T {
+function loadAndValidate<T extends ZodSchema>(filePath: string, schema: T): z.infer<T> {
   const raw = fs.readFileSync(filePath, 'utf-8');
   const parsed = JSON.parse(raw);
   const result = schema.safeParse(parsed);

@@ -159,6 +159,23 @@ export function Player() {
       }
     }
 
+    // ── Grid-based path following (from navGrid) ──
+    if (inputDir.x === 0 && inputDir.z === 0 && gameStore.path && gameStore.pathIndex < gameStore.path.length && !selectedTargetId) {
+      const waypoint = gameStore.path[gameStore.pathIndex];
+      const dx = waypoint.x - pos.x;
+      const dz = waypoint.z - pos.z;
+      const dist = Math.sqrt(dx * dx + dz * dz);
+      if (dist > 0.5) {
+        inputDir = { x: dx / dist, z: dz / dist };
+      } else {
+        gameStore.setPathIndex(gameStore.pathIndex + 1);
+        if (gameStore.pathIndex + 1 >= gameStore.path.length) {
+          gameStore.setPath(null);
+          setTargetPosition(null);
+        }
+      }
+    }
+
     // ── If path finished, perform interaction or clear target ──
     if (pathRef.current.arrived && targetPosition && !selectedTargetId) {
       const interactionTarget = gameStore.interactionTarget;

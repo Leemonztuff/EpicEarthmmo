@@ -69,6 +69,8 @@ interface GameStore {
   currentMapName: string;
   currentMapType: string;
   targetPosition: { x: number; z: number } | null;
+  path: Array<{ x: number; z: number }> | null;
+  pathIndex: number;
   selectedTargetId: string | null;
   activeSkill: string | null;
   collisionGrid: CollisionGridData | null;
@@ -85,6 +87,8 @@ interface GameStore {
   setMap: (mapId: string, mapName: string, mapType: string) => void;
   setCollisionGrid: (grid: CollisionGridData | null) => void;
   setTargetPosition: (pos: { x: number; z: number } | null) => void;
+  setPath: (path: Array<{ x: number; z: number }> | null) => void;
+  setPathIndex: (index: number) => void;
   setPosition: (pos: { x: number; y: number; z: number }) => void;
   setInputDirection: (dir: { x: number; z: number }) => void;
   setSelectedTargetId: (id: string | null) => void;
@@ -120,6 +124,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
   currentMapName: 'Prontera City',
   currentMapType: 'town',
   targetPosition: null,
+  path: null,
+  pathIndex: 0,
   selectedTargetId: null,
   activeSkill: null,
   collisionGrid: null,
@@ -143,6 +149,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
   setMap: (mapId, mapName, mapType) => set({ currentMapId: mapId, currentMapName: mapName, currentMapType: mapType }),
   setTargetPosition: (pos) => set({ targetPosition: pos }),
+  setPath: (path) => set({ path, pathIndex: 0 }),
+  setPathIndex: (index) => set({ pathIndex: index }),
   setPosition: (pos) => set({ position: pos }),
   setInputDirection: (dir) => set({ inputDirection: dir }),
   setSelectedTargetId: (id) => set((s) => ({

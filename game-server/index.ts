@@ -573,8 +573,31 @@ function tick() {
         }
       }
       if (dx !== 0 || dz !== 0) {
-        p.x += dx * balance.movement.playerSpeed * tickTimeSec;
-        p.z += dz * balance.movement.playerSpeed * tickTimeSec;
+        const len = Math.sqrt(dx * dx + dz * dz);
+        if (len > 1.0) { dx /= len; dz /= len; }
+
+        const newX = p.x + dx * balance.movement.playerSpeed * tickTimeSec;
+        const newZ = p.z + dz * balance.movement.playerSpeed * tickTimeSec;
+
+        if (instance.navGrid) {
+          const cell = instance.navGrid.cells;
+          const cols = instance.navGrid.cols;
+          const cellSize = instance.navGrid.cellSize;
+          const halfW = (cols * cellSize) / 2;
+          const halfH = (instance.navGrid.rows * cellSize) / 2;
+          const gx = Math.floor((newX + halfW) / cellSize);
+          const gz = Math.floor((newZ + halfH) / cellSize);
+          if (gx >= 0 && gx < cols && gz >= 0 && gz < instance.navGrid.rows) {
+            const cellData = cell[gz * cols + gx];
+            if (cellData && cellData.walkable) {
+              p.x = newX;
+              p.z = newZ;
+            }
+          }
+        } else {
+          p.x = newX;
+          p.z = newZ;
+        }
 
         // Clamp to map bounds
         const halfW = instance.config.dimensions.width / 2;
