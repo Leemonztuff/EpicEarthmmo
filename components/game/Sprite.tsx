@@ -72,13 +72,13 @@ export function Sprite({
         const ox = info.offsetX;
 
         uvsArray[0] = ox;
-        uvsArray[1] = 0;
+        uvsArray[1] = 1;
         uvsArray[2] = ox + rw;
-        uvsArray[3] = 0;
+        uvsArray[3] = 1;
         uvsArray[4] = ox;
-        uvsArray[5] = 1;
+        uvsArray[5] = 0;
         uvsArray[6] = ox + rw;
-        uvsArray[7] = 1;
+        uvsArray[7] = 0;
         uvs.needsUpdate = true;
       }
 

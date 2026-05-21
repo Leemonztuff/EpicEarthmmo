@@ -1,4 +1,4 @@
-import { Texture, TextureLoader, RepeatWrapping, ClampToEdgeWrapping, CanvasTexture } from 'three';
+import { Texture, TextureLoader, RepeatWrapping, ClampToEdgeWrapping, CanvasTexture, NearestFilter } from 'three';
 
 const textureLoader = typeof window !== 'undefined' ? new TextureLoader() : null;
 const textureCache = new Map<string, Texture>();
@@ -444,6 +444,8 @@ function loadTexture(path: string): Texture | null {
   const tex = textureLoader.load(path);
   tex.wrapS = RepeatWrapping;
   tex.wrapT = ClampToEdgeWrapping;
+  tex.magFilter = NearestFilter;
+  tex.minFilter = NearestFilter;
   textureCache.set(path, tex);
 
   const img = tex.image;
