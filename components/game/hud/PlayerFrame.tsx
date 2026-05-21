@@ -2,20 +2,46 @@
 
 import React from 'react';
 import { useGameStore } from '@/store/useGameStore';
+import { useNetworkStore } from '@/store/useNetworkStore';
 import { gameData } from '@/shared/loader';
 import { ProgressBar, ThinBar, Avatar, StatusEffectBar } from '@/components/ui';
-import { Heart, Zap } from 'lucide-react';
+import { Heart, Zap, Shield, Swords, Skull, Activity } from 'lucide-react';
 import { motion } from 'framer-motion';
+import type { ActiveBuffData } from '@/shared/types/network';
 
 const { balance } = gameData;
 
-const mockStatusEffects = [
-  { icon: <Heart size={14} />, name: 'HP Regen', duration: 15000, variant: 'buff' as const, size: 'sm' as const },
-  { icon: <Zap size={14} />, name: 'SP Regen', duration: 12000, variant: 'buff' as const, size: 'sm' as const },
-];
+function buffIcon(buff: ActiveBuffData) {
+  if (buff.isDebuff) return <Skull size={14} />;
+  if (buff.icon) return <Activity size={14} />;
+  const id = (buff.buffId || '').toLowerCase();
+  if (id.includes('hp')) return <Heart size={14} />;
+  if (id.includes('sp') || id.includes('mana')) return <Zap size={14} />;
+  if (id.includes('def') || id.includes('shield')) return <Shield size={14} />;
+  if (id.includes('atk') || id.includes('str') || id.includes('dmg')) return <Swords size={14} />;
+  return <Activity size={14} />;
+}
+
+function buffVariant(buff: ActiveBuffData): 'buff' | 'debuff' | 'neutral' {
+  if (buff.isDebuff) return 'debuff';
+  return 'buff';
+}
+
+function toStatusEffectProps(buffs: ActiveBuffData[]): React.ComponentProps<typeof StatusEffectBar>['effects'] {
+  const now = Date.now();
+  return buffs.map((buff) => ({
+    icon: buffIcon(buff),
+    name: buff.buffId,
+    variant: buffVariant(buff),
+    size: 'sm' as const,
+    stackCount: buff.stacks > 1 ? buff.stacks : undefined,
+    duration: Math.max(0, buff.expiresAt - now),
+  }));
+}
 
 export function PlayerFrame() {
   const player = useGameStore((state) => state.player);
+  const activeBuffs = useNetworkStore((state) => state.activeBuffs);
 
   if (!player) return null;
 
@@ -88,7 +114,7 @@ export function PlayerFrame() {
          </div>
       </div>
 
-      <StatusEffectBar effects={mockStatusEffects} />
+      <StatusEffectBar effects={toStatusEffectProps(activeBuffs)} />
     </motion.div>
   );
 }

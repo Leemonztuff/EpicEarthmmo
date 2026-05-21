@@ -15,6 +15,7 @@ import { SkillRenderer } from './SkillRenderer';
 import { ProjectileRenderer } from './ProjectileRenderer';
 import { BuffOverlay } from './BuffOverlay';
 import { DialogWindow } from './ui/DialogWindow';
+import { ShopWindow } from './ui/ShopWindow';
 import { useNetworkStore } from '@/store/useNetworkStore';
 import { gameData } from '@/shared/loader';
 
@@ -88,6 +89,7 @@ export function GameScene({ characterName }: { characterName?: string }) {
       </Canvas>
       <BuffOverlay />
       <DialogWindow />
+      <ShopWindow />
     </div>
   );
 }

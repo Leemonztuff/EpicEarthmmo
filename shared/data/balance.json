@@ -19,11 +19,44 @@
     "baseDamageFormula": {
       "statMultiplier": 2,
       "randomVariance": 5
-    }
+    },
+    "attackCooldownFormula": {
+      "baseMs": 800,
+      "perAgi": 4,
+      "minMs": 200
+    },
+    "damageReduction": {
+      "defMultiplier": 0.6,
+      "mdefMultiplier": 0.5,
+      "minDamagePct": 0.3
+    },
+    "hitFlee": {
+      "hitBase": 50,
+      "hitPerDex": 2.5,
+      "hitPerLevel": 0.5,
+      "fleeBase": 80,
+      "fleePerAgi": 2,
+      "fleePerLevel": 0.5,
+      "minChance": 0.05,
+      "maxChance": 0.95
+    },
+    "crit": {
+      "baseChance": 0.02,
+      "chancePerLuk": 0.003,
+      "chancePerLevel": 0.001,
+      "baseMultiplier": 1.5,
+      "multiplierPerLuk": 0.005
+    },
+    "consecutiveMissPity": 3
   },
   "regen": {
     "amountPerTick": 1,
-    "intervalTicks": 100
+    "intervalTicks": 100,
+    "spPerTickFormula": {
+      "baseSpPerTick": 1,
+      "perInt": 0.1,
+      "intervalTicks": 100
+    }
   },
   "enemy": {
     "respawnMs": 5000,
@@ -63,16 +96,43 @@
       "multiplier": 50,
       "maxLevel": 50
     },
+    "baseExpCurve": {
+      "earlyCap": 20,
+      "midCap": 70,
+      "earlyBase": 100,
+      "earlyIncrement": 50,
+      "midBase": 1000,
+      "midIncrement": 200,
+      "lateBase": 10800,
+      "lateIncrement": 4000
+    },
+    "jobExpCurve": {
+      "base": 50,
+      "increment": 25,
+      "maxLevel": 50
+    },
     "levelUpGains": {
       "hpPerLevel": 15,
       "spPerLevel": 3,
+      "hpPerVit": 2,
+      "spPerInt": 0.5,
       "statPointsFormula": {
         "formula": "floor((level - 1) / divisor) + base",
         "divisor": 5,
         "base": 3
       },
+      "statPointsPerLevel": 3,
       "jobSkillPointsPerLevel": 1
-    }
+    },
+    "deathPenalty": {
+      "safeLevel": 40,
+      "midLevel": 70,
+      "midLossPct": 0.04,
+      "highLossPct": 0.08,
+      "canDelevel": false
+    },
+    "milestoneLevels": [10, 20, 30, 40, 50, 60, 70, 80, 90],
+    "milestoneBonusPerStat": 2
   },
   "defaultPlayer": {
     "spawnPosition": {
@@ -90,6 +150,8 @@
     },
     "hp": 50,
     "sp": 10,
-    "skillPoints": 5
+    "skillPoints": 5,
+    "baseAtkBareHands": 5,
+    "baseMatkBareHands": 3
   }
 }

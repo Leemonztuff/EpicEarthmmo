@@ -8,6 +8,11 @@ export interface SnapshotPlayer {
   lastProcessedSeq?: number;
 }
 
+export interface InventorySlot {
+  itemId: string;
+  amount: number;
+}
+
 export interface ServerPlayer {
   id: string;
   x: number; y: number; z: number;
@@ -17,6 +22,7 @@ export interface ServerPlayer {
   sp: number; maxSp: number;
   baseLevel: number; jobLevel: number;
   jobClass: string;
+  baseExp: number;
   jobExp: number;
   unlockedSkills: string[];
   skillPoints: number;
@@ -27,6 +33,8 @@ export interface ServerPlayer {
   currentMapId: string;
   warpCooldownUntil: number;
   equippedItems: Partial<Record<EquipmentSlot, string>>;
+  inventory: InventorySlot[];
+  zeny: number;
   isCasting?: boolean;
   castingSkillId?: string;
   path?: { x: number; z: number }[];

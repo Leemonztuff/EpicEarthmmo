@@ -4,180 +4,265 @@
     "name": "Red Potion",
     "type": "usable",
     "description": "Restores 30 HP.",
+    "rarity": 0,
     "effect": {
       "type": "restore_hp",
       "value": 30
     },
-    "maxStack": 99
+    "maxStack": 99,
+    "buyPrice": 50,
+    "sellPrice": 15
   },
   {
     "id": "blue_potion",
     "name": "Blue Potion",
     "type": "usable",
     "description": "Restores 15 SP.",
+    "rarity": 0,
     "effect": {
       "type": "restore_sp",
       "value": 15
     },
-    "maxStack": 99
+    "maxStack": 99,
+    "buyPrice": 100,
+    "sellPrice": 30
   },
   {
     "id": "white_potion",
     "name": "White Potion",
     "type": "usable",
     "description": "Restores 25% of max HP.",
+    "rarity": 1,
     "effect": {
       "type": "restore_hp_percent",
       "percent": 25
     },
-    "maxStack": 99
+    "maxStack": 99,
+    "buyPrice": 500,
+    "sellPrice": 150
   },
   {
     "id": "jellopy",
     "name": "Jellopy",
     "type": "misc",
     "description": "A gelatinous substance dropped by Porings.",
-    "maxStack": 99
+    "rarity": 0,
+    "maxStack": 99,
+    "buyPrice": 10,
+    "sellPrice": 3
   },
   {
     "id": "plant_stem",
     "name": "Plant Stem",
     "type": "misc",
     "description": "A sturdy stem from a plant monster.",
-    "maxStack": 99
+    "rarity": 0,
+    "maxStack": 99,
+    "buyPrice": 15,
+    "sellPrice": 4
   },
   {
     "id": "silky_cocoon",
     "name": "Silky Cocoon",
     "type": "misc",
     "description": "A delicate cocoon spun by a Pupa.",
-    "maxStack": 99
+    "rarity": 0,
+    "maxStack": 99,
+    "buyPrice": 20,
+    "sellPrice": 6
   },
   {
     "id": "rabbit_tail",
     "name": "Rabbit Tail",
     "type": "misc",
     "description": "A fluffy tail from a Lunatic.",
-    "maxStack": 99
+    "rarity": 0,
+    "maxStack": 99,
+    "buyPrice": 25,
+    "sellPrice": 7
   },
   {
     "id": "wolf_claw",
     "name": "Wolf Claw",
     "type": "misc",
     "description": "A sharp claw from a Wolf.",
-    "maxStack": 99
+    "rarity": 0,
+    "maxStack": 99,
+    "buyPrice": 30,
+    "sellPrice": 9
   },
   {
     "id": "wolf_fur",
     "name": "Wolf Fur",
     "type": "misc",
     "description": "Thick fur from a Wolf.",
-    "maxStack": 99
+    "rarity": 1,
+    "maxStack": 99,
+    "buyPrice": 50,
+    "sellPrice": 15
   },
   {
     "id": "spore_dust",
     "name": "Spore Dust",
     "type": "misc",
     "description": "Irritating dust from a Spore.",
-    "maxStack": 99
+    "rarity": 1,
+    "maxStack": 99,
+    "buyPrice": 40,
+    "sellPrice": 12
   },
   {
     "id": "mushroom_cap",
     "name": "Mushroom Cap",
     "type": "usable",
     "description": "Restores 15 HP but may cause confusion.",
+    "rarity": 0,
     "effect": {
       "type": "restore_hp",
       "value": 15
     },
-    "maxStack": 99
+    "maxStack": 99,
+    "buyPrice": 25,
+    "sellPrice": 8
   },
   {
     "id": "iron_sword",
     "name": "Iron Sword",
     "type": "equip",
     "description": "A basic sword forged from iron.",
+    "rarity": 1,
+    "atk": 12,
     "equipStats": { "str": 2, "dex": 1 },
-    "maxStack": 1
+    "maxStack": 1,
+    "buyPrice": 1000,
+    "sellPrice": 300,
+    "levelReq": 1
   },
   {
     "id": "steel_sword",
     "name": "Steel Sword",
     "type": "equip",
     "description": "A well-crafted steel sword.",
+    "rarity": 2,
+    "atk": 25,
     "equipStats": { "str": 4, "dex": 2 },
-    "maxStack": 1
+    "maxStack": 1,
+    "buyPrice": 5000,
+    "sellPrice": 1500,
+    "levelReq": 30
   },
   {
     "id": "cotton_shirt",
     "name": "Cotton Shirt",
     "type": "equip",
-    "description": "A light cotton shirt.",
+    "description": "A light cotton shirt providing basic protection.",
+    "rarity": 0,
+    "def": 5,
     "equipStats": { "vit": 1 },
-    "maxStack": 1
+    "maxStack": 1,
+    "buyPrice": 300,
+    "sellPrice": 90
   },
   {
     "id": "chain_mail",
     "name": "Chain Mail",
     "type": "equip",
     "description": "Armor made of interlocking metal rings.",
+    "rarity": 2,
+    "def": 20,
     "equipStats": { "vit": 3, "agi": -1 },
-    "maxStack": 1
+    "maxStack": 1,
+    "buyPrice": 8000,
+    "sellPrice": 2400,
+    "levelReq": 25
   },
   {
     "id": "wooden_shield",
     "name": "Wooden Shield",
     "type": "equip",
     "description": "A sturdy wooden shield.",
+    "rarity": 0,
+    "def": 8,
     "equipStats": { "vit": 2 },
-    "maxStack": 1
+    "maxStack": 1,
+    "buyPrice": 500,
+    "sellPrice": 150
   },
   {
     "id": "iron_shield",
     "name": "Iron Shield",
     "type": "equip",
     "description": "A heavy iron shield.",
+    "rarity": 2,
+    "def": 18,
     "equipStats": { "vit": 4, "agi": -2 },
-    "maxStack": 1
+    "maxStack": 1,
+    "buyPrice": 6000,
+    "sellPrice": 1800,
+    "levelReq": 20
   },
   {
     "id": "leather_boots",
     "name": "Leather Boots",
     "type": "equip",
     "description": "Comfortable leather boots.",
+    "rarity": 0,
+    "def": 3,
     "equipStats": { "agi": 2 },
-    "maxStack": 1
+    "maxStack": 1,
+    "buyPrice": 400,
+    "sellPrice": 120
   },
   {
     "id": "steel_boots",
     "name": "Steel Boots",
     "type": "equip",
     "description": "Heavy steel boots.",
+    "rarity": 1,
+    "def": 10,
     "equipStats": { "vit": 2, "agi": 1 },
-    "maxStack": 1
+    "maxStack": 1,
+    "buyPrice": 4000,
+    "sellPrice": 1200,
+    "levelReq": 15
   },
   {
     "id": "silver_tiara",
     "name": "Silver Tiara",
     "type": "equip",
-    "description": "A delicate silver tiara.",
+    "description": "A delicate silver tiara imbued with magic.",
+    "rarity": 2,
+    "mdef": 10,
     "equipStats": { "int": 3, "luk": 1 },
-    "maxStack": 1
+    "maxStack": 1,
+    "buyPrice": 12000,
+    "sellPrice": 3600,
+    "levelReq": 30
   },
   {
     "id": "gold_ring",
     "name": "Gold Ring",
     "type": "equip",
-    "description": "A simple gold ring.",
+    "description": "A simple gold ring that brings luck.",
+    "rarity": 1,
+    "mdef": 3,
     "equipStats": { "luk": 3, "dex": 1 },
-    "maxStack": 1
+    "maxStack": 1,
+    "buyPrice": 3000,
+    "sellPrice": 900,
+    "levelReq": 10
   },
   {
     "id": "magic_staff",
     "name": "Magic Staff",
     "type": "equip",
-    "description": "A staff imbued with magic.",
+    "description": "A staff imbued with arcane power.",
+    "rarity": 2,
+    "matk": 18,
     "equipStats": { "int": 5, "dex": 2 },
-    "maxStack": 1
+    "maxStack": 1,
+    "buyPrice": 8000,
+    "sellPrice": 2400,
+    "levelReq": 20
   }
 ]

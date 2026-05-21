@@ -26,6 +26,22 @@
       "label": "warp_from_fields"
     }
   ],
+  "npcs": [
+    {
+      "id": "prontera_weaponsmith",
+      "name": "Weaponsmith",
+      "position": { "x": 12, "y": 0.5, "z": 5 },
+      "dialogId": "prontera_weaponsmith",
+      "shopItems": ["iron_sword", "steel_sword", "iron_shield", "wooden_shield", "chain_mail", "cotton_shirt", "leather_boots", "steel_boots"]
+    },
+    {
+      "id": "prontera_itemmerchant",
+      "name": "Item Merchant",
+      "position": { "x": -12, "y": 0.5, "z": 5 },
+      "dialogId": "prontera_itemmerchant",
+      "shopItems": ["red_potion", "blue_potion", "white_potion"]
+    }
+  ],
   "warps": [
     {
       "id": "warp_to_fields",

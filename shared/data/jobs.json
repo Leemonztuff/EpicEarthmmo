@@ -4,67 +4,105 @@
     "name": "Novice",
     "description": "A beginner just starting their adventure.",
     "baseStatModifiers": {
-      "str": 0,
-      "agi": 0,
-      "vit": 0,
-      "int": 0,
-      "dex": 0,
-      "luk": 0
+      "str": 0, "agi": 0, "vit": 0, "int": 0, "dex": 0, "luk": 0
     },
-    "bonusSkillPoints": 0
+    "bonusSkillPoints": 0,
+    "passiveDescription": "No passive bonuses. Learn the basics!"
   },
   {
     "id": "swordsman",
     "name": "Swordsman",
-    "description": "A warrior skilled in melee combat.",
+    "description": "A frontline warrior who excels at melee combat and tanking damage.",
     "requirements": {
       "fromJob": "novice",
       "minJobLevel": 10
     },
     "baseStatModifiers": {
-      "str": 2,
-      "agi": 0,
-      "vit": 1,
-      "int": 0,
-      "dex": 0,
-      "luk": 0
+      "str": 3, "agi": 0, "vit": 2, "int": 0, "dex": 1, "luk": 0
     },
-    "bonusSkillPoints": 1
+    "bonusSkillPoints": 1,
+    "passiveId": "sword_mastery",
+    "passiveDescription": "Sword Mastery: +10% auto-attack damage with swords.",
+    "autoLearnSkills": ["bash", "provoke"]
   },
   {
     "id": "mage",
     "name": "Mage",
-    "description": "A spellcaster who wields elemental magic.",
+    "description": "A spellcaster who wields devastating elemental magic.",
     "requirements": {
       "fromJob": "novice",
       "minJobLevel": 10
     },
     "baseStatModifiers": {
-      "str": 0,
-      "agi": 0,
-      "vit": 0,
-      "int": 3,
-      "dex": 0,
-      "luk": 0
+      "str": 0, "agi": 0, "vit": 1, "int": 4, "dex": 1, "luk": 0
     },
-    "bonusSkillPoints": 1
+    "bonusSkillPoints": 1,
+    "passiveId": "mana_flow",
+    "passiveDescription": "Mana Flow: +50% SP regeneration rate.",
+    "autoLearnSkills": ["lightning_bolt", "frost_diver"]
   },
   {
     "id": "archer",
     "name": "Archer",
-    "description": "A ranged fighter with exceptional dexterity.",
+    "description": "A ranged fighter with exceptional precision and speed.",
     "requirements": {
       "fromJob": "novice",
       "minJobLevel": 10
     },
     "baseStatModifiers": {
-      "str": 0,
-      "agi": 1,
-      "vit": 0,
-      "int": 0,
-      "dex": 2,
-      "luk": 0
+      "str": 0, "agi": 2, "vit": 0, "int": 0, "dex": 3, "luk": 1
     },
-    "bonusSkillPoints": 1
+    "bonusSkillPoints": 1,
+    "passiveId": "eagle_eye",
+    "passiveDescription": "Eagle Eye: +2 range on auto-attacks (total 5).",
+    "autoLearnSkills": ["arrow_shower"]
+  },
+  {
+    "id": "thief",
+    "name": "Thief",
+    "description": "A swift shadow who strikes fast and poisons their foes.",
+    "requirements": {
+      "fromJob": "novice",
+      "minJobLevel": 10
+    },
+    "baseStatModifiers": {
+      "str": 1, "agi": 3, "vit": 0, "int": 0, "dex": 1, "luk": 1
+    },
+    "bonusSkillPoints": 1,
+    "passiveId": "double_attack",
+    "passiveDescription": "Double Attack: 15% chance to strike twice on auto-attack (50% damage second hit).",
+    "autoLearnSkills": ["poison", "steal"]
+  },
+  {
+    "id": "acolyte",
+    "name": "Acolyte",
+    "description": "A faithful servant who heals allies and dispels darkness.",
+    "requirements": {
+      "fromJob": "novice",
+      "minJobLevel": 10
+    },
+    "baseStatModifiers": {
+      "str": 0, "agi": 1, "vit": 2, "int": 3, "dex": 0, "luk": 0
+    },
+    "bonusSkillPoints": 1,
+    "passiveId": "blessing_passive",
+    "passiveDescription": "Blessing: +10% healing effectiveness.",
+    "autoLearnSkills": ["heal", "increase_agi"]
+  },
+  {
+    "id": "merchant",
+    "name": "Merchant",
+    "description": "A shrewd trader who fights with strength and earns extra zeny.",
+    "requirements": {
+      "fromJob": "novice",
+      "minJobLevel": 10
+    },
+    "baseStatModifiers": {
+      "str": 2, "agi": 0, "vit": 2, "int": 1, "dex": 0, "luk": 1
+    },
+    "bonusSkillPoints": 1,
+    "passiveId": "discount",
+    "passiveDescription": "Discount: +10% zeny from monster drops, -10% purchase price from NPCs.",
+    "autoLearnSkills": ["cart_revolution"]
   }
 ]

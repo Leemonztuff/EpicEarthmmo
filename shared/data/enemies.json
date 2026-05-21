@@ -118,6 +118,87 @@
       "attackCooldownMs": 1800,
       "moveSpeed": 2.5,
       "patrolPauseMs": 2500
+    },
+    {
+      "id": "savage",
+      "name": "Savage",
+      "level": 8,
+      "hp": 120,
+      "sprite": "savage",
+      "drops": [
+        { "itemId": "wolf_fur", "chance": 0.3, "minAmount": 1, "maxAmount": 2 },
+        { "itemId": "iron_sword", "chance": 0.02, "minAmount": 1, "maxAmount": 1 }
+      ],
+      "expBase": 80,
+      "expJob": 40,
+      "behavior": "aggressive",
+      "agroRange": 10,
+      "attackRange": 2.5,
+      "attackDamage": 18,
+      "attackCooldownMs": 1200,
+      "moveSpeed": 4,
+      "patrolPauseMs": 1000
+    },
+    {
+      "id": "drainliar",
+      "name": "Drainliar",
+      "level": 12,
+      "hp": 180,
+      "sprite": "drainliar",
+      "drops": [
+        { "itemId": "wolf_claw", "chance": 0.4, "minAmount": 2, "maxAmount": 3 },
+        { "itemId": "cotton_shirt", "chance": 0.03, "minAmount": 1, "maxAmount": 1 }
+      ],
+      "expBase": 140,
+      "expJob": 70,
+      "behavior": "aggressive",
+      "agroRange": 12,
+      "attackRange": 2.5,
+      "attackDamage": 25,
+      "attackCooldownMs": 1000,
+      "moveSpeed": 5,
+      "patrolPauseMs": 800
+    },
+    {
+      "id": "elder_wolf",
+      "name": "Elder Wolf",
+      "level": 18,
+      "hp": 280,
+      "sprite": "elder_wolf",
+      "drops": [
+        { "itemId": "wolf_fur", "chance": 0.5, "minAmount": 2, "maxAmount": 3 },
+        { "itemId": "leather_boots", "chance": 0.04, "minAmount": 1, "maxAmount": 1 }
+      ],
+      "expBase": 220,
+      "expJob": 110,
+      "behavior": "aggressive",
+      "agroRange": 14,
+      "attackRange": 2.5,
+      "attackDamage": 35,
+      "attackCooldownMs": 900,
+      "moveSpeed": 5,
+      "patrolPauseMs": 500
+    },
+    {
+      "id": "mummy",
+      "name": "Mummy",
+      "level": 25,
+      "hp": 400,
+      "sprite": "mummy",
+      "drops": [
+        { "itemId": "silky_cocoon", "chance": 0.3, "minAmount": 2, "maxAmount": 4 },
+        { "itemId": "iron_sword", "chance": 0.1, "minAmount": 1, "maxAmount": 1 },
+        { "itemId": "wooden_shield", "chance": 0.05, "minAmount": 1, "maxAmount": 1 }
+      ],
+      "expBase": 350,
+      "expJob": 175,
+      "behavior": "aggressive",
+      "agroRange": 10,
+      "attackRange": 2.5,
+      "attackDamage": 50,
+      "attackCooldownMs": 1500,
+      "moveSpeed": 2.5,
+      "patrolPauseMs": 2000
     }
   ],
   "spawns": [
@@ -135,6 +216,26 @@
       "enemyId": "pupa",
       "spawnId": "enemy_3",
       "position": { "x": 1, "y": 0.5, "z": -6 }
+    },
+    {
+      "enemyId": "savage",
+      "spawnId": "enemy_4",
+      "position": { "x": 8, "y": 0.5, "z": -8 }
+    },
+    {
+      "enemyId": "drainliar",
+      "spawnId": "enemy_5",
+      "position": { "x": -10, "y": 0.5, "z": 5 }
+    },
+    {
+      "enemyId": "elder_wolf",
+      "spawnId": "enemy_6",
+      "position": { "x": 12, "y": 0.5, "z": -12 }
+    },
+    {
+      "enemyId": "mummy",
+      "spawnId": "enemy_7",
+      "position": { "x": -8, "y": 0.5, "z": -10 }
     }
   ]
 }

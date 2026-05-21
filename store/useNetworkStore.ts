@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { io, Socket } from 'socket.io-client';
-import type { PeerPlayerState, ChatMessage, TradeOffer, WorldSnapshot, PlayerInput } from '@/shared/types/network';
+import type { PeerPlayerState, ChatMessage, TradeOffer, WorldSnapshot, PlayerInput, ActiveBuffData } from '@/shared/types/network';
 import type { EnemyState } from '@/shared/schemas/gameState';
 import { gameData } from '@/shared/loader';
 import { addCombatLog } from '@/components/game/hud/CombatLog';
@@ -17,6 +17,7 @@ interface NetworkStore {
   remotePlayers: Record<string, PeerPlayerState>;
   chatMessages: ChatMessage[];
   currentMapData: any | null;
+  activeBuffs: ActiveBuffData[];
   tradeRequest: { from: string; name: string } | null;
   activeTrade: {
     peerId: string;
@@ -53,6 +54,7 @@ export const useNetworkStore = create<NetworkStore>((set, get) => ({
   remotePlayers: {},
   chatMessages: [],
   currentMapData: null,
+  activeBuffs: [],
   tradeRequest: null,
   activeTrade: null,
 
@@ -187,6 +189,7 @@ export const useNetworkStore = create<NetworkStore>((set, get) => ({
       gs.setSp(data.newSp);
       gs.updateEnemyState(data.targetId, { hp: data.hp, isDead: data.isDead });
       gs.gainExp(data.expBase, data.expJob);
+      if (data.loot && data.loot.length > 0) gs.gainLoot(data.loot);
       showExpGain(data.expBase, 'base');
       showExpGain(data.expJob, 'job');
       addCombatLog(`Enemy defeated! +${data.expBase} EXP`);
@@ -300,8 +303,8 @@ export const useNetworkStore = create<NetworkStore>((set, get) => ({
       // Handled by SkillRenderer
     });
 
-    newSocket.on('buffsUpdate', (data) => {
-      // Handled by SkillRenderer
+    newSocket.on('buffsUpdate', (data: ActiveBuffData[]) => {
+      set({ activeBuffs: data ?? [] });
     });
 
     set({ socket: newSocket });

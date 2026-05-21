@@ -16,6 +16,11 @@ export const ItemSchema = z.object({
   effect: ItemEffectSchema.optional(),
   maxStack: z.number().int().positive(),
   icon: z.string().optional(),
+  rarity: z.number().int().min(0).max(4).default(0),
+  atk: z.number().nonnegative().optional(),
+  matk: z.number().nonnegative().optional(),
+  def: z.number().nonnegative().optional(),
+  mdef: z.number().nonnegative().optional(),
   equipStats: z.object({
     str: z.number().int().optional(),
     agi: z.number().int().optional(),
@@ -24,6 +29,9 @@ export const ItemSchema = z.object({
     dex: z.number().int().optional(),
     luk: z.number().int().optional(),
   }).optional(),
+  levelReq: z.number().int().positive().optional(),
+  buyPrice: z.number().int().nonnegative().optional(),
+  sellPrice: z.number().int().nonnegative().optional(),
 });
 
 export const ItemDatabaseSchema = z.array(ItemSchema);

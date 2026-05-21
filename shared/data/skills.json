@@ -394,7 +394,7 @@
   {
     "id": "poison",
     "name": "Veneno",
-    "description": "Envenena al enemigo causando dano en el tiempo.",
+    "description": "Envenena al enemigo causando dano en el tiempo. Habilidad de ladron.",
     "spCost": 10,
     "hpCost": 0,
     "requirements": ["basic_attack"],
@@ -417,6 +417,279 @@
     "movementLock": false,
     "animationId": "poison",
     "vfxId": "poison_vfx",
+    "maxLevel": 5
+  },
+  {
+    "id": "steal",
+    "name": "Robar",
+    "description": "Intenta robar un objeto del enemigo. 20% de probabilidad de robo extra.",
+    "spCost": 10,
+    "hpCost": 0,
+    "requirements": ["basic_attack"],
+    "skillPointCost": 2,
+    "castType": "instant",
+    "castTimeMs": 0,
+    "channelTimeMs": 0,
+    "cooldownMs": 5000,
+    "range": 3,
+    "targetType": "single_enemy",
+    "effects": [
+      {
+        "type": "damage",
+        "formula": { "type": "stat_based", "stat": "str", "baseValue": 5, "multiplier": 0.5, "variance": 3, "critChance": 0, "critMultiplier": 1.0 }
+      }
+    ],
+    "interruptible": false,
+    "movementLock": false,
+    "animationId": "steal",
+    "maxLevel": 5
+  },
+  {
+    "id": "arrow_shower",
+    "name": "Lluvia de Flechas",
+    "description": "Dispara una lluvia de flechas en area conica.",
+    "spCost": 8,
+    "hpCost": 0,
+    "requirements": ["basic_attack"],
+    "skillPointCost": 2,
+    "castType": "instant",
+    "castTimeMs": 0,
+    "channelTimeMs": 0,
+    "cooldownMs": 4000,
+    "range": 7,
+    "targetType": "cone",
+    "effects": [
+      {
+        "type": "aoe_damage",
+        "formula": { "type": "stat_based", "stat": "dex", "baseValue": 15, "multiplier": 1.5, "variance": 8, "critChance": 0.08, "critMultiplier": 1.8 },
+        "radius": 5
+      }
+    ],
+    "interruptible": false,
+    "movementLock": true,
+    "animationId": "arrow_shower",
+    "vfxId": "arrow_cone",
+    "maxLevel": 5
+  },
+  {
+    "id": "improved_concentration",
+    "name": "Concentracion Mejorada",
+    "description": "Aumenta temporalmente tu destreza.",
+    "spCost": 15,
+    "hpCost": 0,
+    "requirements": ["arrow_shower"],
+    "skillPointCost": 2,
+    "castType": "instant",
+    "castTimeMs": 0,
+    "channelTimeMs": 0,
+    "cooldownMs": 20000,
+    "range": 3,
+    "targetType": "self",
+    "effects": [
+      {
+        "type": "buff",
+        "durationMs": 30000,
+        "statModifiers": [{ "stat": "dex", "percent": 30 }]
+      }
+    ],
+    "interruptible": false,
+    "movementLock": false,
+    "animationId": "buff_dex",
+    "vfxId": "focus_aura",
+    "maxLevel": 5
+  },
+  {
+    "id": "teleport",
+    "name": "Teletransporte",
+    "description": "Te teletransporta al punto de guardado.",
+    "spCost": 15,
+    "hpCost": 0,
+    "requirements": ["basic_attack"],
+    "skillPointCost": 2,
+    "castType": "cast",
+    "castTimeMs": 2000,
+    "channelTimeMs": 0,
+    "cooldownMs": 10000,
+    "range": 3,
+    "targetType": "self",
+    "effects": [],
+    "interruptible": true,
+    "movementLock": true,
+    "animationId": "teleport",
+    "vfxId": "teleport_vfx",
+    "maxLevel": 1
+  },
+  {
+    "id": "blessing",
+    "name": "Bendicion",
+    "description": "Aumenta STR, DEX e INT de un aliado por 120 segundos.",
+    "spCost": 20,
+    "hpCost": 0,
+    "requirements": ["increase_agi"],
+    "skillPointCost": 3,
+    "castType": "instant",
+    "castTimeMs": 0,
+    "channelTimeMs": 0,
+    "cooldownMs": 5000,
+    "range": 5,
+    "targetType": "single_ally",
+    "effects": [
+      {
+        "type": "buff",
+        "durationMs": 120000,
+        "statModifiers": [
+          { "stat": "str", "percent": 5 },
+          { "stat": "dex", "percent": 5 },
+          { "stat": "int", "percent": 5 }
+        ]
+      }
+    ],
+    "interruptible": false,
+    "movementLock": false,
+    "animationId": "buff_blessing",
+    "vfxId": "blessing_glow",
+    "maxLevel": 10
+  },
+  {
+    "id": "endure",
+    "name": "Aguantar",
+    "description": "Reduce el dano recibido en 30% por 10 segundos.",
+    "spCost": 10,
+    "hpCost": 0,
+    "requirements": ["bash"],
+    "skillPointCost": 2,
+    "castType": "instant",
+    "castTimeMs": 0,
+    "channelTimeMs": 0,
+    "cooldownMs": 30000,
+    "range": 3,
+    "targetType": "self",
+    "effects": [
+      {
+        "type": "buff",
+        "durationMs": 10000,
+        "statModifiers": [{ "stat": "def", "percent": 30 }]
+      }
+    ],
+    "interruptible": false,
+    "movementLock": false,
+    "animationId": "endure",
+    "vfxId": "endure_aura",
+    "maxLevel": 5
+  },
+  {
+    "id": "bowling_bash",
+    "name": "Bowling Bash",
+    "description": "Pegale tan fuerte al enemigo que sale volando hacia atras.",
+    "spCost": 12,
+    "hpCost": 0,
+    "requirements": ["bash", "magnum_break"],
+    "skillPointCost": 3,
+    "castType": "instant",
+    "castTimeMs": 0,
+    "channelTimeMs": 0,
+    "cooldownMs": 3000,
+    "range": 3,
+    "targetType": "single_enemy",
+    "effects": [
+      {
+        "type": "damage",
+        "formula": { "type": "stat_based", "stat": "str", "baseValue": 40, "multiplier": 3.0, "variance": 15, "critChance": 0.12, "critMultiplier": 2.0 }
+      },
+      {
+        "type": "knockback",
+        "knockbackDist": 3
+      }
+    ],
+    "interruptible": false,
+    "movementLock": true,
+    "animationId": "bowling_bash",
+    "vfxId": "bash_impact",
+    "maxLevel": 10
+  },
+  {
+    "id": "fire_bolt",
+    "name": "Bola de Fuego",
+    "description": "Dispara una bola de fuego a un enemigo.",
+    "spCost": 8,
+    "hpCost": 0,
+    "requirements": ["basic_attack"],
+    "skillPointCost": 2,
+    "castType": "cast",
+    "castTimeMs": 1000,
+    "channelTimeMs": 0,
+    "cooldownMs": 1500,
+    "range": 8,
+    "targetType": "single_enemy",
+    "effects": [
+      {
+        "type": "damage",
+        "formula": { "type": "stat_based", "stat": "int", "baseValue": 30, "multiplier": 1.5, "variance": 8, "critChance": 0.08, "critMultiplier": 2.0 }
+      }
+    ],
+    "interruptible": true,
+    "movementLock": true,
+    "animationId": "fire_bolt",
+    "vfxId": "fire_projectile",
+    "soundId": "fire_whoosh",
+    "maxLevel": 10
+  },
+  {
+    "id": "cold_bolt",
+    "name": "Bola de Hielo",
+    "description": "Dispara una bola de hielo que congela al enemigo.",
+    "spCost": 10,
+    "hpCost": 0,
+    "requirements": ["fire_bolt"],
+    "skillPointCost": 2,
+    "castType": "cast",
+    "castTimeMs": 800,
+    "channelTimeMs": 0,
+    "cooldownMs": 2000,
+    "range": 8,
+    "targetType": "single_enemy",
+    "effects": [
+      {
+        "type": "damage",
+        "formula": { "type": "stat_based", "stat": "int", "baseValue": 25, "multiplier": 1.3, "variance": 6, "critChance": 0.05, "critMultiplier": 1.8 }
+      },
+      {
+        "type": "freeze",
+        "durationMs": 2000
+      }
+    ],
+    "interruptible": true,
+    "movementLock": true,
+    "animationId": "cold_bolt",
+    "vfxId": "ice_projectile",
+    "soundId": "ice_shatter",
+    "maxLevel": 5
+  },
+  {
+    "id": "cart_revolution",
+    "name": "Revolucion del Carro",
+    "description": "Gira tu carro golpeando a todos los enemigos cercanos.",
+    "spCost": 10,
+    "hpCost": 0,
+    "requirements": ["basic_attack"],
+    "skillPointCost": 2,
+    "castType": "instant",
+    "castTimeMs": 0,
+    "channelTimeMs": 0,
+    "cooldownMs": 5000,
+    "range": 4,
+    "targetType": "aoe_enemy",
+    "effects": [
+      {
+        "type": "aoe_damage",
+        "formula": { "type": "stat_based", "stat": "str", "baseValue": 20, "multiplier": 1.8, "variance": 10, "critChance": 0.05, "critMultiplier": 1.5 },
+        "radius": 4
+      }
+    ],
+    "interruptible": false,
+    "movementLock": true,
+    "animationId": "cart_revolution",
+    "vfxId": "spin_slash",
     "maxLevel": 5
   }
 ]

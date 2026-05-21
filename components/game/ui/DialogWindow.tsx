@@ -4,6 +4,7 @@ import React from 'react';
 import { useGameStore } from '@/store/useGameStore';
 import { Modal, Text, Button } from '@/components/ui';
 import { MessageCircle } from 'lucide-react';
+import { gameData } from '@/shared/loader';
 
 export function DialogWindow() {
   const dialogState = useGameStore(state => state.dialogState);
@@ -25,6 +26,13 @@ export function DialogWindow() {
 
   const handleResponse = (response: any) => {
     if (response.action === 'close') {
+      setDialogState({ isOpen: false, dialog: null, currentLineIndex: 0, selectedResponse: null });
+      return;
+    }
+    if (response.action === 'shop') {
+      const mapData = gameData.maps.find((m: any) => m.id === useGameStore.getState().currentMapId);
+      const npc = (mapData as any)?.npcs?.find((n: any) => n.dialogId === dialog?.id);
+      if (npc) useGameStore.getState().setShopNpcId(npc.id);
       setDialogState({ isOpen: false, dialog: null, currentLineIndex: 0, selectedResponse: null });
       return;
     }

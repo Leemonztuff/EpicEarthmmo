@@ -424,6 +424,7 @@ export class SkillEngine {
             onTick: [{
               type: 'heal',
               formula: { type: 'flat', baseValue: Math.round(tickDmg / ((effect.durationMs ?? 10000) / (effect.tickIntervalMs ?? 1000))), multiplier: 1, variance: 0, critChance: 0, critMultiplier: 1.5 },
+              applyToSelf: false,
             }],
             color: '#44ff44',
           };
@@ -435,15 +436,27 @@ export class SkillEngine {
       }
       case 'buff':
       case 'debuff': {
-        for (const mod of effect.statModifiers ?? []) {
-          const buffId = `${effect.type}_${mod.stat}`;
+        // Use skill-specific buff IDs so registered definitions have the correct stat modifiers
+        const buffId = `skill_${request.skillId}`;
+        const def = this.buffManager.getDefinition(buffId);
+        if (def) {
           this.buffManager.applyBuff(target.id, buffId, request.casterId, effect.durationMs);
           result.buffApplied = buffId;
+        } else {
+          // Fallback: per-stat buffs for non-registered skills
+          for (const mod of effect.statModifiers ?? []) {
+            const fallbackId = `${effect.type}_${mod.stat}`;
+            this.buffManager.applyBuff(target.id, fallbackId, request.casterId, effect.durationMs);
+            result.buffApplied = fallbackId;
+          }
         }
         for (const mod of effect.behaviorModifiers ?? []) {
-          const buffId = `behavior_${mod.type}`;
-          this.buffManager.applyBuff(target.id, buffId, request.casterId, mod.durationMs);
-          result.buffApplied = buffId;
+          const behaviorId = `behavior_${mod.type}`;
+          const behaviorDef = this.buffManager.getDefinition(behaviorId);
+          if (behaviorDef) {
+            this.buffManager.applyBuff(target.id, behaviorId, request.casterId, mod.durationMs);
+            result.buffApplied = behaviorId;
+          }
         }
         break;
       }
@@ -499,6 +512,7 @@ export class SkillEngine {
               onTick: [{
                 type: 'damage',
                 formula: { type: 'flat', baseValue: Math.round(tickDmg / Math.max(1, tickCount)), multiplier: 1, variance: 0, critChance: 0, critMultiplier: 1.5 },
+                applyToSelf: false,
               }],
               color: '#44aa44',
             });
@@ -526,6 +540,7 @@ export class SkillEngine {
               onTick: [{
                 type: 'heal',
                 formula: { type: 'flat', baseValue: Math.round(tickHeal / Math.max(1, tickCount)), multiplier: 1, variance: 0, critChance: 0, critMultiplier: 1.5 },
+                applyToSelf: false,
               }],
               color: '#44ff44',
             });

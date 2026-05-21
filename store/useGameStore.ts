@@ -74,13 +74,14 @@ interface GameStore {
   skillCooldowns: Record<string, number>;
   interactionTarget: InteractionTarget | null;
   dialogState: DialogState;
+  shopNpcId: string | null;
   enemies: Record<string, EnemyState>;
   damages: DamageText[];
   combatLog: string[];
   ui: GameUIState;
 
   // Derived state getters
-  getCombatStats: () => { atk: number; matk: number; def: number; flee: number };
+  getCombatStats: () => { atk: number; matk: number; def: number; mdef: number; hit: number; flee: number; attackSpeed: number; critChance: number; critDamage: number };
 
   setMap: (mapId: string, mapName: string, mapType: string) => void;
   setTargetPosition: (pos: { x: number; z: number } | null) => void;
@@ -111,6 +112,10 @@ interface GameStore {
   unequipItem: (slot: string) => void;
   getEquippedStats: () => PlayerStats;
   changeJob: (jobId: string) => void;
+  buyFromShop: (itemId: string) => void;
+  sellToShop: (itemId: string) => void;
+  setZeny: (zeny: number) => void;
+  setShopNpcId: (npcId: string | null) => void;
   reloadData: () => Promise<void>;
 }
 
@@ -129,6 +134,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   skillCooldowns: {},
   interactionTarget: null,
   dialogState: { isOpen: false, dialog: null, currentLineIndex: 0, selectedResponse: null },
+  shopNpcId: null,
   enemies: buildInitialEnemies(),
   damages: [],
   combatLog: [],
@@ -138,10 +144,15 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const p = get().player;
     const stats = p.stats;
     return {
-      atk: 10 + (stats?.str || 0) * 2,
-      matk: 10 + (stats?.int || 0) * 2,
-      def: (stats?.vit || 0),
-      flee: 100 + (stats?.agi || 0) + (p.baseLevel || 1),
+      atk: (stats?.str || 0) * 3 + (p.baseLevel || 1) * 1.5 + 5,
+      matk: (stats?.int || 0) * 3.5 + (p.baseLevel || 1) * 1.2 + 3,
+      def: (stats?.vit || 0) * 1.5,
+      mdef: (stats?.int || 0) * 0.5,
+      hit: 50 + (stats?.dex || 0) * 2.5 + (p.baseLevel || 1) * 0.5,
+      flee: 80 + (stats?.agi || 0) * 2 + (p.baseLevel || 1) * 0.5,
+      attackSpeed: Math.max(200, 800 - (stats?.agi || 0) * 4),
+      critChance: 0.02 + (stats?.luk || 0) * 0.003 + (p.baseLevel || 1) * 0.001,
+      critDamage: 1.5 + (stats?.luk || 0) * 0.005,
     };
   },
 
@@ -201,6 +212,44 @@ export const useGameStore = create<GameStore>((set, get) => ({
     });
   },
 
+  setZeny: (zeny) => set((s) => ({ player: { ...s.player, zeny } })),
+  setShopNpcId: (npcId) => set({ shopNpcId: npcId }),
+
+  buyFromShop: (itemId) => {
+    import('./useNetworkStore').then(({ useNetworkStore }) => {
+      useNetworkStore.getState().socket?.emit('npcBuy', { itemId }, (res: any) => {
+        if (res.success) {
+          const gs = get();
+          gs.setZeny(res.newZeny);
+          gs.gainLoot([{ id: itemId, name: res.itemName, type: res.itemType || 'equip', amount: 1, description: res.itemDesc || '' }]);
+        } else {
+          showToast(res.error || 'Purchase failed', 'error');
+        }
+      });
+    });
+  },
+
+  sellToShop: (itemId) => {
+    import('./useNetworkStore').then(({ useNetworkStore }) => {
+      useNetworkStore.getState().socket?.emit('npcSell', { itemId }, (res: any) => {
+        if (res.success) {
+          const gs = get();
+          gs.setZeny(res.newZeny);
+          const newInventory = [...gs.player.inventory];
+          const slot = newInventory.find(i => i.id === itemId);
+          if (slot) {
+            slot.amount -= 1;
+            if (slot.amount <= 0) {
+              const idx = newInventory.indexOf(slot);
+              if (idx !== -1) newInventory.splice(idx, 1);
+            }
+          }
+          set({ player: { ...gs.player, inventory: newInventory } });
+        }
+      });
+    });
+  },
+
   consumeItem: (itemId) => {
     import('./useNetworkStore').then(({ useNetworkStore }) => {
       const socket = useNetworkStore.getState().socket;
@@ -247,7 +296,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
     let { baseExp, jobExp, baseLevel, jobLevel, stats, hp, maxHp, sp, maxSp, skillPoints } = state.player;
     baseExp += base;
     jobExp += job;
-    const result = processLevelUp(baseExp, jobExp, baseLevel, jobLevel, balance);
+    const baseStats = { str: stats.str ?? 5, agi: stats.agi ?? 5, vit: stats.vit ?? 5, int: stats.int ?? 5, dex: stats.dex ?? 5, luk: stats.luk ?? 5 };
+    const result = processLevelUp(baseExp, jobExp, baseLevel, jobLevel, baseStats, balance);
     if (result.leveledUp) {
       maxHp += result.hpGain;
       maxSp += result.spGain;

@@ -6,6 +6,12 @@ import { HUD } from './HUD';
 import { OrientationLock } from './OrientationLock';
 import { DevToolsOverlay } from './ui/DevToolsOverlay';
 
+function isDevMode() {
+  if (typeof window === 'undefined') return false;
+  const params = new URLSearchParams(window.location.search);
+  return process.env.NODE_ENV === 'development' || params.has('dev');
+}
+
 export function GameWrapper({ characterName }: { characterName: string }) {
   return (
     <div className="w-full h-full relative bg-black overflow-hidden game-container">
@@ -14,7 +20,7 @@ export function GameWrapper({ characterName }: { characterName: string }) {
          <GameScene characterName={characterName} />
       </Suspense>
       <HUD characterName={characterName} />
-      <DevToolsOverlay />
+      {isDevMode() && <DevToolsOverlay />}
     </div>
   );
 }

@@ -17,6 +17,9 @@ export const JobClassSchema = z.object({
     luk: z.number().int(),
   }),
   bonusSkillPoints: z.number().int().nonnegative(),
+  passiveId: z.string().optional(),
+  passiveDescription: z.string().optional(),
+  autoLearnSkills: z.array(z.string()).optional(),
   sprite: z.string().optional(),
 });
 

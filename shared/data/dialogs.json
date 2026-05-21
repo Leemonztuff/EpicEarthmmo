@@ -42,13 +42,32 @@
       "lines": [
         {
           "speaker": "Weaponsmith",
-          "text": "Welcome to my shop! I forge the finest weapons in all of Rune-Midgarts. What are you looking for?"
+          "text": "Welcome to my shop! I forge the finest weapons and armor in all of Rune-Midgarts. What are you looking for?"
         },
         {
           "speaker": "Weaponsmith",
-          "text": "Unfortunately, I don't have much stock right now. Check back later when I've had time to work the forge.",
+          "text": "Take a look at my wares — I've got weapons, shields, and armor for adventurers of all levels.",
           "responses": [
-            { "text": "I'll come back later", "action": "close" }
+            { "text": "Browse Equipment", "action": "shop" },
+            { "text": "Not right now", "action": "close" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "prontera_itemmerchant",
+      "npcName": "Item Merchant",
+      "lines": [
+        {
+          "speaker": "Item Merchant",
+          "text": "Welcome! I carry potions and supplies for your journey. Stock up before heading out!"
+        },
+        {
+          "speaker": "Item Merchant",
+          "text": "What can I get for you? I've got healing potions and mana recovery in stock.",
+          "responses": [
+            { "text": "Browse Items", "action": "shop" },
+            { "text": "Maybe later", "action": "close" }
           ]
         }
       ]

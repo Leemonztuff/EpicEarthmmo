@@ -2,7 +2,15 @@ import express from 'express';
 import { createServer } from 'http';
 import { Server as SocketIOServer } from 'socket.io';
 import { loadGameData } from '../shared/loader/serverLoader';
-import { calculateDamage, calculateExpReward, getSkillSpCost, getSkillMultiplier } from '../shared/loader/formulaEngine';
+import {
+  calculateDamage, calculateDamageWithDefense, calculateExpReward,
+  getSkillSpCost, getSkillMultiplier,
+  calculateAttackCooldownMs, calculateHitChance,
+  calculateHit, calculateFlee,
+  calculateCritChance, calculateCritMultiplier,
+  calculateAtk, calculateMatk, calculateDef, calculateMDef,
+  calculateDeathExpLoss,
+} from '../shared/loader/formulaEngine';
 import { MapManager, type RuntimeEnemy } from './MapManager';
 import type { ServerPlayer } from './types';
 import type { PlayerInput, WorldSnapshot, SnapshotPlayer, MapChangeData, SkillCastRequest } from '../shared/types/network';
@@ -77,134 +85,50 @@ const safetyWallGe: GroundEffectDefinition = {
 };
 skillEngine.registerGroundEffect(safetyWallGe);
 
-const buffTaunt: BuffDefinition = {
-  id: 'taunt',
-  name: 'Taunt',
-  isDebuff: true,
-  durationMs: 5000,
-  stackLimit: 1,
-  stackRule: 'refresh',
-  diminishingReturns: false,
-  drReductionPerStack: 0,
-  behaviorModifiers: [{ type: 'taunt', durationMs: 5000 }],
-  color: '#ff8800',
-};
-skillEngine.registerBuff(buffTaunt);
+// ── STATUS EFFECTS REGISTRY (MVP: 4 core effects) ──
+function registerStatusEffects(engine: SkillEngine): void {
+  // 1. Stun — CC, fixed 2s duration (no diminishing returns for MVP)
+  engine.registerBuff({
+    id: 'stun', name: 'Stun', isDebuff: true, durationMs: 2000,
+    stackLimit: 1, stackRule: 'replace', color: '#ffff00',
+    diminishingReturns: false, drReductionPerStack: 0,
+    behaviorModifiers: [{ type: 'stun', durationMs: 2000 }],
+  });
 
-const buffStun: BuffDefinition = {
-  id: 'stun',
-  name: 'Stun',
-  isDebuff: true,
-  durationMs: 2000,
-  stackLimit: 1,
-  stackRule: 'refresh',
-  diminishingReturns: false,
-  drReductionPerStack: 0,
-  behaviorModifiers: [{ type: 'stun', durationMs: 2000 }],
-  color: '#ffff00',
-};
-skillEngine.registerBuff(buffStun);
+  // 2. Silence — prevents skill casting, fixed 5s
+  engine.registerBuff({
+    id: 'silence', name: 'Silence', isDebuff: true, durationMs: 5000,
+    stackLimit: 1, stackRule: 'replace', color: '#aa44ff',
+    diminishingReturns: false, drReductionPerStack: 0,
+    behaviorModifiers: [{ type: 'silence', durationMs: 5000 }],
+  });
 
-const buffFreeze: BuffDefinition = {
-  id: 'freeze',
-  name: 'Freeze',
-  isDebuff: true,
-  durationMs: 3000,
-  stackLimit: 1,
-  stackRule: 'refresh',
-  diminishingReturns: false,
-  drReductionPerStack: 0,
-  behaviorModifiers: [{ type: 'freeze', durationMs: 3000 }],
-  color: '#88ccff',
-};
-skillEngine.registerBuff(buffFreeze);
+  // 3. Poison — DoT, stacks up to 3
+  engine.registerBuff({
+    id: 'poison', name: 'Poison', isDebuff: true, durationMs: 10000,
+    stackLimit: 3, stackRule: 'stack', color: '#44aa44',
+    diminishingReturns: false, drReductionPerStack: 0,
+    onTick: [{
+      type: 'damage',
+      formula: { type: 'flat', baseValue: 8, multiplier: 1.0, variance: 3, critChance: 0, critMultiplier: 1.5 },
+      applyToSelf: false,
+    }],
+  });
 
-const buffSilence: BuffDefinition = {
-  id: 'silence',
-  name: 'Silence',
-  isDebuff: true,
-  durationMs: 4000,
-  stackLimit: 1,
-  stackRule: 'refresh',
-  diminishingReturns: false,
-  drReductionPerStack: 0,
-  behaviorModifiers: [{ type: 'silence', durationMs: 4000 }],
-  color: '#aa44ff',
-};
-skillEngine.registerBuff(buffSilence);
+  // 4. Blessing — +5% STR/DEX/INT for 120s (Acolyte skill buff)
+  engine.registerBuff({
+    id: 'skill_blessing', name: 'Blessing', isDebuff: false,
+    durationMs: 120000, stackLimit: 1, stackRule: 'refresh', color: '#ffdd44',
+    diminishingReturns: false, drReductionPerStack: 0,
+    statModifiers: [
+      { stat: 'str', flat: 0, percent: 5 },
+      { stat: 'dex', flat: 0, percent: 5 },
+      { stat: 'int', flat: 0, percent: 5 },
+    ],
+  });
+}
 
-const buffRoot: BuffDefinition = {
-  id: 'root',
-  name: 'Root',
-  isDebuff: true,
-  durationMs: 3000,
-  stackLimit: 1,
-  stackRule: 'refresh',
-  diminishingReturns: false,
-  drReductionPerStack: 0,
-  behaviorModifiers: [{ type: 'root', durationMs: 3000 }],
-  color: '#884400',
-};
-skillEngine.registerBuff(buffRoot);
-
-const buffDotBasic: BuffDefinition = {
-  id: 'dot_basic',
-  name: 'Poison',
-  isDebuff: true,
-  durationMs: 10000,
-  stackLimit: 3,
-  stackRule: 'stack',
-  diminishingReturns: false,
-  drReductionPerStack: 0,
-  onTick: [{
-    type: 'damage',
-    formula: { type: 'flat', baseValue: 10, multiplier: 1.0, variance: 3, critChance: 0, critMultiplier: 1.5 },
-    applyToSelf: false,
-  }],
-  color: '#44aa44',
-};
-skillEngine.registerBuff(buffDotBasic);
-
-const buffStr: BuffDefinition = {
-  id: 'buff_str',
-  name: 'Strength Buff',
-  isDebuff: false,
-  durationMs: 60000,
-  stackLimit: 1,
-  stackRule: 'refresh',
-  diminishingReturns: false,
-  drReductionPerStack: 0,
-  statModifiers: [{ stat: 'str', flat: 0, percent: 20 }],
-  color: '#ff4444',
-};
-skillEngine.registerBuff(buffStr);
-
-const buffAgi: BuffDefinition = {
-  id: 'buff_agi',
-  name: 'Agility Buff',
-  isDebuff: false,
-  durationMs: 60000,
-  stackLimit: 1,
-  stackRule: 'refresh',
-  diminishingReturns: false,
-  drReductionPerStack: 0,
-  statModifiers: [{ stat: 'agi', flat: 0, percent: 20 }, { stat: 'moveSpeed', flat: 0, percent: 15 }],
-  color: '#44ff44',
-};
-skillEngine.registerBuff(buffAgi);
-
-const buffShield: BuffDefinition = {
-  id: 'shield',
-  name: 'Shield',
-  isDebuff: false,
-  durationMs: 10000,
-  stackLimit: 1,
-  stackRule: 'replace',
-  diminishingReturns: false,
-  drReductionPerStack: 0,
-  color: '#8888ff',
-};
-skillEngine.registerBuff(buffShield);
+registerStatusEffects(skillEngine);
 
 // Build lookup maps
 const jobMap = new Map(jobs.map(j => [j.id, j]));
@@ -240,10 +164,13 @@ function createDefaultPlayer(id: string, name: string): ServerPlayer {
     lastAttackTime: 0,
     inputQueue: [],
     lastProcessedSeq: 0,
+    baseExp: 0,
     lastSentSnapshot: null,
     currentMapId: 'prontera',
     warpCooldownUntil: 0,
     equippedItems: {},
+    inventory: [{ itemId: 'red_potion', amount: 10 }],
+    zeny: 100,
   };
 }
 
@@ -260,6 +187,17 @@ function distSq(a: { x: number; z: number }, b: { x: number; z: number }): numbe
 
 function snapshotPlayerChanged(a: SnapshotPlayer, b: SnapshotPlayer): boolean {
   return a.x !== b.x || a.z !== b.z || a.hp !== b.hp || a.sp !== b.sp;
+}
+
+function addItemsToInventory(player: ServerPlayer, lootArray: { id: string; amount: number }[]) {
+  for (const item of lootArray) {
+    const existing = player.inventory.find(s => s.itemId === item.id);
+    if (existing) {
+      existing.amount += item.amount;
+    } else {
+      player.inventory.push({ itemId: item.id, amount: item.amount });
+    }
+  }
 }
 
 // ── Express & Socket.io setup ──
@@ -279,6 +217,7 @@ app.get('/health', (_req, res) => {
 // ── Game state ──
 const savedData = new Map<string, any>();
 let tickNum = 0;
+const consecutiveMisses = new Map<string, number>();
 
 // ── Socket.io handlers ──
 io.on('connection', (socket) => {
@@ -348,45 +287,78 @@ io.on('connection', (socket) => {
 
     const now = Date.now();
     mapManager.provokeEnemy(enemy, socket.id, now);
-    if (now - player.lastAttackTime < balance.combat.attackCooldownMs) return;
+
+    // ── AGI-based attack cooldown ──
+    const cooldownMs = calculateAttackCooldownMs(player.stats.agi ?? 0, balance);
+    if (now - player.lastAttackTime < cooldownMs) return;
     player.lastAttackTime = now;
 
+    // ── Range check ──
     const dist = Math.sqrt(distSq(player, enemy.position));
     if (distSq(player, enemy.position) > balance.combat.attackRange * balance.combat.attackRange) {
-      console.log(`[Attack] Out of range: dist=${dist.toFixed(1)}, range=${balance.combat.attackRange}, player=(${player.x.toFixed(1)},${player.z.toFixed(1)}), enemy=(${enemy.position.x.toFixed(1)},${enemy.position.z.toFixed(1)})`);
       return;
     }
 
+    // ── Skill SP cost ──
     let usedSkill = false;
     let skillSpCost = 0;
     if (data.skillId) {
       if (!isSkillUnlocked(player, data.skillId)) {
-        console.log(`[Attack] Skill not unlocked: ${data.skillId}`);
         return;
       }
       skillSpCost = getSkillSpCost(skills, data.skillId);
     }
-    if (player.sp < skillSpCost) {
-      console.log(`[Attack] Not enough SP: ${player.sp} < ${skillSpCost}`);
-      return;
-    }
+    if (player.sp < skillSpCost) return;
     player.sp -= skillSpCost;
     if (skillSpCost > 0) usedSkill = true;
 
-    const skillMultiplier = getSkillMultiplier(skills, data.skillId || 'basic_attack');
-    let statValue = player.stats.str ?? balance.defaultPlayer.baseStats.str;
-
+    // ── Compute ATK from STR + weapon ──
+    let weaponAtk = balance.defaultPlayer.baseAtkBareHands ?? 5;
     if (player.equippedItems) {
       for (const itemId of Object.values(player.equippedItems)) {
         const itemDef = items.find(i => i.id === itemId);
-        if (itemDef?.equipStats?.str) {
-          statValue += itemDef.equipStats.str;
-        }
+        if (itemDef?.atk) weaponAtk = Math.max(weaponAtk, itemDef.atk);
       }
     }
+    const atk = calculateAtk(player.stats.str ?? 0, player.baseLevel || 1, weaponAtk);
 
-    const damage = calculateDamage(statValue, skillMultiplier, balance);
-    console.log(`[Attack] Hit ${enemy.name} for ${damage} damage (str=${statValue}, mult=${skillMultiplier}, skill=${data.skillId || 'basic'})`);
+    // ── Hit / Flee check, with consecutive miss pity ──
+    const hit = calculateHit(player.stats.dex ?? 0, player.baseLevel || 1, balance);
+    const flee = calculateFlee(player.stats.agi ?? 0, player.baseLevel || 1, balance);
+    let hitChance = calculateHitChance(enemy.level * 3, flee, balance); // enemy has basic dodge
+
+    const missKey = `${socket.id}_${data.targetId}`;
+    const misses = consecutiveMisses.get(missKey) ?? 0;
+    const pityThreshold = balance.combat.consecutiveMissPity ?? 3;
+    if (misses >= pityThreshold) {
+      hitChance = 1;
+      consecutiveMisses.delete(missKey);
+    }
+
+    const didMiss = Math.random() > hitChance;
+    if (didMiss) {
+      consecutiveMisses.set(missKey, misses + 1);
+      socket.emit('attackResult', {
+        targetId: data.targetId, damage: 0, usedSkill, missed: true,
+        newSp: player.sp, hp: enemy.hp, isDead: false,
+      });
+      return;
+    }
+    consecutiveMisses.delete(missKey);
+
+    // ── Crit check ──
+    const skillMult = getSkillMultiplier(skills, data.skillId || 'basic_attack');
+    const critChance = calculateCritChance(player.stats.luk ?? 0, player.baseLevel || 1, 0.05, balance);
+    const isCrit = Math.random() < critChance;
+    const critMult = calculateCritMultiplier(player.stats.luk ?? 0, balance);
+
+    // ── Final damage with DEF ──
+    const targetDef = calculateDef(0, 0); // enemies don't have VIT-based DEF yet
+    const dmgInput = { atk, targetDef, skillMultiplier: skillMult, variance: 5 };
+    const critInfo = isCrit ? { isCritical: true, critChance, critMultiplier: critMult } : undefined;
+    const damage = calculateDamageWithDefense('physical', atk, dmgInput, balance, critInfo);
+
+    console.log(`[Attack] ${isCrit ? 'CRIT ' : ''}Hit ${enemy.name} for ${damage} (atk=${atk.toFixed(0)}, hit=${hitChance.toFixed(2)})`);
 
     enemy.hp = Math.max(0, enemy.hp - damage);
 
@@ -412,20 +384,22 @@ io.on('connection', (socket) => {
         }
       }
 
+      addItemsToInventory(player, loot.map(l => ({ id: l.id, amount: l.amount })));
+
       socket.emit('enemyKilled', {
         targetId: data.targetId, expBase, expJob, loot,
         newSp: player.sp, damage, usedSkill,
-        hp: 0, isDead: true,
+        hp: 0, isDead: true, isCritical: isCrit,
       });
     } else {
       socket.emit('attackResult', {
-        targetId: data.targetId, damage, usedSkill,
+        targetId: data.targetId, damage, usedSkill, missed: false, isCritical: isCrit,
         newSp: player.sp, hp: enemy.hp, isDead: false,
       });
     }
 
     io.to(player.currentMapId).emit('enemyDamaged', {
-      targetId: data.targetId, damage, usedSkill,
+      targetId: data.targetId, damage, usedSkill, isCritical: isCrit,
       attackerId: socket.id, hp: enemy.hp, isDead: enemy.isDead,
     });
   });
@@ -489,10 +463,29 @@ io.on('connection', (socket) => {
     player.hp = result.newHp ?? player.hp;
 
     if (result.damage) {
+      const skillDef = skills.find(s => s.id === data.skillId);
+      const dmgEffect = skillDef?.effects.find(e => e.type === 'damage' || e.type === 'aoe_damage');
+      const formulaStat = dmgEffect?.formula?.stat;
+      const isPhysical = formulaStat === 'str';
+      const isMagical = formulaStat === 'int';
+      const defCfg = balance.combat.damageReduction;
+
       for (const targetId of result.targetsHit ?? []) {
         const enemy = mapManager.getEnemy(player.currentMapId, targetId);
-        const perTargetDamage = result.targetDamages?.[targetId] ?? result.damage;
+        let perTargetDamage = result.targetDamages?.[targetId] ?? result.damage;
+
         if (enemy && !enemy.isDead) {
+          // Apply DEF/MDEF reduction to skill damage
+          if (isPhysical) {
+            const reduction = (enemy.level * 2) * (defCfg?.defMultiplier ?? 0.6);
+            const minDmg = perTargetDamage * (defCfg?.minDamagePct ?? 0.3);
+            perTargetDamage = Math.max(1, Math.floor(Math.max(minDmg, perTargetDamage - reduction)));
+          } else if (isMagical) {
+            const reduction = Math.floor(enemy.level * 0.5) * (defCfg?.mdefMultiplier ?? 0.5);
+            const minDmg = perTargetDamage * (defCfg?.minDamagePct ?? 0.3);
+            perTargetDamage = Math.max(1, Math.floor(Math.max(minDmg, perTargetDamage - reduction)));
+          }
+
           enemy.hp = Math.max(0, enemy.hp - perTargetDamage);
           if (enemy.hp === 0) {
             enemy.isDead = true;
@@ -507,6 +500,8 @@ io.on('connection', (socket) => {
                 loot.push({ id: drop.itemId, name: itemDef?.name ?? drop.itemId, type: itemDef?.type ?? 'misc', amount, description: itemDef?.description ?? '' });
               }
             }
+            addItemsToInventory(player, loot.map(l => ({ id: l.id, amount: l.amount })));
+
             socket.emit('enemyKilled', { targetId, expBase, expJob, loot, newSp: player.sp, damage: perTargetDamage, usedSkill: true, hp: 0, isDead: true });
           }
         }
@@ -895,6 +890,14 @@ io.on('connection', (socket) => {
       callback?.({ success: false, error: 'Item not usable' });
       return;
     }
+
+    // Check inventory
+    const slot = player.inventory.find(s => s.itemId === data.itemId);
+    if (!slot || slot.amount < 1) {
+      callback?.({ success: false, error: 'Item not in inventory' });
+      return;
+    }
+
     const effect = itemDef.effect;
     if (effect) {
       switch (effect.type) {
@@ -912,7 +915,60 @@ io.on('connection', (socket) => {
           break;
       }
     }
+
+    // Decrement inventory
+    slot.amount -= 1;
+    if (slot.amount <= 0) {
+      player.inventory = player.inventory.filter(s => s.itemId !== data.itemId);
+    }
+
     callback?.({ success: true });
+  });
+
+  socket.on('npcBuy', (data: { itemId: string }, callback?: (res: { success: boolean; error?: string; newZeny?: number; itemName?: string; itemType?: string; itemDesc?: string }) => void) => {
+    const p = player;
+    if (!p) return;
+    const itemDef = items.find(i => i.id === data.itemId);
+    if (!itemDef) { callback?.({ success: false, error: 'Item not found' }); return; }
+
+    const mapCfg = mapConfigs.find((m: any) => m.id === p.currentMapId);
+    const npcs: any[] = (mapCfg as any)?.npcs || [];
+    const sellsItem = npcs.some((n: any) => n.shopItems?.includes(data.itemId));
+    if (!sellsItem) { callback?.({ success: false, error: 'NPC does not sell this item' }); return; }
+
+    const price = itemDef.buyPrice ?? 99999;
+    if (p.zeny < price) { callback?.({ success: false, error: 'Not enough zeny' }); return; }
+
+    const slot = p.inventory.find(s => s.itemId === data.itemId);
+    if (slot) {
+      slot.amount += 1;
+    } else {
+      p.inventory.push({ itemId: data.itemId, amount: 1 });
+    }
+    p.zeny -= price;
+
+    callback?.({ success: true, newZeny: p.zeny, itemName: itemDef.name, itemType: itemDef.type, itemDesc: itemDef.description });
+  });
+
+  socket.on('npcSell', (data: { itemId: string }, callback?: (res: { success: boolean; error?: string; newZeny?: number }) => void) => {
+    const p = player;
+    if (!p) return;
+    const itemDef = items.find(i => i.id === data.itemId);
+    if (!itemDef) { callback?.({ success: false, error: 'Item not found' }); return; }
+
+    const slot = p.inventory.find(s => s.itemId === data.itemId);
+    if (!slot || slot.amount < 1) { callback?.({ success: false, error: 'Item not in inventory' }); return; }
+
+    const price = itemDef.sellPrice ?? 0;
+    if (price <= 0) { callback?.({ success: false, error: 'Item has no value' }); return; }
+
+    slot.amount -= 1;
+    if (slot.amount <= 0) {
+      p.inventory = p.inventory.filter(s => s.itemId !== data.itemId);
+    }
+    p.zeny += price;
+
+    callback?.({ success: true, newZeny: p.zeny });
   });
 
   socket.on('chat', (msg: string) => {
@@ -1176,8 +1232,13 @@ function tick() {
       const targetPlayer = instance.players.get(playerSocketId);
       if (!targetPlayer) return;
 
-      const vitReduction = Math.floor((targetPlayer.stats.vit ?? 5) * 0.3);
-      const damage = Math.max(1, enemy.attackDamage - vitReduction + Math.floor(Math.random() * 3) - 1);
+      // Enemy damage formula: enemy.attackDamage - player DEF (capped at 30% min)
+      const defReduction = balance.combat.damageReduction;
+      const playerDef = calculateDef(targetPlayer.stats.vit ?? 0);
+      const reduction = playerDef * (defReduction?.defMultiplier ?? 0.6);
+      const minDmg = enemy.attackDamage * (defReduction?.minDamagePct ?? 0.3);
+      const variance = Math.floor(Math.random() * 3) - 1;
+      const damage = Math.max(1, Math.floor(Math.max(minDmg, enemy.attackDamage - reduction) + variance));
 
       targetPlayer.hp = Math.max(0, targetPlayer.hp - damage);
 
@@ -1191,6 +1252,12 @@ function tick() {
       });
 
       if (targetPlayer.hp === 0) {
+        // ── Death penalty: EXP loss ──
+        const expLoss = calculateDeathExpLoss(targetPlayer.baseLevel, targetPlayer.baseExp, balance);
+        if (expLoss > 0) {
+          targetPlayer.baseExp = Math.max(0, targetPlayer.baseExp - expLoss);
+        }
+
         const halfW = instance.config.dimensions.width / 4;
         const halfH = instance.config.dimensions.height / 4;
         const spawnPoint = instance.config.spawnPoints[0];
@@ -1207,6 +1274,7 @@ function tick() {
 
         io.to(playerSocketId).emit('playerDied', {
           respawnPosition: { x: targetPlayer.x, y: targetPlayer.y, z: targetPlayer.z },
+          expLost: expLoss,
         });
 
         enemy.aiState = 'return';
