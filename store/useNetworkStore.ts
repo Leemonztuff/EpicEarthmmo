@@ -24,6 +24,8 @@ interface NetworkStore {
     myOffer: TradeOffer;
     theirOffer: TradeOffer;
   } | null;
+  lastSnapshotPos: { x: number; y: number; z: number };
+  lastSnapshotSeq: number;
 
   initSocket: (playerName: string) => void;
   sendInput: (input: PlayerInput) => void;
@@ -44,9 +46,10 @@ interface NetworkStore {
   cancelTrade: () => void;
 }
 
-const RECONCILIATION_WINDOW = 20;
+const RECONCILIATION_WINDOW = 50;
 const predictedStates: any[] = [];
 let lastReconciledPos = { x: 0, y: 0.5, z: 0 };
+let lastReconciledSeq = 0;
 
 export const useNetworkStore = create<NetworkStore>((set, get) => ({
   socket: null,
@@ -57,6 +60,8 @@ export const useNetworkStore = create<NetworkStore>((set, get) => ({
   activeBuffs: [],
   tradeRequest: null,
   activeTrade: null,
+  lastSnapshotPos: { x: 0, y: 0.5, z: 0 },
+  lastSnapshotSeq: 0,
 
   initSocket: async (playerName: string) => {
     if (get().socket?.connected) return;
@@ -83,7 +88,15 @@ export const useNetworkStore = create<NetworkStore>((set, get) => ({
     newSocket.on('init', (data) => {
       if (!data) return;
       set({ currentMapData: data.initData });
-      useGameStore.getState().setMap(data.mapId, data.mapName, data.mapType);
+      const gs = useGameStore.getState();
+      gs.setMap(data.mapId, data.mapName, data.mapType);
+      if (data.players) {
+        const me = data.players[newSocket.id];
+        if (me) {
+          gs.setPosition({ x: me.x, y: me.y, z: me.z });
+          set({ lastSnapshotPos: { x: me.x, y: me.y, z: me.z } });
+        }
+      }
     });
 
     newSocket.on('mapData', (data) => {
@@ -104,7 +117,30 @@ export const useNetworkStore = create<NetworkStore>((set, get) => ({
         if (id === myId) {
           const serverSeq = sp.lastProcessedSeq || sp.lastSeq;
           let reconciled = { x: sp.x, y: sp.y, z: sp.z };
+
+          // Reconcile: find matching predicted state by seq
+          const matchIdx = predictedStates.findIndex(ps => ps.seq === serverSeq);
+          if (matchIdx !== -1 && matchIdx < predictedStates.length - 1) {
+            const matched = predictedStates[matchIdx];
+            const predictionError = {
+              x: reconciled.x - matched.pos.x,
+              z: reconciled.z - matched.pos.z,
+            };
+            const latest = predictedStates[predictedStates.length - 1];
+            reconciled = {
+              x: latest.pos.x + predictionError.x,
+              y: reconciled.y,
+              z: latest.pos.z + predictionError.z,
+            };
+            predictedStates.splice(0, matchIdx + 1);
+          } else if (matchIdx === -1 && predictedStates.length > 0) {
+            // No match found — stale seq or missed; hard snap
+            predictedStates.length = 0;
+          }
+
+          set({ lastSnapshotPos: reconciled, lastSnapshotSeq: serverSeq });
           lastReconciledPos = reconciled;
+          lastReconciledSeq = serverSeq;
           gs.setPosition(reconciled);
         } else {
           const existing = get().remotePlayers[id];

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef, useState } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Vector3, Group as TGroup } from 'three';
 import { useGameStore } from '@/store/useGameStore';
@@ -46,23 +46,10 @@ export function Player() {
   const smRef = useRef(createPlayerStateMachine());
   const animStateRef = useRef<AnimState>('idle');
   const directionRef = useRef<Direction>('S');
-  const reconciledRef = useRef(false);
   const velocityRef = useRef({ x: 0, z: 0 });
 
   const jobClass = useGameStore(s => s.player.jobClass);
   const entityId = JOB_TO_ENTITY[jobClass] || 'novice_m';
-
-  useEffect(() => {
-    const unsub = useGameStore.subscribe((state, prev) => {
-      if (state.position !== prev.position && rigidBodyRef.current) {
-        rigidBodyRef.current.setTranslation(state.position, true);
-        playerPosition.x = state.position.x;
-        playerPosition.y = state.position.y;
-        playerPosition.z = state.position.z;
-      }
-    });
-    return unsub;
-  }, []);
 
   useFrame((state, delta) => {
     if (!rigidBodyRef.current) return;
@@ -76,7 +63,7 @@ export function Player() {
     const gameStore = useGameStore.getState();
     const networkStore = useNetworkStore.getState();
     const {
-      targetPosition, setTargetPosition, setInputDirection, position: storePos,
+      targetPosition, setTargetPosition, setInputDirection,
       selectedTargetId, enemies, player,
     } = gameStore;
 
@@ -188,23 +175,30 @@ export function Player() {
     playerPosition.y = pos.y;
     playerPosition.z = pos.z;
 
-    // ── Server reconciliation (only when connected + not moving) ──
+    // ── Server reconciliation (always-on, smooth) ──
     const socketConnected = networkStore.socket?.connected;
-    if (!isMoving && !reconciledRef.current && socketConnected) {
-      const corrDx = storePos.x - pos.x;
-      const corrDz = storePos.z - pos.z;
+    if (socketConnected) {
+      const snapPos = networkStore.lastSnapshotPos;
+      const corrDx = snapPos.x - pos.x;
+      const corrDz = snapPos.z - pos.z;
       const corrDistSq = corrDx * corrDx + corrDz * corrDz;
-      if (corrDistSq > 0.5) {
+
+      if (corrDistSq > 9.0) {
+        pos = { x: snapPos.x, y: snapPos.y, z: snapPos.z };
+        rigidBodyRef.current.setTranslation(pos, true);
+        playerPosition.x = pos.x;
+        playerPosition.y = pos.y;
+        playerPosition.z = pos.z;
+      } else if (corrDistSq > 0.01) {
+        const blend = isMoving ? 0.15 : 0.4;
         pos = {
-          x: pos.x + corrDx * 0.5,
+          x: pos.x + corrDx * blend,
           y: pos.y,
-          z: pos.z + corrDz * 0.5,
+          z: pos.z + corrDz * blend,
         };
         rigidBodyRef.current.setTranslation(pos, true);
         playerPosition.x = pos.x;
         playerPosition.z = pos.z;
-      } else if (corrDistSq < 0.1) {
-        reconciledRef.current = true;
       }
     }
 

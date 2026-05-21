@@ -1157,9 +1157,24 @@ function tick() {
       }
     });
 
-    // ── Process input queues ──
+    // ── Process input queues (server-authoritative) ──
     for (const p of instance.players.values()) {
       let dx = 0, dz = 0;
+
+      // Security: dead players cannot move
+      if (p.hp <= 0) {
+        p.inputQueue = [];
+        continue;
+      }
+
+      // Security: CC-locked (stun/root) players cannot move
+      const pBuffs = skillEngine.getBuffManager().getBuffsByTarget(p.id);
+      const ccLocked = pBuffs.some(b => (b.buffId === 'stun' || b.buffId === 'root') && b.stacks > 0);
+      if (ccLocked) {
+        p.inputQueue = [];
+        continue;
+      }
+
       while (p.inputQueue.length > 0) {
         const input = p.inputQueue.shift()!;
         p.lastProcessedSeq = input.seq;
@@ -1168,12 +1183,24 @@ function tick() {
           dz = input.dirZ;
         }
       }
+
+      // Security: rate-limit — max 1 input per tick, drain extras silently
+      if (p.inputQueue.length > 1) {
+        p.inputQueue = p.inputQueue.slice(-1);
+      }
+
       if (dx !== 0 || dz !== 0) {
         const len = Math.sqrt(dx * dx + dz * dz);
         if (len > 1.0) { dx /= len; dz /= len; }
 
-        const newX = p.x + dx * balance.movement.playerSpeed * tickTimeSec;
-        const newZ = p.z + dz * balance.movement.playerSpeed * tickTimeSec;
+        const speed = balance.movement.playerSpeed;
+        const maxDelta = speed * tickTimeSec;
+        const newX = p.x + dx * maxDelta;
+        const newZ = p.z + dz * maxDelta;
+
+        // Security: validate delta doesn't exceed max possible
+        const actualDelta = Math.sqrt((newX - p.x) ** 2 + (newZ - p.z) ** 2);
+        if (actualDelta > maxDelta + 0.001) continue;
 
         if (instance.navGrid) {
           const cell = instance.navGrid.cells;

@@ -1,0 +1,41 @@
+# TODOS — EpicEarthMMO
+
+## Network Engineer
+- [ ] **RTT measurement**: ping/pong socket events para calcular latencia del cliente y usarla en lag compensation
+- [ ] **saveProgress Zod validation**: server acepta `any` JSON sin schema — vulnerabilidad crítica
+- [ ] **Trade fix**: `acceptTrade` solo emite `success`, no transfiere items/zeny realmente
+- [ ] **Hit/Flee feedback**: MISS flotante + texto de daño para habilitar hit/flee evasion
+- [ ] **Warp validation**: server valida cooldown pero no chequea que el warp exista en el mapa
+- [ ] **Map transitions**: validate target map exists before warping
+- [ ] **Player respawn animation**: current respawn is instant teleport, should have fade/cooldown
+
+## Combat / Classes
+- [ ] **Auto-attack range check on server**: current attack handler doesn't validate distance
+- [ ] **Skill cooldown server enforcement**: cooldowns should be validated server-side per skill
+- [ ] **Class-specific passives**: Novice, Swordsman, Mage, Archer, Thief, Acolyte passives not implemented
+- [ ] **Level-up bonuses per class**: each class should grant different stat gains on level up
+
+## Content
+- [ ] **Savage, Drainliar, Elder Wolf, Mummy sprites**: enemies defined but no visual assets
+- [ ] **More Prontera NPCs**: tool dealer, armorer, kafra
+- [ ] **Monster loot tables**: each enemy should drop specific items with drop rates
+- [ ] **More maps**: Morocc, geffen, payon field maps
+
+## UI / UX
+- [ ] **Buff/debuff tooltips**: show remaining time and description on hover
+- [ ] **Inventory sorting/filtering**: sort by type, name, rarity
+- [ ] **Equipment slots**: head, body, weapon, shield, garment, shoes, accessory
+- [ ] **Mini-map**: show player position, NPCs, warps on a corner minimap
+- [ ] **Settings menu**: volume, keybinds, graphics options
+
+## Polish
+- [ ] **Fade transitions**: between maps, on death/respawn
+- [ ] **Footstep SFX**: per terrain type
+- [ ] **Ambient sounds**: per region/map
+- [ ] **Screen shake on hit**: currently only triggers on enemy damage, not player receiving damage
+
+## Tech Debt
+- [ ] **Extract hardcoded strings**: all client toast/log messages should be in a locale file
+- [ ] **Unify types**: `ServerPlayer` in game-server/types.ts vs client types — confirm alignment
+- [ ] **Error boundaries**: add React error boundaries around game canvas and HUD components
+- [ ] **Performance**: profile draw calls, texture memory usage on Prontera
