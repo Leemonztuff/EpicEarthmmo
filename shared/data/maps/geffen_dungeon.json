@@ -28,44 +28,82 @@
       "name": "Dungeon Entrance"
     }
   ],
+  "chests": [
+    {
+      "id": "dungeon_chest_1",
+      "position": { "x": 8, "y": 0, "z": -15 },
+      "lootTable": [
+        { "itemId": "iron_sword", "chance": 0.18, "minAmount": 1, "maxAmount": 1 },
+        { "itemId": "mystic_ore", "chance": 0.08, "minAmount": 1, "maxAmount": 1 }
+      ],
+      "respawnSeconds": 180
+    },
+    {
+      "id": "dungeon_chest_2",
+      "position": { "x": -8, "y": 0, "z": 15 },
+      "lootTable": [
+        { "itemId": "cotton_shirt", "chance": 0.16, "minAmount": 1, "maxAmount": 1 },
+        { "itemId": "cursed_bandage", "chance": 0.1, "minAmount": 1, "maxAmount": 1 }
+      ],
+      "respawnSeconds": 180
+    },
+    {
+      "id": "dungeon_chest_3",
+      "position": { "x": -18, "y": 0, "z": -5 },
+      "lootTable": [
+        { "itemId": "wooden_shield", "chance": 0.14, "minAmount": 1, "maxAmount": 1 },
+        { "itemId": "mystic_ore", "chance": 0.06, "minAmount": 1, "maxAmount": 1 }
+      ],
+      "respawnSeconds": 180
+    },
+    {
+      "id": "dungeon_chest_4",
+      "position": { "x": 0, "y": 0, "z": 10 },
+      "lootTable": [
+        { "itemId": "iron_sword", "chance": 0.12, "minAmount": 1, "maxAmount": 1 },
+        { "itemId": "cursed_bandage", "chance": 0.08, "minAmount": 1, "maxAmount": 1 }
+      ],
+      "respawnSeconds": 180
+    }
+  ],
   "enemyAreas": [
     {
-      "enemyId": "pupa",
+      "enemyId": "spore",
       "center": { "x": 10, "z": -10 },
       "radius": 8,
       "count": 5,
       "respawnSeconds": 25
     },
     {
-      "enemyId": "fabre",
+      "enemyId": "wolf",
       "center": { "x": -10, "z": 10 },
       "radius": 7,
       "count": 4,
       "respawnSeconds": 30
     },
     {
-      "enemyId": "poring",
+      "enemyId": "savage",
       "center": { "x": 0, "z": 15 },
       "radius": 6,
       "count": 4,
       "respawnSeconds": 20
     },
     {
-      "enemyId": "pupa",
+      "enemyId": "drainliar",
       "center": { "x": -15, "z": -15 },
       "radius": 7,
       "count": 4,
       "respawnSeconds": 28
     },
     {
-      "enemyId": "spore",
+      "enemyId": "elder_wolf",
       "center": { "x": 15, "z": 5 },
       "radius": 6,
-      "count": 4,
+      "count": 3,
       "respawnSeconds": 22
     },
     {
-      "enemyId": "wolf",
+      "enemyId": "mummy",
       "center": { "x": -5, "z": -20 },
       "radius": 8,
       "count": 2,
@@ -117,10 +155,6 @@
     {"position": [-12, 0, 3], "type": "crack", "scale": 0.9},
     {"position": [0, 0, 10], "type": "crack", "scale": 1.1},
     {"position": [0, 0, -10], "type": "crack", "scale": 0.7},
-
-    {"position": [8, 0, -15], "type": "chest", "scale": 1.0},
-    {"position": [-8, 0, 15], "type": "chest", "scale": 0.9},
-    {"position": [-18, 0, -5], "type": "chest", "scale": 0.8},
 
     {"position": [-6, 0, -6], "type": "dungeon_floor_tile", "scale": 1.0},
     {"position": [6, 0, -6], "type": "dungeon_floor_tile", "scale": 1.0},
