@@ -3,7 +3,6 @@ import { gameData } from '@/shared/loader';
 import { PlayerState, PlayerStats, DamageText, EnemyState, GameUIState } from '@/types/game';
 import { InteractionTarget } from '@/lib/interactionManager';
 import { Dialog } from '@/shared/schemas';
-import { processLevelUp } from '@/shared/loader/formulaEngine';
 import { hotReloadData } from '@/shared/loader/clientLoader';
 import { showToast } from '@/components/ui';
 
@@ -103,7 +102,8 @@ interface GameStore {
   allocateStat: (stat: keyof PlayerStats) => void;
   unlockSkill: (skillId: string, cost: number) => void;
   addDamageText: (amount: number, pos: { x: number, y: number, z: number }, color?: string) => void;
-  gainExp: (base: number, job: number) => void;
+  gainExp: (base: number, job: number, currentBaseExp?: number, currentJobExp?: number, currentBaseLevel?: number, currentJobLevel?: number) => void;
+  handleLevelUp: (data: { baseLevel: number; jobLevel: number; hpGain: number; spGain: number; statPointsGain: number; skillPointsGain: number; baseExp: number; jobExp: number; newMaxHp: number; newMaxSp: number }) => void;
   gainLoot: (items: any[]) => void;
   saveProgress: () => Promise<void>;
   loadProgress: () => Promise<void>;
@@ -292,31 +292,36 @@ export const useGameStore = create<GameStore>((set, get) => ({
     return { damages: [...state.damages, newDamage].filter(d => Date.now() - d.timestamp < 2000) };
   }),
 
-  gainExp: (base, job) => set((state) => {
-    let { baseExp, jobExp, baseLevel, jobLevel, stats, hp, maxHp, sp, maxSp, skillPoints } = state.player;
-    baseExp += base;
-    jobExp += job;
-    const baseStats = { str: stats.str ?? 5, agi: stats.agi ?? 5, vit: stats.vit ?? 5, int: stats.int ?? 5, dex: stats.dex ?? 5, luk: stats.luk ?? 5 };
-    const result = processLevelUp(baseExp, jobExp, baseLevel, jobLevel, baseStats, balance);
-    if (result.leveledUp) {
-      maxHp += result.hpGain;
-      maxSp += result.spGain;
-      stats.statPoints += result.statPointsGain;
-      skillPoints += result.skillPointsGain;
-      hp = maxHp;
-      sp = maxSp;
-    }
+  gainExp: (base, job, currentBaseExp?, currentJobExp?, currentBaseLevel?, currentJobLevel?) => set((state) => {
     return {
       player: {
         ...state.player,
-        baseLevel: result.baseLevel,
-        jobLevel: result.jobLevel,
-        baseExp: result.baseExp,
-        jobExp: result.jobExp,
-        skillPoints,
-        hp, maxHp, sp, maxSp,
-        stats
-      }
+        baseExp: currentBaseExp ?? (state.player.baseExp + base),
+        jobExp: currentJobExp ?? (state.player.jobExp + job),
+        baseLevel: currentBaseLevel ?? state.player.baseLevel,
+        jobLevel: currentJobLevel ?? state.player.jobLevel,
+      },
+    };
+  }),
+
+  handleLevelUp: (data) => set((state) => {
+    return {
+      player: {
+        ...state.player,
+        baseLevel: data.baseLevel,
+        jobLevel: data.jobLevel,
+        maxHp: data.newMaxHp,
+        maxSp: data.newMaxSp,
+        hp: data.newMaxHp,
+        sp: data.newMaxSp,
+        baseExp: data.baseExp,
+        jobExp: data.jobExp,
+        skillPoints: (state.player.skillPoints ?? 0) + data.skillPointsGain,
+        stats: {
+          ...state.player.stats,
+          points: (state.player.stats?.points ?? 0) + data.statPointsGain,
+        },
+      },
     };
   }),
 

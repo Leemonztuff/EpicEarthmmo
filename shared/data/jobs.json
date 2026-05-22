@@ -7,7 +7,13 @@
       "str": 0, "agi": 0, "vit": 0, "int": 0, "dex": 0, "luk": 0
     },
     "bonusSkillPoints": 0,
-    "passiveDescription": "No passive bonuses. Learn the basics!"
+    "passiveEffects": [],
+    "passiveDescription": "No passive bonuses. Learn the basics!",
+    "levelUpBonuses": {
+      "hpPerLevel": 4,
+      "spPerLevel": 2,
+      "statPointsPerLevel": 3
+    }
   },
   {
     "id": "swordsman",
@@ -21,8 +27,15 @@
       "str": 3, "agi": 0, "vit": 2, "int": 0, "dex": 1, "luk": 0
     },
     "bonusSkillPoints": 1,
-    "passiveId": "sword_mastery",
-    "passiveDescription": "Sword Mastery: +10% auto-attack damage with swords.",
+    "passiveEffects": [
+      { "type": "damage_bonus_pct", "value": 10 }
+    ],
+    "passiveDescription": "Sword Mastery: +10% auto-attack damage.",
+    "levelUpBonuses": {
+      "hpPerLevel": 8,
+      "spPerLevel": 1,
+      "statPointsPerLevel": 4
+    },
     "autoLearnSkills": ["bash", "provoke"]
   },
   {
@@ -37,8 +50,15 @@
       "str": 0, "agi": 0, "vit": 1, "int": 4, "dex": 1, "luk": 0
     },
     "bonusSkillPoints": 1,
-    "passiveId": "mana_flow",
+    "passiveEffects": [
+      { "type": "sp_regen_pct", "value": 50 }
+    ],
     "passiveDescription": "Mana Flow: +50% SP regeneration rate.",
+    "levelUpBonuses": {
+      "hpPerLevel": 3,
+      "spPerLevel": 5,
+      "statPointsPerLevel": 4
+    },
     "autoLearnSkills": ["lightning_bolt", "frost_diver"]
   },
   {
@@ -53,8 +73,15 @@
       "str": 0, "agi": 2, "vit": 0, "int": 0, "dex": 3, "luk": 1
     },
     "bonusSkillPoints": 1,
-    "passiveId": "eagle_eye",
-    "passiveDescription": "Eagle Eye: +2 range on auto-attacks (total 5).",
+    "passiveEffects": [
+      { "type": "attack_range_bonus", "value": 2 }
+    ],
+    "passiveDescription": "Eagle Eye: +2 range on auto-attacks.",
+    "levelUpBonuses": {
+      "hpPerLevel": 4,
+      "spPerLevel": 2,
+      "statPointsPerLevel": 4
+    },
     "autoLearnSkills": ["arrow_shower"]
   },
   {
@@ -69,8 +96,15 @@
       "str": 1, "agi": 3, "vit": 0, "int": 0, "dex": 1, "luk": 1
     },
     "bonusSkillPoints": 1,
-    "passiveId": "double_attack",
+    "passiveEffects": [
+      { "type": "double_attack_chance", "value": 15 }
+    ],
     "passiveDescription": "Double Attack: 15% chance to strike twice on auto-attack (50% damage second hit).",
+    "levelUpBonuses": {
+      "hpPerLevel": 4,
+      "spPerLevel": 2,
+      "statPointsPerLevel": 4
+    },
     "autoLearnSkills": ["poison", "steal"]
   },
   {
@@ -85,8 +119,15 @@
       "str": 0, "agi": 1, "vit": 2, "int": 3, "dex": 0, "luk": 0
     },
     "bonusSkillPoints": 1,
-    "passiveId": "blessing_passive",
+    "passiveEffects": [
+      { "type": "heal_effect_pct", "value": 10 }
+    ],
     "passiveDescription": "Blessing: +10% healing effectiveness.",
+    "levelUpBonuses": {
+      "hpPerLevel": 5,
+      "spPerLevel": 4,
+      "statPointsPerLevel": 4
+    },
     "autoLearnSkills": ["heal", "increase_agi"]
   },
   {
@@ -101,8 +142,16 @@
       "str": 2, "agi": 0, "vit": 2, "int": 1, "dex": 0, "luk": 1
     },
     "bonusSkillPoints": 1,
-    "passiveId": "discount",
+    "passiveEffects": [
+      { "type": "zeny_drop_pct", "value": 10 },
+      { "type": "buy_discount_pct", "value": 10 }
+    ],
     "passiveDescription": "Discount: +10% zeny from monster drops, -10% purchase price from NPCs.",
+    "levelUpBonuses": {
+      "hpPerLevel": 5,
+      "spPerLevel": 2,
+      "statPointsPerLevel": 4
+    },
     "autoLearnSkills": ["cart_revolution"]
   }
 ]

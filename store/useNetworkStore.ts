@@ -224,12 +224,20 @@ export const useNetworkStore = create<NetworkStore>((set, get) => ({
       const gs = useGameStore.getState();
       gs.setSp(data.newSp);
       gs.updateEnemyState(data.targetId, { hp: data.hp, isDead: data.isDead });
-      gs.gainExp(data.expBase, data.expJob);
+      gs.gainExp(data.expBase, data.expJob, data.currentBaseExp, data.currentJobExp, data.currentBaseLevel, data.currentJobLevel);
       if (data.loot && data.loot.length > 0) gs.gainLoot(data.loot);
       showExpGain(data.expBase, 'base');
       showExpGain(data.expJob, 'job');
       addCombatLog(`Enemy defeated! +${data.expBase} EXP`);
       gs.setSelectedTargetId(null);
+    });
+
+    newSocket.on('levelUp', (data) => {
+      if (!data) return;
+      const gs = useGameStore.getState();
+      gs.handleLevelUp(data);
+      showToast(`Level Up! You are now level ${data.baseLevel}!`, 'success');
+      addCombatLog(`LEVEL UP! Base ${data.baseLevel}, Job ${data.jobLevel}!`);
     });
 
     newSocket.on('attackResult', (data) => {

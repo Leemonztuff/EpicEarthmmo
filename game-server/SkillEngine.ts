@@ -215,6 +215,31 @@ export class SkillEngine {
     return this.activeCasts.get(casterId)?.skillId;
   }
 
+  getSkillCooldownRemaining(casterId: string, skillId: string): number {
+    const casterCooldowns = this.cooldowns.get(casterId);
+    if (!casterCooldowns) return 0;
+    const expiry = casterCooldowns.get(skillId);
+    if (!expiry) return 0;
+    return Math.max(0, expiry - this.now);
+  }
+
+  getSkillDefinition(skillId: string): SkillDefinition | undefined {
+    return this.skillDefs.get(skillId);
+  }
+
+  isSkillOnCooldown(casterId: string, skillId: string): boolean {
+    const remaining = this.getSkillCooldownRemaining(casterId, skillId);
+    return remaining > 0;
+  }
+
+  setSkillCooldown(casterId: string, skillId: string, cooldownMs: number): void {
+    if (cooldownMs <= 0) return;
+    if (!this.cooldowns.has(casterId)) {
+      this.cooldowns.set(casterId, new Map());
+    }
+    this.cooldowns.get(casterId)!.set(skillId, this.now + cooldownMs);
+  }
+
   private resolveSkill(skill: SkillDefinition, request: SkillCastRequest): SkillCastResult {
     const now = Date.now();
     this.now = now;

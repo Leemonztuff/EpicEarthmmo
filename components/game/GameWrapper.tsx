@@ -4,6 +4,7 @@ import React, { Suspense } from 'react';
 import { GameScene } from './GameScene';
 import { HUD } from './HUD';
 import { OrientationLock } from './OrientationLock';
+import { Joystick } from './Joystick';
 import { DevToolsOverlay } from './ui/DevToolsOverlay';
 
 function isDevMode() {
@@ -19,6 +20,7 @@ export function GameWrapper({ characterName }: { characterName: string }) {
       <Suspense fallback={null}>
          <GameScene characterName={characterName} />
       </Suspense>
+      <Joystick />
       <HUD characterName={characterName} />
       {isDevMode() && <DevToolsOverlay />}
     </div>

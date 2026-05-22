@@ -2,18 +2,19 @@
 
 ## Network Engineer
 - [ ] **RTT measurement**: ping/pong socket events para calcular latencia del cliente y usarla en lag compensation
-- [ ] **saveProgress Zod validation**: server acepta `any` JSON sin schema — vulnerabilidad crítica
-- [ ] **Trade fix**: `acceptTrade` solo emite `success`, no transfiere items/zeny realmente
+- [x] **saveProgress Zod validation**: server acepta `any` JSON sin schema — FIXED con SaveDataSchema
+- [x] **Trade fix**: `acceptTrade` solo emite `success` — FIXED con transferencia real items/zeny + rollback
 - [ ] **Hit/Flee feedback**: MISS flotante + texto de daño para habilitar hit/flee evasion
 - [ ] **Warp validation**: server valida cooldown pero no chequea que el warp exista en el mapa
 - [ ] **Map transitions**: validate target map exists before warping
 - [ ] **Player respawn animation**: current respawn is instant teleport, should have fade/cooldown
 
 ## Combat / Classes
-- [ ] **Auto-attack range check on server**: current attack handler doesn't validate distance
-- [ ] **Skill cooldown server enforcement**: cooldowns should be validated server-side per skill
-- [ ] **Class-specific passives**: Novice, Swordsman, Mage, Archer, Thief, Acolyte passives not implemented
-- [ ] **Level-up bonuses per class**: each class should grant different stat gains on level up
+- [x] **Auto-attack range check on server**: FIXED — ahora usa skillDef.range y emite feedback al cliente
+- [x] **Skill cooldown server enforcement**: FIXED — cooldowns validados server-side por skill ID en attack + skillCast
+- [x] **Class-specific passives**: Novice, Swordsman, Mage, Archer, Thief, Acolyte, Merchant — FIXED vía shared/loader/passiveEngine.ts con 7 effect types
+- [x] **Level-up bonuses per class**: each class grants different HP/SP/stat gains — FIXED server-side con processServerLevelUp + jobs.json levelUpBonuses
+- [ ] **Zeny drops from enemies**: Merchant zeny_drop_pct passive defined but no zeny drops implemented yet
 
 ## Content
 - [ ] **Savage, Drainliar, Elder Wolf, Mummy sprites**: enemies defined but no visual assets

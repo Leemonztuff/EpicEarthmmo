@@ -74,6 +74,23 @@ export const EnemyStateSchema = z.object({
   deathTime: z.number().optional(),
 });
 
+export const SaveDataSchema = z.object({
+  name: z.string().max(32).optional(),
+  stats: PlayerStatsSchema.optional(),
+  unlockedSkills: z.array(z.string()).optional(),
+  equippedItems: EquippedItemsSchema.optional(),
+  inventory: z.array(z.object({
+    itemId: z.string(),
+    amount: z.number().int().min(0),
+  })).optional(),
+  zeny: z.number().int().min(0).optional(),
+  hp: z.number().int().min(0).optional(),
+  sp: z.number().int().min(0).optional(),
+  baseExp: z.number().int().min(0).optional(),
+  jobExp: z.number().int().min(0).optional(),
+  skillPoints: z.number().int().min(0).optional(),
+});
+
 export const GameUIStateSchema = z.object({
   isSkillsOpen: z.boolean(),
   isStatsOpen: z.boolean(),
@@ -88,3 +105,4 @@ export type InventoryItem = z.infer<typeof InventoryItemSchema>;
 export type PlayerState = z.infer<typeof PlayerStateSchema>;
 export type EnemyState = z.infer<typeof EnemyStateSchema>;
 export type GameUIState = z.infer<typeof GameUIStateSchema>;
+export type SaveData = z.infer<typeof SaveDataSchema>;

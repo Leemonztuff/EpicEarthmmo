@@ -1,5 +1,24 @@
 import { z } from 'zod';
 
+export const PassiveEffectSchema = z.object({
+  type: z.enum([
+    'damage_bonus_pct',
+    'sp_regen_pct',
+    'attack_range_bonus',
+    'double_attack_chance',
+    'heal_effect_pct',
+    'zeny_drop_pct',
+    'buy_discount_pct',
+  ]),
+  value: z.number(),
+});
+
+export const LevelUpBonusSchema = z.object({
+  hpPerLevel: z.number().int(),
+  spPerLevel: z.number().int(),
+  statPointsPerLevel: z.number().int(),
+});
+
 export const JobClassSchema = z.object({
   id: z.string(),
   name: z.string(),
@@ -17,8 +36,9 @@ export const JobClassSchema = z.object({
     luk: z.number().int(),
   }),
   bonusSkillPoints: z.number().int().nonnegative(),
-  passiveId: z.string().optional(),
+  passiveEffects: z.array(PassiveEffectSchema).optional().default([]),
   passiveDescription: z.string().optional(),
+  levelUpBonuses: LevelUpBonusSchema.optional(),
   autoLearnSkills: z.array(z.string()).optional(),
   sprite: z.string().optional(),
 });

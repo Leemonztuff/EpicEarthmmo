@@ -18,9 +18,17 @@ import { SkillEngine } from './SkillEngine';
 import type { BuffableEntity } from './BuffManager';
 import type { GroundEffectTarget } from './GroundEffectManager';
 import type { SpatialEntity } from '@/lib/spatialQuery';
+import { SaveDataSchema } from '../shared/schemas/gameState';
+import { processLevelUp } from '../shared/loader/formulaEngine';
+import {
+  applyDamagePassive, applySpRegenPassive, getAttackRange,
+  shouldTriggerDoubleAttack, applyHealPassive, applyZenyDropPassive,
+  applyBuyDiscount, getLevelUpBonuses,
+} from '../shared/loader/passiveEngine';
 import type {
   SkillDefinition, EffectDefinition, EffectFormula,
   GroundEffectDefinition, BuffDefinition,
+  JobClass,
 } from '@/shared/schemas';
 
 // ── Load all game data from JSON files (validated with Zod) ──
@@ -200,6 +208,50 @@ function addItemsToInventory(player: ServerPlayer, lootArray: { id: string; amou
   }
 }
 
+function processServerLevelUp(player: ServerPlayer, socket: any, io: any): void {
+  const result = processLevelUp(
+    player.baseExp, player.jobExp,
+    player.baseLevel, player.jobLevel,
+    player.stats?.base ?? {},
+    balance,
+  );
+  if (!result.leveledUp) return;
+
+  const classBonuses = getLevelUpBonuses(player.jobClass, jobs as JobClass[]);
+  const hpFromClass = result.hpGain + classBonuses.hpPerLevel;
+  const spFromClass = result.spGain + classBonuses.spPerLevel;
+  const spGainFromClass = result.statPointsGain + classBonuses.statPointsPerLevel;
+
+  player.baseExp = result.baseExp;
+  player.jobExp = result.jobExp;
+  player.baseLevel = result.baseLevel;
+  player.jobLevel = result.jobLevel;
+  player.maxHp += hpFromClass;
+  player.maxSp += spFromClass;
+  player.hp = player.maxHp;
+  player.sp = player.maxSp;
+  player.stats!.points = (player.stats?.points ?? 0) + spGainFromClass;
+  player.skillPoints = (player.skillPoints ?? 0) + result.skillPointsGain;
+
+  socket.emit('levelUp', {
+    baseLevel: result.baseLevel,
+    jobLevel: result.jobLevel,
+    hpGain: hpFromClass,
+    spGain: spFromClass,
+    statPointsGain: spGainFromClass,
+    skillPointsGain: result.skillPointsGain,
+    baseExp: player.baseExp,
+    jobExp: player.jobExp,
+    newMaxHp: player.maxHp,
+    newMaxSp: player.maxSp,
+  });
+
+  io.to(player.currentMapId).emit('playerLeveledUp', {
+    playerId: socket.id,
+    baseLevel: result.baseLevel,
+  });
+}
+
 // ── Express & Socket.io setup ──
 const app = express();
 const httpServer = createServer(app);
@@ -288,25 +340,36 @@ io.on('connection', (socket) => {
     const now = Date.now();
     mapManager.provokeEnemy(enemy, socket.id, now);
 
+    // ── Determine effective skill for this attack ──
+    const effectiveSkillId = data.skillId && isSkillUnlocked(player, data.skillId) ? data.skillId : 'basic_attack';
+    const skillDef = skillEngine.getSkillDefinition(effectiveSkillId);
+
+    // ── Per-skill cooldown check ──
+    if (skillDef && effectiveSkillId !== 'basic_attack') {
+      if (skillEngine.isSkillOnCooldown(socket.id, effectiveSkillId)) {
+        socket.emit('attackResult', { targetId: data.targetId, damage: 0, usedSkill: false, newSp: player.sp, hp: enemy.hp, isDead: false, error: 'Skill on cooldown' });
+        return;
+      }
+    }
+
     // ── AGI-based attack cooldown ──
     const cooldownMs = calculateAttackCooldownMs(player.stats.agi ?? 0, balance);
     if (now - player.lastAttackTime < cooldownMs) return;
     player.lastAttackTime = now;
 
-    // ── Range check ──
-    const dist = Math.sqrt(distSq(player, enemy.position));
-    if (distSq(player, enemy.position) > balance.combat.attackRange * balance.combat.attackRange) {
+    // ── Range check (use skill range + class passive) ──
+    const baseAttackRange = skillDef?.range ?? balance.combat.attackRange;
+    const attackRange = getAttackRange(baseAttackRange, player.jobClass, jobs as JobClass[]);
+    if (distSq(player, enemy.position) > attackRange * attackRange) {
+      socket.emit('attackResult', { targetId: data.targetId, damage: 0, usedSkill: false, newSp: player.sp, hp: enemy.hp, isDead: false, error: 'Target out of range' });
       return;
     }
 
     // ── Skill SP cost ──
     let usedSkill = false;
     let skillSpCost = 0;
-    if (data.skillId) {
-      if (!isSkillUnlocked(player, data.skillId)) {
-        return;
-      }
-      skillSpCost = getSkillSpCost(skills, data.skillId);
+    if (effectiveSkillId !== 'basic_attack') {
+      skillSpCost = getSkillSpCost(skills, effectiveSkillId);
     }
     if (player.sp < skillSpCost) return;
     player.sp -= skillSpCost;
@@ -346,8 +409,13 @@ io.on('connection', (socket) => {
     }
     consecutiveMisses.delete(missKey);
 
+    // ── Skill cooldown set after successful use ──
+    if (skillDef && effectiveSkillId !== 'basic_attack' && skillDef.cooldownMs > 0) {
+      skillEngine.setSkillCooldown(socket.id, effectiveSkillId, skillDef.cooldownMs);
+    }
+
     // ── Crit check ──
-    const skillMult = getSkillMultiplier(skills, data.skillId || 'basic_attack');
+    const skillMult = getSkillMultiplier(skills, effectiveSkillId);
     const critChance = calculateCritChance(player.stats.luk ?? 0, player.baseLevel || 1, 0.05, balance);
     const isCrit = Math.random() < critChance;
     const critMult = calculateCritMultiplier(player.stats.luk ?? 0, balance);
@@ -356,9 +424,20 @@ io.on('connection', (socket) => {
     const targetDef = calculateDef(0, 0); // enemies don't have VIT-based DEF yet
     const dmgInput = { atk, targetDef, skillMultiplier: skillMult, variance: 5 };
     const critInfo = isCrit ? { isCritical: true, critChance, critMultiplier: critMult } : undefined;
-    const damage = calculateDamageWithDefense('physical', atk, dmgInput, balance, critInfo);
+    let damage = calculateDamageWithDefense('physical', atk, dmgInput, balance, critInfo);
 
-    console.log(`[Attack] ${isCrit ? 'CRIT ' : ''}Hit ${enemy.name} for ${damage} (atk=${atk.toFixed(0)}, hit=${hitChance.toFixed(2)})`);
+    // ── Class passive: damage bonus ──
+    damage = applyDamagePassive(damage, player.jobClass, jobs as JobClass[]);
+
+    // ── Class passive: double attack (Thief) ──
+    let doubleAttackDamage = 0;
+    const isDoubleAttack = shouldTriggerDoubleAttack(player.jobClass, jobs as JobClass[]);
+    if (isDoubleAttack) {
+      doubleAttackDamage = Math.floor(damage * 0.5);
+      damage += doubleAttackDamage;
+    }
+
+    console.log(`[Attack] ${isCrit ? 'CRIT ' : ''}${isDoubleAttack ? 'DOUBLE ' : ''}Hit ${enemy.name} for ${damage} (atk=${atk.toFixed(0)}, hit=${hitChance.toFixed(2)})`);
 
     enemy.hp = Math.max(0, enemy.hp - damage);
 
@@ -386,21 +465,34 @@ io.on('connection', (socket) => {
 
       addItemsToInventory(player, loot.map(l => ({ id: l.id, amount: l.amount })));
 
+      player.baseExp += expBase;
+      player.jobExp += expJob;
+      processServerLevelUp(player, socket, io);
+
       socket.emit('enemyKilled', {
         targetId: data.targetId, expBase, expJob, loot,
         newSp: player.sp, damage, usedSkill,
         hp: 0, isDead: true, isCritical: isCrit,
+        doubleAttack: isDoubleAttack,
+        totalDamage: damage,
+        currentBaseExp: player.baseExp,
+        currentJobExp: player.jobExp,
+        currentBaseLevel: player.baseLevel,
+        currentJobLevel: player.jobLevel,
       });
     } else {
       socket.emit('attackResult', {
         targetId: data.targetId, damage, usedSkill, missed: false, isCritical: isCrit,
         newSp: player.sp, hp: enemy.hp, isDead: false,
+        doubleAttack: isDoubleAttack,
+        totalDamage: damage,
       });
     }
 
     io.to(player.currentMapId).emit('enemyDamaged', {
       targetId: data.targetId, damage, usedSkill, isCritical: isCrit,
       attackerId: socket.id, hp: enemy.hp, isDead: enemy.isDead,
+      doubleAttack: isDoubleAttack,
     });
   });
 
@@ -502,7 +594,11 @@ io.on('connection', (socket) => {
             }
             addItemsToInventory(player, loot.map(l => ({ id: l.id, amount: l.amount })));
 
-            socket.emit('enemyKilled', { targetId, expBase, expJob, loot, newSp: player.sp, damage: perTargetDamage, usedSkill: true, hp: 0, isDead: true });
+            player.baseExp += expBase;
+            player.jobExp += expJob;
+            processServerLevelUp(player, socket, io);
+
+            socket.emit('enemyKilled', { targetId, expBase, expJob, loot, newSp: player.sp, damage: perTargetDamage, usedSkill: true, hp: 0, isDead: true, doubleAttack: false, totalDamage: perTargetDamage, currentBaseExp: player.baseExp, currentJobExp: player.jobExp, currentBaseLevel: player.baseLevel, currentJobLevel: player.jobLevel });
           }
         }
       }
@@ -601,7 +697,10 @@ io.on('connection', (socket) => {
             enemy.isDead = true;
             enemy.deathTime = Date.now();
             const { baseExp: expBase, jobExp: expJob } = calculateExpReward(enemy.level, balance);
-            socket.emit('enemyKilled', { targetId, expBase, expJob, loot: [], newSp: player.sp, damage: perTargetDamage, usedSkill: true, hp: 0, isDead: true });
+            player.baseExp += expBase;
+            player.jobExp += expJob;
+            processServerLevelUp(player, socket, io);
+            socket.emit('enemyKilled', { targetId, expBase, expJob, loot: [], newSp: player.sp, damage: perTargetDamage, usedSkill: true, hp: 0, isDead: true, doubleAttack: false, totalDamage: perTargetDamage, currentBaseExp: player.baseExp, currentJobExp: player.jobExp, currentBaseLevel: player.baseLevel, currentJobLevel: player.jobLevel });
           }
         }
       }
@@ -767,11 +866,13 @@ io.on('connection', (socket) => {
     callback?.({ success: true, unlockedSkills: [...player.unlockedSkills], skillPoints: player.skillPoints });
   });
 
+  type TradeItem = { itemId: string; amount: number };
+  type TradeOffer = { zeny: number; items: TradeItem[]; locked: boolean; accepted: boolean };
   type TradeSession = {
     initiatorId: string;
     peerId: string;
-    initiatorOffer: { zeny: number; locked: boolean; accepted: boolean };
-    peerOffer: { zeny: number; locked: boolean; accepted: boolean };
+    initiatorOffer: TradeOffer;
+    peerOffer: TradeOffer;
   };
   const tradeSessions = new Map<string, TradeSession>();
 
@@ -786,6 +887,61 @@ io.on('connection', (socket) => {
     return ts.initiatorId === socketId ? ts.peerId : ts.initiatorId;
   }
 
+  function tradeGetPlayer(socketId: string): ServerPlayer | null {
+    for (const instance of mapManager.getAllMaps().values()) {
+      const p = instance.players.get(socketId);
+      if (p) return p;
+    }
+    return null;
+  }
+
+  function tradeGetPlayerZeny(socketId: string): number {
+    const p = tradeGetPlayer(socketId);
+    return p?.zeny ?? 0;
+  }
+
+  function tradeGetPlayerItemAmount(socketId: string, itemId: string): number {
+    const p = tradeGetPlayer(socketId);
+    if (!p) return 0;
+    const slot = p.inventory.find(s => s.itemId === itemId);
+    return slot?.amount ?? 0;
+  }
+
+  function tradeDeductPlayer(socketId: string, zeny: number, items: TradeItem[]): boolean {
+    const p = tradeGetPlayer(socketId);
+    if (!p) return false;
+    if (p.zeny < zeny) return false;
+    for (const item of items) {
+      const slot = p.inventory.find(s => s.itemId === item.itemId);
+      if (!slot || slot.amount < item.amount) return false;
+    }
+    p.zeny -= zeny;
+    for (const item of items) {
+      const slot = p.inventory.find(s => s.itemId === item.itemId);
+      if (slot) {
+        slot.amount -= item.amount;
+        if (slot.amount <= 0) {
+          p.inventory = p.inventory.filter(s => s.itemId !== item.itemId);
+        }
+      }
+    }
+    return true;
+  }
+
+  function tradeAddToPlayer(socketId: string, zeny: number, items: TradeItem[]): void {
+    const p = tradeGetPlayer(socketId);
+    if (!p) return;
+    p.zeny += zeny;
+    for (const item of items) {
+      const slot = p.inventory.find(s => s.itemId === item.itemId);
+      if (slot) {
+        slot.amount += item.amount;
+      } else {
+        p.inventory.push({ itemId: item.itemId, amount: item.amount });
+      }
+    }
+  }
+
   socket.on('requestTrade', (data: { targetSocketId: string }) => {
     if (!player) return;
     if (data.targetSocketId === socket.id) return;
@@ -795,8 +951,8 @@ io.on('connection', (socket) => {
     const session: TradeSession = {
       initiatorId: socket.id,
       peerId: data.targetSocketId,
-      initiatorOffer: { zeny: 0, locked: false, accepted: false },
-      peerOffer: { zeny: 0, locked: false, accepted: false },
+      initiatorOffer: { zeny: 0, items: [], locked: false, accepted: false },
+      peerOffer: { zeny: 0, items: [], locked: false, accepted: false },
     };
     tradeSessions.set(`${socket.id}-${data.targetSocketId}`, session);
     io.to(data.targetSocketId).emit('tradeRequested', { from: socket.id, name: player.name });
@@ -825,16 +981,22 @@ io.on('connection', (socket) => {
     }
   });
 
-  socket.on('updateTradeOffer', (data: { zeny?: number }) => {
+  socket.on('updateTradeOffer', (data: { zeny?: number; items?: TradeItem[] }) => {
     if (!player) return;
     const ts = getTradeSession(socket.id);
     if (!ts) return;
     const offer = ts.initiatorId === socket.id ? ts.initiatorOffer : ts.peerOffer;
     if (offer.locked) return;
-    if (data.zeny !== undefined) offer.zeny = Math.max(0, Math.min(999999999, data.zeny));
+    if (data.zeny !== undefined) {
+      const playerZeny = tradeGetPlayerZeny(socket.id);
+      offer.zeny = Math.max(0, Math.min(playerZeny, data.zeny));
+    }
+    if (data.items !== undefined) {
+      offer.items = data.items.filter(item => item.amount > 0);
+    }
 
     const peerId = otherPlayerId(ts, socket.id);
-    io.to(peerId).emit('tradeOfferUpdated', { from: socket.id, offer: { zeny: offer.zeny, locked: offer.locked } });
+    io.to(peerId).emit('tradeOfferUpdated', { from: socket.id, offer: { zeny: offer.zeny, items: offer.items, locked: offer.locked } });
   });
 
   socket.on('lockTrade', () => {
@@ -842,10 +1004,22 @@ io.on('connection', (socket) => {
     const ts = getTradeSession(socket.id);
     if (!ts) return;
     const offer = ts.initiatorId === socket.id ? ts.initiatorOffer : ts.peerOffer;
+    const playerZeny = tradeGetPlayerZeny(socket.id);
+    if (offer.zeny > playerZeny) {
+      socket.emit('tradeError', { error: 'Not enough zeny' });
+      return;
+    }
+    for (const item of offer.items) {
+      const hasAmount = tradeGetPlayerItemAmount(socket.id, item.itemId);
+      if (hasAmount < item.amount) {
+        socket.emit('tradeError', { error: `Not enough of item ${item.itemId}` });
+        return;
+      }
+    }
     offer.locked = true;
     const peerId = otherPlayerId(ts, socket.id);
-    io.to(peerId).emit('tradeOfferUpdated', { from: socket.id, offer: { zeny: offer.zeny, locked: offer.locked } });
-    socket.emit('tradeOfferUpdated', { from: socket.id, offer: { zeny: offer.zeny, locked: offer.locked } });
+    io.to(peerId).emit('tradeOfferUpdated', { from: socket.id, offer: { zeny: offer.zeny, items: offer.items, locked: offer.locked } });
+    socket.emit('tradeOfferUpdated', { from: socket.id, offer: { zeny: offer.zeny, items: offer.items, locked: offer.locked } });
     if (ts.initiatorOffer.locked && ts.peerOffer.locked) {
       io.to(ts.initiatorId).emit('tradeReady');
       io.to(ts.peerId).emit('tradeReady');
@@ -861,9 +1035,34 @@ io.on('connection', (socket) => {
     if (myOffer.accepted) return;
     myOffer.accepted = true;
 
-    const initiator = mapManager.getMapPlayers(player.currentMapId)[ts.initiatorId];
-    const peer = mapManager.getMapPlayers(player.currentMapId)[ts.peerId];
-    if (initiator && peer && ts.initiatorOffer.accepted && ts.peerOffer.accepted) {
+    if (ts.initiatorOffer.accepted && ts.peerOffer.accepted) {
+      const initiatorSocket = io.sockets.sockets.get(ts.initiatorId);
+      const peerSocket = io.sockets.sockets.get(ts.peerId);
+      if (!initiatorSocket || !peerSocket) {
+        io.to(ts.initiatorId).emit('tradeError', { error: 'Other player disconnected' });
+        io.to(ts.peerId).emit('tradeError', { error: 'Other player disconnected' });
+        for (const [k] of tradeSessions) { if (k.startsWith(ts.initiatorId) || k.endsWith(ts.initiatorId)) { tradeSessions.delete(k); break; } }
+        return;
+      }
+
+      // Deduct initiator's offered zeny + items, add peer's zeny + items
+      const initOk = tradeDeductPlayer(ts.initiatorId, ts.initiatorOffer.zeny, ts.initiatorOffer.items);
+      const peerOk = tradeDeductPlayer(ts.peerId, ts.peerOffer.zeny, ts.peerOffer.items);
+
+      if (!initOk || !peerOk) {
+        // Rollback if deduction fails — re-add what was taken
+        if (initOk) tradeAddToPlayer(ts.initiatorId, ts.initiatorOffer.zeny, ts.initiatorOffer.items);
+        if (peerOk) tradeAddToPlayer(ts.peerId, ts.peerOffer.zeny, ts.peerOffer.items);
+        io.to(ts.initiatorId).emit('tradeError', { error: 'Trade failed — inventory changed' });
+        io.to(ts.peerId).emit('tradeError', { error: 'Trade failed — inventory changed' });
+        for (const [k] of tradeSessions) { if (k.startsWith(ts.initiatorId) || k.endsWith(ts.initiatorId)) { tradeSessions.delete(k); break; } }
+        return;
+      }
+
+      // Transfer: initiator gets peer's offer, peer gets initiator's offer
+      tradeAddToPlayer(ts.initiatorId, ts.peerOffer.zeny, ts.peerOffer.items);
+      tradeAddToPlayer(ts.peerId, ts.initiatorOffer.zeny, ts.initiatorOffer.items);
+
       io.to(ts.initiatorId).emit('tradeCompleted', { receivedZeny: ts.peerOffer.zeny, sentZeny: ts.initiatorOffer.zeny });
       io.to(ts.peerId).emit('tradeCompleted', { receivedZeny: ts.initiatorOffer.zeny, sentZeny: ts.peerOffer.zeny });
       for (const [k] of tradeSessions) {
@@ -936,7 +1135,8 @@ io.on('connection', (socket) => {
     const sellsItem = npcs.some((n: any) => n.shopItems?.includes(data.itemId));
     if (!sellsItem) { callback?.({ success: false, error: 'NPC does not sell this item' }); return; }
 
-    const price = itemDef.buyPrice ?? 99999;
+    const basePrice = itemDef.buyPrice ?? 99999;
+    const price = applyBuyDiscount(basePrice, p.jobClass, jobs as JobClass[]);
     if (p.zeny < price) { callback?.({ success: false, error: 'Not enough zeny' }); return; }
 
     const slot = p.inventory.find(s => s.itemId === data.itemId);
@@ -984,7 +1184,14 @@ io.on('connection', (socket) => {
   });
 
   socket.on('saveProgress', (playerData: any) => {
-    if (player && playerData) savedData.set(socket.id, playerData);
+    if (!player) return;
+    const parsed = SaveDataSchema.safeParse(playerData);
+    if (!parsed.success) {
+      console.warn(`[SaveProgress] Invalid data from ${socket.id}:`, parsed.error.flatten());
+      socket.emit('progressSaved', { success: false, error: 'Invalid save data' });
+      return;
+    }
+    savedData.set(socket.id, parsed.data);
     socket.emit('progressSaved', { success: true });
   });
 
@@ -1150,9 +1357,10 @@ function tick() {
         }
       } else if (effect.type === 'heal' || effect.type === 'aoe_heal' || effect.type === 'hot') {
         const healAmt = effect.formula ? skillEngine.calculateFormula(effect.formula, formulaRequest) : 10;
+        const healAmtWithPassive = applyHealPassive(healAmt, casterPlayer.jobClass, jobs as JobClass[]);
         const player = instance.players.get(targetId);
         if (player) {
-          player.hp = Math.min(player.maxHp, player.hp + healAmt);
+          player.hp = Math.min(player.maxHp, player.hp + healAmtWithPassive);
         }
       }
     });
@@ -1233,10 +1441,16 @@ function tick() {
       if (tickNum % regenIntervalTicks === 0) {
         if (mapManager.isInSafeZone(mapId, p.x, p.z)) {
           if (p.hp < p.maxHp) p.hp = Math.min(p.maxHp, p.hp + balance.regen.amountPerTick * 3);
-          if (p.sp < p.maxSp) p.sp = Math.min(p.maxSp, p.sp + balance.regen.amountPerTick * 3);
+          if (p.sp < p.maxSp) {
+            const spRegen = applySpRegenPassive(balance.regen.amountPerTick * 3, p.jobClass, jobs as JobClass[]);
+            p.sp = Math.min(p.maxSp, p.sp + spRegen);
+          }
         } else {
           if (p.hp < p.maxHp) p.hp = Math.min(p.maxHp, p.hp + balance.regen.amountPerTick);
-          if (p.sp < p.maxSp) p.sp = Math.min(p.maxSp, p.sp + balance.regen.amountPerTick);
+          if (p.sp < p.maxSp) {
+            const spRegen = applySpRegenPassive(balance.regen.amountPerTick, p.jobClass, jobs as JobClass[]);
+            p.sp = Math.min(p.maxSp, p.sp + spRegen);
+          }
         }
       }
     }
