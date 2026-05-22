@@ -10,9 +10,7 @@ import { Sprite } from './Sprite';
 import { directionFromAngle, type Direction, type AnimState } from '@/lib/spriteManager';
 import { getMovementInput } from '@/lib/movementController';
 import { createPlayerStateMachine, updatePlayerStateMachine } from '@/lib/playerStateMachine';
-import { performInteraction } from '@/lib/interactionManager';
 import { playerPosition } from '@/lib/playerPosition';
-import { slideMove } from '@/lib/currentNavGrid';
 import { gameData } from '@/shared/loader';
 
 const { balance } = gameData;
@@ -76,17 +74,19 @@ export function Player() {
     let pos = rigidBodyRef.current.translation();
     const currentVec = new Vector3(pos.x, pos.y, pos.z);
 
-    // ── Get input ──
+    // ── Get raw WASD/joystick input ──
     const { input: rawInput, hasKeyboardInput } = getMovementInput();
     let inputDir = { x: rawInput.x, z: rawInput.z };
 
-    // ── Camera-relative rotation ──
+    // ── Camera-relative rotation (isometric) ──
     inputDir = rotateInput(inputDir);
 
-    // ── Direct input clears pathfinding target ──
+    // ── Direct input clears server move target ──
     if (hasKeyboardInput && (inputDir.x !== 0 || inputDir.z !== 0)) {
-      if (targetPosition) setTargetPosition(null);
-      gameStore.setPath(null);
+      const ns = useNetworkStore.getState();
+      if (ns.socket?.connected) {
+        ns.socket.emit('cancelMove');
+      }
     }
 
     // ── Auto-follow enemy if selected ──
@@ -98,7 +98,6 @@ export function Player() {
         const dist = currentVec.distanceTo(enemyPos);
 
         if (dist <= ATTACK_RANGE) {
-          if (targetPosition) setTargetPosition(null);
           const now = state.clock.elapsedTime;
           if (now - lastAttackTimeRef.current >= ATTACK_COOLDOWN) {
             lastAttackTimeRef.current = now;
@@ -119,27 +118,6 @@ export function Player() {
       }
     }
 
-    // ── Grid-based path following (from navGrid) ──
-    if (inputDir.x === 0 && inputDir.z === 0 && gameStore.path && gameStore.pathIndex < gameStore.path.length && !selectedTargetId) {
-      const waypoint = gameStore.path[gameStore.pathIndex];
-      const dx = waypoint.x - pos.x;
-      const dz = waypoint.z - pos.z;
-      const dist = Math.sqrt(dx * dx + dz * dz);
-      if (dist > 0.5) {
-        inputDir = { x: dx / dist, z: dz / dist };
-      } else {
-        gameStore.setPathIndex(gameStore.pathIndex + 1);
-        if (gameStore.pathIndex + 1 >= gameStore.path.length) {
-          gameStore.setPath(null);
-          setTargetPosition(null);
-          const interactionTarget = gameStore.interactionTarget;
-          if (interactionTarget) {
-            performInteraction(interactionTarget);
-          }
-        }
-      }
-    }
-
     setInputDirection(inputDir);
 
     // ── Velocity-based movement (RO-style accel/decel) ──
@@ -147,7 +125,6 @@ export function Player() {
     if (isMoving) {
       velocityRef.current.x += (inputDir.x * SPEED - velocityRef.current.x) * Math.min(1, ACCEL * delta);
       velocityRef.current.z += (inputDir.z * SPEED - velocityRef.current.z) * Math.min(1, ACCEL * delta);
-      reconciledRef.current = false;
     } else {
       velocityRef.current.x -= velocityRef.current.x * Math.min(1, FRICTION * delta);
       velocityRef.current.z -= velocityRef.current.z * Math.min(1, FRICTION * delta);
@@ -157,16 +134,9 @@ export function Player() {
 
     const hasVelocity = velocityRef.current.x !== 0 || velocityRef.current.z !== 0;
     if (hasVelocity) {
-      const newPos = slideMove(
-        { x: pos.x, z: pos.z },
-        velocityRef.current,
-        delta,
-      );
-      pos = {
-        x: newPos.x,
-        y: pos.y,
-        z: newPos.z,
-      };
+      const newX = pos.x + velocityRef.current.x * delta;
+      const newZ = pos.z + velocityRef.current.z * delta;
+      pos = { x: newX, y: pos.y, z: newZ };
       rigidBodyRef.current.setTranslation(pos, true);
     }
 
@@ -175,52 +145,48 @@ export function Player() {
     playerPosition.y = pos.y;
     playerPosition.z = pos.z;
 
-    // ── Server reconciliation (gentle, only on significant error) ──
-    const socketConnected = networkStore.socket?.connected;
-    if (socketConnected) {
-      const snapPos = networkStore.lastSnapshotPos;
-      const corrDx = snapPos.x - pos.x;
-      const corrDz = snapPos.z - pos.z;
-      const corrDistSq = corrDx * corrDx + corrDz * corrDz;
+    // ── Server position reconciliation ──
+    const snapPos = networkStore.lastSnapshotPos;
+    const corrDx = snapPos.x - pos.x;
+    const corrDz = snapPos.z - pos.z;
+    const corrDistSq = corrDx * corrDx + corrDz * corrDz;
 
-      if (corrDistSq > 25.0) {
-        pos = { x: snapPos.x, y: snapPos.y, z: snapPos.z };
-        rigidBodyRef.current.setTranslation(pos, true);
-        playerPosition.x = pos.x;
-        playerPosition.y = pos.y;
-        playerPosition.z = pos.z;
-      } else if (corrDistSq > 1.0) {
-        const blend = isMoving ? 0.05 : 0.12;
-        pos = {
-          x: pos.x + corrDx * blend,
-          y: pos.y,
-          z: pos.z + corrDz * blend,
-        };
-        rigidBodyRef.current.setTranslation(pos, true);
-        playerPosition.x = pos.x;
-        playerPosition.z = pos.z;
-      }
+    if (corrDistSq > 25.0) {
+      // Hard snap for large errors
+      pos = { x: snapPos.x, y: snapPos.y, z: snapPos.z };
+      rigidBodyRef.current.setTranslation(pos, true);
+      playerPosition.x = pos.x;
+      playerPosition.y = pos.y;
+      playerPosition.z = pos.z;
+      velocityRef.current = { x: 0, z: 0 };
+    } else if (corrDistSq > 1.0) {
+      const blend = isMoving ? 0.08 : 0.15;
+      pos = {
+        x: pos.x + corrDx * blend,
+        y: pos.y,
+        z: pos.z + corrDz * blend,
+      };
+      rigidBodyRef.current.setTranslation(pos, true);
+      playerPosition.x = pos.x;
+      playerPosition.z = pos.z;
     }
 
     // ── Update state machine ──
+    const newDir = hasVelocity
+      ? directionFromAngle(velocityRef.current.x, velocityRef.current.z)
+      : directionRef.current;
+
     smRef.current = updatePlayerStateMachine(
       smRef.current,
       delta,
-      inputDir,
-      { x: pos.x, z: pos.z },
+      isMoving,
+      hasVelocity,
+      newDir,
+      isAttacking,
     );
 
-    if (isAttacking) {
-      animStateRef.current = 'attack';
-    } else if (hasVelocity) {
-      animStateRef.current = 'walk';
-    } else {
-      animStateRef.current = 'idle';
-    }
-
-    if (hasVelocity) {
-      directionRef.current = directionFromAngle(velocityRef.current.x, velocityRef.current.z);
-    }
+    animStateRef.current = smRef.current.animState;
+    directionRef.current = newDir;
 
     // ── Bob animation ──
     if (groupRef.current) {

@@ -1,5 +1,19 @@
 # TODOS — EpicEarthMMO
 
+## Movement / Interaction
+- [x] **Movement redesign**: 2 clean modes (Direct Input + Target Movement) that never conflict
+- [x] **Client prediction + server reconciliation**: Direct Input uses velocity-based prediction with periodic reconciliation
+- [x] **Server-authoritative pathfinding**: A* 8-dir + string-pull smoothing moved to `shared/pathfinding.ts`, server computes paths
+- [x] **Server-authoritative interactions**: client sends target → server walks player → server emits `interactionReady`
+- [x] **ServerPlayer state machine**: path-following in game loop with `moveTarget`, `path`, `pathIndex`, `pendingInteraction`
+- [ ] **Cancel movement edge cases**: verify behavior when target moves out of bounds mid-path
+
+## Map System
+- [x] **Map system redesign**: monolithic `Map.tsx` (341 lines) split into 10 modular components in `components/game/map/`
+- [x] **Component breakdown**: MapScene (orchestrator), MapTerrain, MapDecorations (LOD + layers), MapLighting, MapEntities, MapClickHandler, MapColliders, MapWarps, MapSafeZones, MapGrass
+- [x] **Bug fixes**: safe zones depthWrite=false, colliders with explicit colliders="cuboid", click handler separated from physics, LOD centralized
+- [ ] **Performance profiling**: verify instanced terrain + decoration LOD works within budget on all 3 maps
+
 ## Network Engineer
 - [ ] **RTT measurement**: ping/pong socket events para calcular latencia del cliente y usarla en lag compensation
 - [x] **saveProgress Zod validation**: server acepta `any` JSON sin schema — FIXED con SaveDataSchema
@@ -12,7 +26,7 @@
 ## Combat / Classes
 - [x] **Auto-attack range check on server**: FIXED — ahora usa skillDef.range y emite feedback al cliente
 - [x] **Skill cooldown server enforcement**: FIXED — cooldowns validados server-side por skill ID en attack + skillCast
-- [x] **Class-specific passives**: Novice, Swordsman, Mage, Archer, Thief, Acolyte, Merchant — FIXED vía shared/loader/passiveEngine.ts con 7 effect types
+- [x] **Class-specific passives**: Novice, Swordsman, Mage, Archer, Thief, Acolyte — FIXED vía shared/loader/passiveEngine.ts con 7 effect types
 - [x] **Level-up bonuses per class**: each class grants different HP/SP/stat gains — FIXED server-side con processServerLevelUp + jobs.json levelUpBonuses
 - [ ] **Zeny drops from enemies**: Merchant zeny_drop_pct passive defined but no zeny drops implemented yet
 

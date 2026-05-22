@@ -12,15 +12,9 @@ export interface MovementInput {
   z: number;
 }
 
-export interface MovementTarget {
-  type: 'position' | 'entity';
-  x: number;
-  z: number;
-  entityId?: string;
-  arrived?: boolean;
-}
+let keyboardInput: MovementInput = { x: 0, z: 0 };
 
-export function getKeyboardInput(): MovementInput {
+export function getRawKeyboardInput(): MovementInput {
   let x = 0;
   let z = 0;
 
@@ -29,7 +23,12 @@ export function getKeyboardInput(): MovementInput {
   if (keys['KeyW'] || keys['ArrowUp']) z -= 1;
   if (keys['KeyS'] || keys['ArrowDown']) z += 1;
 
+  keyboardInput = { x, z };
   return { x, z };
+}
+
+export function hasAnyKeyboardInput(): boolean {
+  return keyboardInput.x !== 0 || keyboardInput.z !== 0;
 }
 
 export function getTouchInput(): MovementInput {
@@ -50,7 +49,7 @@ export function normalizeInput(input: MovementInput): MovementInput {
 }
 
 export function getMovementInput(): { input: MovementInput; hasKeyboardInput: boolean } {
-  const kb = getKeyboardInput();
+  const kb = getRawKeyboardInput();
   const hasKeyboard = kb.x !== 0 || kb.z !== 0;
 
   if (hasKeyboard) {
@@ -59,15 +58,4 @@ export function getMovementInput(): { input: MovementInput; hasKeyboardInput: bo
 
   const touch = getTouchInput();
   return { input: normalizeInput(touch), hasKeyboardInput: false };
-}
-
-export function getTargetDirection(
-  currentPos: { x: number; z: number },
-  target: { x: number; z: number },
-): MovementInput {
-  const dx = target.x - currentPos.x;
-  const dz = target.z - currentPos.z;
-  const dist = Math.sqrt(dx * dx + dz * dz);
-  if (dist < 0.3) return { x: 0, z: 0 };
-  return { x: dx / dist, z: dz / dist };
 }

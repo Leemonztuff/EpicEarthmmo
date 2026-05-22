@@ -1,10 +1,6 @@
-import { useGameStore } from '@/store/useGameStore';
 import { useNetworkStore } from '@/store/useNetworkStore';
-import { gameData } from '@/shared/loader';
 
-const { dialogs, maps } = gameData;
-
-export type InteractionType = 'npc' | 'chest' | 'warp' | 'enemy';
+export type InteractionType = 'npc' | 'chest' | 'warp';
 
 export interface InteractionTarget {
   type: InteractionType;
@@ -13,49 +9,11 @@ export interface InteractionTarget {
 }
 
 export function startInteraction(target: InteractionTarget) {
-  const store = useGameStore.getState();
-  store.setInteractionTarget(target);
-  store.setTargetPosition({ x: target.position.x, z: target.position.z });
-}
+  const networkStore = useNetworkStore.getState();
 
-export function performInteraction(target: InteractionTarget) {
-  const store = useGameStore.getState();
-
-  switch (target.type) {
-    case 'npc': {
-      const networkStore = useNetworkStore.getState();
-      let mapData = networkStore.currentMapData;
-      if (!mapData) {
-        const localMap = maps.find(m => m.id === 'prontera');
-        mapData = localMap || null;
-      }
-      const npc = (mapData as any)?.npcs?.find((n: any) => n.id === target.id);
-      if (npc) {
-        const dialog = (dialogs?.dialogs || []).find(d => d.id === npc.dialogId);
-        if (dialog) {
-          store.setDialogState({ isOpen: true, dialog, currentLineIndex: 0, selectedResponse: null });
-        }
-      }
-      break;
-    }
-    case 'chest': {
-      import('@/store/useNetworkStore').then(m => {
-        m.useNetworkStore.getState().socket?.emit('openChest', { chestId: target.id });
-      });
-      break;
-    }
-    case 'warp': {
-      import('@/store/useNetworkStore').then(m => {
-        m.useNetworkStore.getState().requestWarp(target.id);
-      });
-      break;
-    }
-    case 'enemy': {
-      store.setSelectedTargetId(target.id);
-      break;
-    }
-  }
-
-  store.setInteractionTarget(null);
-  store.setTargetPosition(null);
+  networkStore.sendMoveToTarget({
+    targetX: target.position.x,
+    targetZ: target.position.z,
+    interaction: { type: target.type, id: target.id },
+  });
 }

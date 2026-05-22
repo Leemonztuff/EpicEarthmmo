@@ -143,15 +143,16 @@ Debes pensar como productor de estudio AAA adaptado a un equipo indie.
 ### Estado actual del proyecto
 
 #### Lo que está listo (producción)
-- Movimiento: WASD + joystick virtual con aceleración/deceleración estilo RO
+- Movimiento: 2 modos — Direct Input (WASD/joystick con client prediction + server reconciliation) + Target Movement (click-to-move server-authoritative)
+- Pathfinding: A* 8-dir con string-pull smoothing, compartido cliente/servidor en `shared/pathfinding.ts`
+- Interacciones: full server-authoritative (server camina al target, emite interactionReady)
 - Cámara: ángulo fijo isométrico, zoom por scroll/pinch
-- Pathfinding: A* con 8 direcciones, string-pull smoothing
 - Combate: auto-ataque, 19 skills, cast/channel, AoE
 - Mobs: 10 tipos con IA (idle/patrol/chase/attack/return)
 - NPCs: diálogos multi-nodo con sistema de branching
 - Cofres: apertura con animación 3D
 - Warps: teletransporte entre mapas
-- Mapas: Prontera, Prontera Fields, Geffen Dungeon
+- Mapas: Prontera, Prontera Fields, Geffen Dungeon — sistema modular 10 componentes
 - Red: Socket.IO con servidor dedicado
 - Autenticación: Supabase login/register
 - Personajes: selección y creación
@@ -396,12 +397,13 @@ Prioridades:
 Cliente (Next.js)
   ├── app/           → Páginas y layout
   ├── components/    → React components (game + ui)
-  ├── lib/           → Lógica del cliente
-  ├── store/         → Zustand stores
+  │   └── game/map/  → 10 componentes modulares (MapScene, MapTerrain, etc.)
+  ├── lib/           → Lógica del cliente (movementController, playerStateMachine, etc.)
+  ├── store/         → Zustand stores (game, network)
   └── types/         → Tipos del cliente
-          ↕ Socket.IO
+          ↕ Socket.IO (client prediction + server reconciliation)
 Servidor (game-server/)
-  ├── index.ts       → Express + Socket.IO + game loop
+  ├── index.ts       → Express + Socket.IO + game loop + path-following
   ├── MapManager.ts  → Mundo, mobs, spawning
   ├── SkillEngine.ts → Skills
   ├── BuffManager.ts → Buffs
@@ -411,7 +413,8 @@ Shared (shared/)
   ├── data/          → JSON (balance, enemies, skills, items, jobs, dialogs, maps)
   ├── schemas/       → Zod schemas
   ├── loader/        → Client/server loaders + formulas
-  └── types/         → Tipos de red compartidos
+  ├── types/         → Tipos de red compartidos
+  └── pathfinding.ts → A* 8-dir + string-pull smoothing (usado por cliente + servidor)
 ```
 
 ---
@@ -447,11 +450,13 @@ Siempre considerar:
 - sincronización.
 
 ### Sistemas a cargo
-- `components/game/Player.tsx` — Jugador con física Rapier
-- `lib/movementController.ts` — Input WASD + joystick
-- `lib/playerStateMachine.ts` — Máquina de estados
-- `lib/interactionManager.ts` — Click dispatch
-- `lib/navGrid.ts` — Pathfinding A*
+- `components/game/Player.tsx` — Jugador con física Rapier (client prediction + server reconciliation)
+- `lib/movementController.ts` — Input WASD + joystick (Direct Input mode)
+- `lib/playerStateMachine.ts` — Máquina de estados (idle, walking, running, dead)
+- `lib/interactionManager.ts` — Click dispatch (Target Movement mode)
+- `lib/navGrid.ts` — Creación de nav grid desde datos del mapa
+- `shared/pathfinding.ts` — A* 8-dir + string-pull smoothing (compartido cliente + servidor)
+- `components/game/NetworkManager.tsx` — Input sending + snapshot processing (movimiento modo directo)
 - `game-server/SkillEngine.ts` — Skills del servidor
 - `game-server/BuffManager.ts` — Buffs/debuffs
 
@@ -818,14 +823,24 @@ EpicEarthMMO/
 │   └── globals.css         # Global styles
 ├── components/
 │   ├── auth/               # AuthForm, CharacterSelect
-│   ├── game/               # 3D scene components
+│   ├── game/               # 3D scene components (25+)
 │   │   ├── GameScene.tsx   # Main Canvas
-│   │   ├── Player.tsx      # Player entity
-│   │   ├── Map.tsx         # Map rendering
+│   │   ├── Player.tsx      # Player entity (client prediction + reconciliation)
+│   │   ├── map/            # Map system (10 modular components)
+│   │   │   ├── MapScene.tsx       # Orchestrator
+│   │   │   ├── MapTerrain.tsx     # Tiled instanced + blended terrain
+│   │   │   ├── MapDecorations.tsx # Decorations with LOD + layers
+│   │   │   ├── MapLighting.tsx    # Fog, background, lights per mapType
+│   │   │   ├── MapEntities.tsx    # Enemies from store
+│   │   │   ├── MapClickHandler.tsx# Ground click → moveToTarget
+│   │   │   ├── MapColliders.tsx   # Rapier colliders
+│   │   │   ├── MapWarps.tsx       # Warp portals
+│   │   │   ├── MapSafeZones.tsx   # Safe zone indicators
+│   │   │   └── MapGrass.tsx       # Grass tufts
 │   │   ├── Enemy.tsx       # Enemy entities
 │   │   ├── NPC.tsx         # NPC interaction
 │   │   ├── HUD.tsx         # Heads-up display
-│   │   └── ...             # 28 components total
+│   │   └── ...             # 25+ components total
 │   └── ui/                 # Reusable UI components (23)
 ├── lib/                    # Client game logic
 │   ├── navGrid.ts          # A* pathfinding

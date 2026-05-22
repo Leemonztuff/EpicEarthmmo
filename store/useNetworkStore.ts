@@ -1,6 +1,9 @@
 import { create } from 'zustand';
 import { io, Socket } from 'socket.io-client';
-import type { PeerPlayerState, ChatMessage, TradeOffer, WorldSnapshot, PlayerInput, ActiveBuffData } from '@/shared/types/network';
+import type {
+  PeerPlayerState, ChatMessage, TradeOffer, WorldSnapshot, PlayerInput,
+  ActiveBuffData, MoveToTargetData, InteractionReadyData,
+} from '@/shared/types/network';
 import type { EnemyState } from '@/shared/schemas/gameState';
 import { gameData } from '@/shared/loader';
 import { addCombatLog } from '@/components/game/hud/CombatLog';
@@ -25,10 +28,10 @@ interface NetworkStore {
     theirOffer: TradeOffer;
   } | null;
   lastSnapshotPos: { x: number; y: number; z: number };
-  lastSnapshotSeq: number;
 
   initSocket: (playerName: string) => void;
   sendInput: (input: PlayerInput) => void;
+  sendMoveToTarget: (data: MoveToTargetData) => void;
   sendChatMessage: (text: string) => void;
   addChatMessage: (msg: ChatMessage) => void;
   attackTarget: (targetId: string) => void;
@@ -46,11 +49,6 @@ interface NetworkStore {
   cancelTrade: () => void;
 }
 
-const RECONCILIATION_WINDOW = 50;
-const predictedStates: any[] = [];
-let lastReconciledPos = { x: 0, y: 0.5, z: 0 };
-let lastReconciledSeq = 0;
-
 export const useNetworkStore = create<NetworkStore>((set, get) => ({
   socket: null,
   isConnected: false,
@@ -61,7 +59,6 @@ export const useNetworkStore = create<NetworkStore>((set, get) => ({
   tradeRequest: null,
   activeTrade: null,
   lastSnapshotPos: { x: 0, y: 0.5, z: 0 },
-  lastSnapshotSeq: 0,
 
   initSocket: async (playerName: string) => {
     if (get().socket?.connected) return;
@@ -90,7 +87,7 @@ export const useNetworkStore = create<NetworkStore>((set, get) => ({
       set({ currentMapData: data.initData });
       const gs = useGameStore.getState();
       gs.setMap(data.mapId, data.mapName, data.mapType);
-      if (data.players) {
+      if (data.players && newSocket.id) {
         const me = data.players[newSocket.id];
         if (me) {
           gs.setPosition({ x: me.x, y: me.y, z: me.z });
@@ -115,33 +112,8 @@ export const useNetworkStore = create<NetworkStore>((set, get) => ({
       const players = snapshot.players || {};
       for (const [id, sp] of Object.entries(players)) {
         if (id === myId) {
-          const serverSeq = sp.lastProcessedSeq || sp.lastSeq;
-          let reconciled = { x: sp.x, y: sp.y, z: sp.z };
-
-          // Reconcile: find matching predicted state by seq
-          const matchIdx = predictedStates.findIndex(ps => ps.seq === serverSeq);
-          if (matchIdx !== -1 && matchIdx < predictedStates.length - 1) {
-            const matched = predictedStates[matchIdx];
-            const predictionError = {
-              x: reconciled.x - matched.pos.x,
-              z: reconciled.z - matched.pos.z,
-            };
-            const latest = predictedStates[predictedStates.length - 1];
-            reconciled = {
-              x: latest.pos.x + predictionError.x,
-              y: reconciled.y,
-              z: latest.pos.z + predictionError.z,
-            };
-            predictedStates.splice(0, matchIdx + 1);
-          } else if (matchIdx === -1 && predictedStates.length > 0) {
-            // No match found — stale seq or missed; hard snap
-            predictedStates.length = 0;
-          }
-
-          set({ lastSnapshotPos: reconciled, lastSnapshotSeq: serverSeq });
-          lastReconciledPos = reconciled;
-          lastReconciledSeq = serverSeq;
-          gs.setPosition(reconciled);
+          set({ lastSnapshotPos: { x: sp.x, y: sp.y, z: sp.z } });
+          gs.setPosition({ x: sp.x, y: sp.y, z: sp.z });
         } else {
           const existing = get().remotePlayers[id];
           updatedPlayers[id] = {
@@ -173,6 +145,25 @@ export const useNetworkStore = create<NetworkStore>((set, get) => ({
     newSocket.on('chatMessage', (msg: ChatMessage) => {
       if (!msg) return;
       set(s => ({ chatMessages: [...s.chatMessages, msg].slice(-50) }));
+    });
+
+    newSocket.on('interactionReady', (data: InteractionReadyData) => {
+      if (!data) return;
+      const gs = useGameStore.getState();
+
+      switch (data.type) {
+        case 'npc': {
+          const dialog = gameData.dialogs?.dialogs?.find((d: any) => d.id === data.dialogId);
+          if (dialog) {
+            gs.setDialogState({ isOpen: true, dialog, currentLineIndex: 0, selectedResponse: null });
+          }
+          break;
+        }
+      }
+    });
+
+    newSocket.on('moveCompleted', () => {
+      // Target movement finished — no special handling needed
     });
 
     newSocket.on('enemyDamaged', (data) => {
@@ -357,6 +348,11 @@ export const useNetworkStore = create<NetworkStore>((set, get) => ({
   sendInput: (input) => {
     const s = get().socket;
     if (s?.connected) s.emit('input', input);
+  },
+
+  sendMoveToTarget: (data: MoveToTargetData) => {
+    const s = get().socket;
+    if (s?.connected) s.emit('moveToTarget', data);
   },
 
   sendChatMessage: (text) => {

@@ -1,7 +1,6 @@
 import { create } from 'zustand';
 import { gameData } from '@/shared/loader';
 import { PlayerState, PlayerStats, DamageText, EnemyState, GameUIState } from '@/types/game';
-import { InteractionTarget } from '@/lib/interactionManager';
 import { Dialog } from '@/shared/schemas';
 import { hotReloadData } from '@/shared/loader/clientLoader';
 import { showToast } from '@/components/ui';
@@ -66,12 +65,9 @@ interface GameStore {
   currentMapName: string;
   currentMapType: string;
   targetPosition: { x: number; z: number } | null;
-  path: Array<{ x: number; z: number }> | null;
-  pathIndex: number;
   selectedTargetId: string | null;
   activeSkill: string | null;
   skillCooldowns: Record<string, number>;
-  interactionTarget: InteractionTarget | null;
   dialogState: DialogState;
   shopNpcId: string | null;
   enemies: Record<string, EnemyState>;
@@ -79,17 +75,13 @@ interface GameStore {
   combatLog: string[];
   ui: GameUIState;
 
-  // Derived state getters
   getCombatStats: () => { atk: number; matk: number; def: number; mdef: number; hit: number; flee: number; attackSpeed: number; critChance: number; critDamage: number };
 
   setMap: (mapId: string, mapName: string, mapType: string) => void;
   setTargetPosition: (pos: { x: number; z: number } | null) => void;
-  setPath: (path: Array<{ x: number; z: number }> | null) => void;
-  setPathIndex: (index: number) => void;
   setPosition: (pos: { x: number; y: number; z: number }) => void;
   setInputDirection: (dir: { x: number; z: number }) => void;
   setSelectedTargetId: (id: string | null) => void;
-  setInteractionTarget: (target: InteractionTarget | null) => void;
   setDialogState: (state: Partial<DialogState>) => void;
   setActiveSkill: (skillId: string | null) => void;
   setSkillCooldown: (skillId: string, durationMs: number) => void;
@@ -127,12 +119,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
   currentMapName: 'Prontera City',
   currentMapType: 'town',
   targetPosition: null,
-  path: null,
-  pathIndex: 0,
   selectedTargetId: null,
   activeSkill: null,
   skillCooldowns: {},
-  interactionTarget: null,
   dialogState: { isOpen: false, dialog: null, currentLineIndex: 0, selectedResponse: null },
   shopNpcId: null,
   enemies: buildInitialEnemies(),
@@ -158,17 +147,11 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
   setMap: (mapId, mapName, mapType) => set({ currentMapId: mapId, currentMapName: mapName, currentMapType: mapType }),
   setTargetPosition: (pos) => set({ targetPosition: pos }),
-  setPath: (path) => set({ path, pathIndex: 0 }),
-  setPathIndex: (index) => set({ pathIndex: index }),
   setPosition: (pos) => set({ position: pos }),
   setInputDirection: (dir) => set({ inputDirection: dir }),
   setSelectedTargetId: (id) => set((s) => ({
     selectedTargetId: id,
-    path: null,
-    pathIndex: 0,
-    interactionTarget: id ? { type: 'enemy', id, position: s.enemies[id] ? { x: s.enemies[id].position.x, z: s.enemies[id].position.z } : { x: 0, z: 0 } } : null,
   })),
-  setInteractionTarget: (target) => set({ interactionTarget: target }),
   setDialogState: (state) => set((s) => ({ dialogState: { ...s.dialogState, ...state } })),
   setActiveSkill: (skillId) => set({ activeSkill: skillId }),
   setSkillCooldown: (skillId, durationMs) => set((s) => ({

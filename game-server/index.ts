@@ -13,7 +13,8 @@ import {
 } from '../shared/loader/formulaEngine';
 import { MapManager, type RuntimeEnemy } from './MapManager';
 import type { ServerPlayer } from './types';
-import type { PlayerInput, WorldSnapshot, SnapshotPlayer, MapChangeData, SkillCastRequest } from '../shared/types/network';
+import type { PlayerInput, WorldSnapshot, SnapshotPlayer, MapChangeData, SkillCastRequest, MoveToTargetData, InteractionReadyData } from '../shared/types/network';
+import { findPath, smoothPath, getCellAtWorld } from '../shared/pathfinding';
 import { SkillEngine } from './SkillEngine';
 import type { BuffableEntity } from './BuffManager';
 import type { GroundEffectTarget } from './GroundEffectManager';
@@ -180,6 +181,10 @@ function createDefaultPlayer(id: string, name: string): ServerPlayer {
     equippedItems: {},
     inventory: [{ itemId: 'red_potion', amount: 10 }],
     zeny: 100,
+    moveTarget: null,
+    path: null,
+    pathIndex: 0,
+    pendingInteraction: null,
   };
 }
 
@@ -315,6 +320,26 @@ io.on('connection', (socket) => {
     const dirX = Math.max(-1, Math.min(1, input.dirX || 0));
     const dirZ = Math.max(-1, Math.min(1, input.dirZ || 0));
     player.inputQueue.push({ dirX, dirZ, seq: input.seq || 0 });
+  });
+
+  socket.on('moveToTarget', (data: MoveToTargetData) => {
+    if (!player) return;
+    player.moveTarget = { x: data.targetX, z: data.targetZ };
+    player.path = null;
+    player.pathIndex = 0;
+    if (data.interaction) {
+      player.pendingInteraction = { ...data.interaction, targetX: data.targetX, targetZ: data.targetZ };
+    } else {
+      player.pendingInteraction = null;
+    }
+  });
+
+  socket.on('cancelMove', () => {
+    if (!player) return;
+    player.moveTarget = null;
+    player.path = null;
+    player.pathIndex = 0;
+    player.pendingInteraction = null;
   });
 
   socket.on('attack', (data: {
@@ -1262,6 +1287,63 @@ function performMapChange(player: ServerPlayer, socket: any, targetMapId: string
   player.warpCooldownUntil = Date.now() + 2000;
 }
 
+// ── Interaction execution when player reaches target ──
+function executePendingInteraction(player: ServerPlayer, io: any) {
+  const interaction = player.pendingInteraction;
+  if (!interaction) return;
+
+  player.pendingInteraction = null;
+  player.moveTarget = null;
+  player.path = null;
+  player.pathIndex = 0;
+
+  const mapCfg = mapConfigs.find((m: any) => m.id === player.currentMapId);
+  if (!mapCfg) return;
+
+  const socket = io.sockets.sockets.get(player.id);
+  if (!socket) return;
+
+  switch (interaction.type) {
+    case 'npc': {
+      const npcs: any[] = (mapCfg as any)?.npcs || [];
+      const npc = npcs.find((n: any) => n.id === interaction.id);
+      if (!npc) return;
+
+      const dialog = (gameData.dialogs as any)?.dialogs?.find((d: any) => d.id === npc.dialogId);
+      if (!dialog) return;
+
+      const data: InteractionReadyData = {
+        type: 'npc',
+        npcId: interaction.id,
+        dialogId: npc.dialogId,
+        npcName: npc.name,
+      };
+      socket.emit('interactionReady', data);
+      break;
+    }
+    case 'chest': {
+      socket.emit('openChest', { chestId: interaction.id });
+      break;
+    }
+    case 'warp': {
+      const warps: any[] = (mapCfg as any)?.warps || [];
+      const warp = warps.find((w: any) => w.id === interaction.id);
+      if (!warp) return;
+
+      const now = Date.now();
+      if (now < player.warpCooldownUntil) return;
+
+      const targetMap = mapManager.getMap(warp.targetMapId);
+      if (!targetMap) return;
+
+      if (warp.requirements && player.baseLevel < (warp.requirements.minLevel || 0)) return;
+
+      performMapChange(player, socket, warp.targetMapId, warp.targetSpawnId || 'default');
+      break;
+    }
+  }
+}
+
 // ── Game Loop ─────────────────────────────────────────────
 let ticking = false;
 const tickTimeSec = balance.server.tickRateMs / 1000;
@@ -1368,15 +1450,11 @@ function tick() {
 
     // ── Process input queues (server-authoritative) ──
     for (const p of instance.players.values()) {
-      let dx = 0, dz = 0;
-
-      // Security: dead players cannot move
       if (p.hp <= 0) {
         p.inputQueue = [];
         continue;
       }
 
-      // Security: CC-locked (stun/root) players cannot move
       const pBuffs = skillEngine.getBuffManager().getBuffsByTarget(p.id);
       const ccLocked = pBuffs.some(b => (b.buffId === 'stun' || b.buffId === 'root') && b.stacks > 0);
       if (ccLocked) {
@@ -1384,22 +1462,33 @@ function tick() {
         continue;
       }
 
-      // ── Process latest input only (rate-limited: 1 per tick) ──
+      // ── Read latest direct input ──
+      let dx = 0, dz = 0;
+      let hasDirectInput = false;
       if (p.inputQueue.length > 0) {
         const latest = p.inputQueue.pop()!;
         p.inputQueue = [];
         p.lastProcessedSeq = latest.seq;
         dx = latest.dirX;
         dz = latest.dirZ;
+        hasDirectInput = (dx !== 0 || dz !== 0);
       }
 
-      // ── Velocity-based movement (matches client physics) ──
-      if (dx !== 0 || dz !== 0) {
-        const len = Math.sqrt(dx * dx + dz * dz);
-        if (len > 1.0) { dx /= len; dz /= len; }
+      // ── Direct input clears target movement ──
+      if (hasDirectInput) {
+        p.moveTarget = null;
+        p.path = null;
+        p.pathIndex = 0;
+        p.pendingInteraction = null;
       }
 
-      {
+      // ── Two movement modes: direct input OR target following ──
+      if (hasDirectInput) {
+        if (dx !== 0 || dz !== 0) {
+          const len = Math.sqrt(dx * dx + dz * dz);
+          if (len > 1.0) { dx /= len; dz /= len; }
+        }
+
         const speed = balance.movement.playerSpeed;
         const accelFactor = Math.min(1, (speed * 8) * tickTimeSec);
         const frictionFactor = Math.min(1, 10 * tickTimeSec);
@@ -1418,7 +1507,6 @@ function tick() {
           const newX = p.x + p.vx * tickTimeSec;
           const newZ = p.z + p.vz * tickTimeSec;
 
-          // Security: validate delta
           const maxDelta = speed * tickTimeSec;
           const actualDelta = Math.sqrt((newX - p.x) ** 2 + (newZ - p.z) ** 2);
           if (actualDelta <= maxDelta + 0.001) {
@@ -1449,12 +1537,92 @@ function tick() {
             p.vx = 0; p.vz = 0;
           }
 
-          // Clamp to map bounds
           const halfW = instance.config.dimensions.width / 2;
           const halfH = instance.config.dimensions.height / 2;
           p.x = Math.max(-halfW, Math.min(halfW, p.x));
           p.z = Math.max(-halfH, Math.min(halfH, p.z));
         }
+      } else if (p.moveTarget) {
+        // ── Target mode: path following at constant speed ──
+        const speed = balance.movement.playerSpeed;
+
+        // Compute path if needed
+        if (!p.path || p.pathIndex >= (p.path?.length || 0)) {
+          if (instance.navGrid) {
+            const rawPath = findPath(instance.navGrid, p.x, p.z, p.moveTarget.x, p.moveTarget.z);
+            if (rawPath && rawPath.length > 0) {
+              p.path = smoothPath(instance.navGrid, rawPath);
+              p.pathIndex = 0;
+            } else {
+              // Path not found — stop
+              p.moveTarget = null;
+              p.path = null;
+              p.pendingInteraction = null;
+            }
+          } else {
+            // No navgrid — move directly
+            p.path = [{ x: p.moveTarget.x, z: p.moveTarget.z }];
+            p.pathIndex = 0;
+          }
+        }
+
+        if (p.path && p.pathIndex < p.path.length) {
+          const waypoint = p.path[p.pathIndex];
+          const ddx = waypoint.x - p.x;
+          const ddz = waypoint.z - p.z;
+          const dist = Math.sqrt(ddx * ddx + ddz * ddz);
+
+          if (dist < 0.5) {
+            p.pathIndex++;
+            if (p.pathIndex >= p.path.length) {
+              p.vx = 0; p.vz = 0;
+              if (p.pendingInteraction) {
+                executePendingInteraction(p, io);
+              } else {
+                io.to(p.id).emit('moveCompleted', {});
+              }
+              p.moveTarget = null;
+              p.path = null;
+              p.pathIndex = 0;
+            }
+          } else {
+            const moveAmount = speed * tickTimeSec;
+            const step = Math.min(moveAmount, dist);
+            const nx = p.x + (ddx / dist) * step;
+            const nz = p.z + (ddz / dist) * step;
+
+            // Navgrid validation
+            let canMove = true;
+            if (instance.navGrid) {
+              const cell = getCellAtWorld(instance.navGrid, nx, nz);
+              canMove = cell ? cell.walkable : false;
+            }
+            if (canMove) {
+              p.x = nx;
+              p.z = nz;
+              p.vx = (ddx / dist) * speed;
+              p.vz = (ddz / dist) * speed;
+            } else {
+              // Hit wall — recompute path next tick
+              p.path = null;
+              p.pathIndex = 0;
+            }
+          }
+        } else {
+          p.vx = 0; p.vz = 0;
+        }
+
+        const halfW = instance.config.dimensions.width / 2;
+        const halfH = instance.config.dimensions.height / 2;
+        p.x = Math.max(-halfW, Math.min(halfW, p.x));
+        p.z = Math.max(-halfH, Math.min(halfH, p.z));
+      } else {
+        // ── No input — decelerate ──
+        const frictionFactor = Math.min(1, 10 * tickTimeSec);
+        p.vx -= p.vx * frictionFactor;
+        p.vz -= p.vz * frictionFactor;
+        if (Math.abs(p.vx) < 0.001) p.vx = 0;
+        if (Math.abs(p.vz) < 0.001) p.vz = 0;
       }
 
       // Regen
@@ -1581,7 +1749,8 @@ function tick() {
     if (isFullTick) {
       const full: WorldSnapshot = { tick: tickNum, players: {}, enemies: {} };
       for (const [id, p] of instance.players) {
-        const snap: SnapshotPlayer = { x: p.x, y: p.y, z: p.z, hp: p.hp, maxHp: p.maxHp, sp: p.sp, maxSp: p.maxSp, lastProcessedSeq: p.lastProcessedSeq };
+        const isMoving = p.vx !== 0 || p.vz !== 0;
+        const snap: SnapshotPlayer = { x: p.x, y: p.y, z: p.z, hp: p.hp, maxHp: p.maxHp, sp: p.sp, maxSp: p.maxSp, lastProcessedSeq: p.lastProcessedSeq, vx: p.vx, vz: p.vz, moving: isMoving };
         full.players[id] = snap;
         p.lastSentSnapshot = snap;
       }
@@ -1593,14 +1762,16 @@ function tick() {
       for (const [socketId, p] of instance.players) {
         const snap: WorldSnapshot = { tick: tickNum, players: {}, enemies: {} };
 
-        const selfSnap: SnapshotPlayer = { x: p.x, y: p.y, z: p.z, hp: p.hp, maxHp: p.maxHp, sp: p.sp, maxSp: p.maxSp, lastProcessedSeq: p.lastProcessedSeq };
+        const isMoving = p.vx !== 0 || p.vz !== 0;
+        const selfSnap: SnapshotPlayer = { x: p.x, y: p.y, z: p.z, hp: p.hp, maxHp: p.maxHp, sp: p.sp, maxSp: p.maxSp, lastProcessedSeq: p.lastProcessedSeq, vx: p.vx, vz: p.vz, moving: isMoving };
         snap.players[socketId] = selfSnap;
         p.lastSentSnapshot = selfSnap;
 
         for (const [otherId, other] of instance.players) {
           if (otherId === socketId) continue;
           if (distSq(p, other) > balance.network.interestRange * balance.network.interestRange) continue;
-          const otherSnap: SnapshotPlayer = { x: other.x, y: other.y, z: other.z, hp: other.hp, maxHp: other.maxHp, sp: other.sp, maxSp: other.maxSp };
+          const otherMoving = other.vx !== 0 || other.vz !== 0;
+          const otherSnap: SnapshotPlayer = { x: other.x, y: other.y, z: other.z, hp: other.hp, maxHp: other.maxHp, sp: other.sp, maxSp: other.maxSp, vx: other.vx, vz: other.vz, moving: otherMoving };
           if (!other.lastSentSnapshot || snapshotPlayerChanged(other.lastSentSnapshot, otherSnap)) {
             snap.players[otherId] = otherSnap;
           }

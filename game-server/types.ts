@@ -38,6 +38,9 @@ export interface ServerPlayer {
   zeny: number;
   isCasting?: boolean;
   castingSkillId?: string;
-  path?: { x: number; z: number }[];
-  pathIndex?: number;
+
+  moveTarget: { x: number; z: number } | null;
+  path: { x: number; z: number }[] | null;
+  pathIndex: number;
+  pendingInteraction: { type: string; id: string; targetX: number; targetZ: number } | null;
 }

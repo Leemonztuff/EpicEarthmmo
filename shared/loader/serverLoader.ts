@@ -8,6 +8,7 @@ import {
   ItemDatabaseSchema, ItemDatabase,
   JobDatabaseSchema, JobDatabase,
   MapSchema, MapConfig,
+  DialogDatabaseSchema, DialogDatabase,
 } from '../schemas';
 
 interface LoadedGameData {
@@ -17,6 +18,7 @@ interface LoadedGameData {
   items: ItemDatabase;
   jobs: JobDatabase;
   maps: MapConfig[];
+  dialogs: DialogDatabase;
 }
 
 function loadAndValidate<T extends ZodSchema>(filePath: string, schema: T): z.infer<T> {
@@ -43,6 +45,12 @@ export function loadGameData(dataDir?: string): LoadedGameData {
   const items = loadAndValidate(path.join(baseDir, 'items.json'), ItemDatabaseSchema);
   const jobs = loadAndValidate(path.join(baseDir, 'jobs.json'), JobDatabaseSchema);
 
+  let dialogs: DialogDatabase = { dialogs: [] };
+  const dialogsPath = path.join(baseDir, 'dialogs.json');
+  if (fs.existsSync(dialogsPath)) {
+    dialogs = loadAndValidate(dialogsPath, DialogDatabaseSchema);
+  }
+
   const mapsDir = path.join(baseDir, 'maps');
   const maps: MapConfig[] = [];
   if (fs.existsSync(mapsDir)) {
@@ -55,7 +63,7 @@ export function loadGameData(dataDir?: string): LoadedGameData {
 
   console.log(`[GameData] Loaded ${enemies.templates.length} enemy templates, ${skills.length} skills, ${items.length} items, ${jobs.length} jobs, ${maps.length} maps`);
 
-  return { balance, enemies, skills, items, jobs, maps };
+  return { balance, enemies, skills, items, jobs, maps, dialogs };
 }
 
 export type { LoadedGameData };

@@ -16,22 +16,23 @@ export function NetworkManager({ playerName }: { playerName: string }) {
     inputSeqRef.current = 0;
     initSocket(playerName);
 
-    const inputRef = setInterval(() => {
+    const inputInterval = setInterval(() => {
       const gs = useGameStore.getState();
       const ns = useNetworkStore.getState();
 
-      if (!ns.socket?.connected || !gs.inputDirection) return;
+      if (!ns.socket?.connected) return;
 
+      const dir = gs.inputDirection || { x: 0, z: 0 };
       inputSeqRef.current++;
       ns.sendInput({
-        dirX: gs.inputDirection.x || 0,
-        dirZ: gs.inputDirection.z || 0,
-        seq: inputSeqRef.current
+        dirX: dir.x,
+        dirZ: dir.z,
+        seq: inputSeqRef.current,
       });
     }, INPUT_RATE_MS);
 
     return () => {
-      clearInterval(inputRef);
+      clearInterval(inputInterval);
       const s = useNetworkStore.getState().socket;
       if (s) {
         s.disconnect();

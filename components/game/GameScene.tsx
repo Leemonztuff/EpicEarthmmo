@@ -5,7 +5,7 @@ import { Canvas } from '@react-three/fiber';
 import { Physics } from '@react-three/rapier';
 import { EffectComposer, Bloom } from '@react-three/postprocessing';
 import { Player } from './Player';
-import { Map } from './Map';
+import { MapScene } from './map/MapScene';
 import { CameraController } from './CameraController';
 import { NetworkManager } from './NetworkManager';
 import { RemotePlayers } from './RemotePlayers';
@@ -45,11 +45,6 @@ function getDefaultMapData() {
   };
 }
 
-function DynamicMap() {
-  const mapData = useNetworkStore(state => state.currentMapData);
-  return <Map mapData={mapData || (getDefaultMapData() as any)} />;
-}
-
 export function GameScene({ characterName }: { characterName?: string }) {
   const mapType = useNetworkStore(state => state.currentMapData?.mapType);
   const mapData = useNetworkStore(state => state.currentMapData);
@@ -60,7 +55,7 @@ export function GameScene({ characterName }: { characterName?: string }) {
       <Canvas shadows orthographic={false} dpr={[1, 2]} camera={{ fov: 50, position: [0, 14, 16], near: 0.1, far: 100 }}>
         <Suspense fallback={null}>
           <Physics debug={false}>
-            <DynamicMap />
+            <MapScene mapData={mapData || (getDefaultMapData() as any)} />
             <Player />
             <RemotePlayers />
           </Physics>

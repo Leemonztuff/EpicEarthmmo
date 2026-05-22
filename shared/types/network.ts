@@ -26,6 +26,23 @@ export interface PlayerInput {
   dirX: number;
   dirZ: number;
   seq: number;
+  timestamp?: number;
+}
+
+export interface MoveToTargetData {
+  targetX: number;
+  targetZ: number;
+  interaction?: {
+    type: 'npc' | 'chest' | 'warp';
+    id: string;
+  };
+}
+
+export interface InteractionReadyData {
+  type: 'npc';
+  npcId: string;
+  dialogId: string;
+  npcName?: string;
 }
 
 export interface SnapshotPlayer {
@@ -37,6 +54,9 @@ export interface SnapshotPlayer {
   name?: string;
   direction?: string;
   animState?: string;
+  vx?: number;
+  vz?: number;
+  moving?: boolean;
 }
 
 export interface SnapshotEnemy {

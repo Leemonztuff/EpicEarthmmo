@@ -2,11 +2,19 @@
 
 import React, { useMemo, useRef, useEffect } from 'react';
 import * as THREE from 'three';
+import { RigidBody } from '@react-three/rapier';
 import type { Tile } from '@/shared/schemas';
 
 const textureCache: Record<string, THREE.CanvasTexture> = {};
 const materialCache: Record<string, THREE.MeshStandardMaterial> = {};
 const geoCache: Record<string, THREE.PlaneGeometry> = {};
+const grassTextureCache: Record<string, THREE.CanvasTexture> = {};
+
+const TERRAIN_COLORS: Record<string, string> = {
+  grass: '#5a9a3a', dirt: '#8a6a4a', stone: '#888890', sand: '#d4b87a',
+  snow: '#e8eef4', water: '#4488aa', lava: '#cc4400', wood: '#8a6432',
+  carpet: '#aa3a3a', ice: '#aaddcc', swamp: '#5a6a3a', bridge: '#9a7a5a',
+};
 
 function getPlaneGeometry(tileSize: number): THREE.PlaneGeometry {
   const key = `plane_${tileSize}`;
@@ -90,11 +98,29 @@ function getTerrainMaterial(terrainType: string): THREE.MeshStandardMaterial {
   return mat;
 }
 
-const TERRAIN_COLORS: Record<string, string> = {
-  grass: '#5a9a3a', dirt: '#8a6a4a', stone: '#888890', sand: '#d4b87a',
-  snow: '#e8eef4', water: '#4488aa', lava: '#cc4400', wood: '#8a6432',
-  carpet: '#aa3a3a', ice: '#aaddcc', swamp: '#5a6a3a', bridge: '#9a7a5a',
-};
+function createGrassTexture(baseColor: string, repeatX: number, repeatY: number): THREE.CanvasTexture {
+  const cacheKey = `${baseColor}_${repeatX}_${repeatY}`;
+  if (grassTextureCache[cacheKey]) return grassTextureCache[cacheKey];
+
+  const canvas = document.createElement('canvas');
+  canvas.width = 256;
+  canvas.height = 256;
+  const ctx = canvas.getContext('2d')!;
+  ctx.fillStyle = baseColor;
+  ctx.fillRect(0, 0, 256, 256);
+  for (let i = 0; i < 3000; i++) {
+    const x = Math.random() * 256;
+    const y = Math.random() * 256;
+    const shade = Math.random() * 60;
+    ctx.fillStyle = `rgb(${100 + shade}, ${170 + shade}, ${60 + shade})`;
+    ctx.fillRect(x, y, 2, 4 + Math.random() * 4);
+  }
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  tex.repeat.set(repeatX, repeatY);
+  grassTextureCache[cacheKey] = tex;
+  return tex;
+}
 
 function tileWorldX(col: number, tileSize: number, offsetX: number): number {
   return col * tileSize + offsetX + tileSize / 2;
@@ -201,10 +227,10 @@ function BlendedTile({ tile, tileSize, worldOffsetX, worldOffsetZ, neighbors }: 
       ctx.fillRect(0, 0, edgeSize, 128);
     }
 
-    const tex = new THREE.CanvasTexture(canvas);
-    tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
-    textureCache[key] = tex;
-    return tex;
+    const tex2 = new THREE.CanvasTexture(canvas);
+    tex2.wrapS = tex2.wrapT = THREE.RepeatWrapping;
+    textureCache[key] = tex2;
+    return tex2;
   }, [tile.terrainType, tile.blendNorth, tile.blendSouth, tile.blendEast, tile.blendWest, neighbors]);
 
   const wx = tileWorldX(tile.position[0], tileSize, worldOffsetX);
@@ -218,15 +244,18 @@ function BlendedTile({ tile, tileSize, worldOffsetX, worldOffsetZ, neighbors }: 
   );
 }
 
-interface TerrainRendererProps {
+interface MapTerrainProps {
   tiles: Tile[];
+  dimensions: { width: number; height: number };
+  grassTexture: { baseColor: string; repeatX: number; repeatY: number };
+  floorColor: string;
   tileSize?: number;
   worldOffsetX?: number;
   worldOffsetZ?: number;
-  dimensions: { width: number; height: number };
+  onPointerDown?: (e: any) => void;
 }
 
-export function TerrainRenderer({ tiles, tileSize = 1, worldOffsetX = 0, worldOffsetZ = 0, dimensions }: TerrainRendererProps) {
+export function MapTerrain({ tiles, dimensions, grassTexture, floorColor, tileSize = 1, worldOffsetX = 0, worldOffsetZ = 0, onPointerDown }: MapTerrainProps) {
   const { plainGroups, blendedTiles } = useMemo(() => {
     const tileMap = new Map<string, Tile>();
     for (const tile of tiles) {
@@ -267,12 +296,17 @@ export function TerrainRenderer({ tiles, tileSize = 1, worldOffsetX = 0, worldOf
     return { plainGroups: plainByType, blendedTiles: blended };
   }, [tiles]);
 
-  if (tiles.length === 0) {
+  const hasTiles = tiles.length > 0;
+
+  if (!hasTiles) {
+    const tex = createGrassTexture(grassTexture.baseColor, grassTexture.repeatX, grassTexture.repeatY);
     return (
-      <mesh position={[0, -0.01, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
-        <planeGeometry args={[dimensions.width, dimensions.height]} />
-        <meshStandardMaterial color="#5a9a3a" roughness={0.8} />
-      </mesh>
+      <RigidBody type="fixed">
+        <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.01, 0]} onPointerDown={onPointerDown} receiveShadow>
+          <planeGeometry args={[dimensions.width, dimensions.height]} />
+          <meshStandardMaterial map={tex} roughness={0.8} metalness={0} color={floorColor} />
+        </mesh>
+      </RigidBody>
     );
   }
 

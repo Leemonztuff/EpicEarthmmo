@@ -33,14 +33,14 @@ NEXT_PUBLIC_GAME_SERVER_URL=http://localhost:3001
 
 | System | Status | Description |
 |--------|--------|-------------|
-| Movement | ✅ | Velocity-based with acceleration/deceleration (RO-style). WASD + virtual joystick |
+| Movement | ✅ | 2 modes: Direct Input (WASD/joystick velocity-based with client prediction + server reconciliation) + Target Movement (click-to-move with server-authoritative A* pathfinding) |
 | Camera | ✅ | Fixed-angle RO-style (NE-facing, ~50° pitch). Zoom only |
-| Pathfinding | ✅ | A* 8-directional with string-pull smoothing, client-side prediction |
+| Pathfinding | ✅ | A* 8-directional with string-pull smoothing, shared between client + server |
 | Combat | ✅ | Auto-attack, 19 skills, hit/flee, crit, defense, kill/death |
 | Skills | ✅ | 19 skills with cast/channel, AoE, knockback, buffs, debuffs |
 | Mobs | ✅ | 10 enemy types with AI (idle/patrol/chase/attack/return) |
 | NPCs | ✅ | Billboard sprites, branching dialog trees, shops |
-| Maps | ✅ | 3 maps (Prontera, Prontera Fields, Geffen Dungeon) |
+| Maps | ✅ | 3 maps (Prontera, Prontera Fields, Geffen Dungeon) — modular 10-component architecture |
 | Chests | ✅ | 3D chests with lid animation, loot drops |
 | Warps | ✅ | Click → pathfind → auto-warp between maps |
 | Network | ✅ | Socket.IO with polling fallback for Railway |
@@ -52,9 +52,9 @@ NEXT_PUBLIC_GAME_SERVER_URL=http://localhost:3001
 
 ```
 Client (Next.js + R3F + Rapier)
-  ↕ Socket.IO
+  ↕ Socket.IO (client prediction + server reconciliation)
 Game Server (Express + Socket.IO + SkillEngine)
-  ↕ Shared schemas (Zod)
+  ↕ Shared schemas (Zod) + shared pathfinding (A*)
 Data (JSON balance, enemies, skills, items, jobs, maps, dialogs)
 ```
 
@@ -64,7 +64,8 @@ Data (JSON balance, enemies, skills, items, jobs, maps, dialogs)
 ├── app/                  Next.js App Router (pages, layout)
 ├── components/
 │   ├── auth/             Login, character select
-│   ├── game/             Three.js scene (28 components)
+│   ├── game/             Three.js scene (25+ components)
+│   │   └── map/          Map system (10 modular components)
 │   └── ui/               Reusable UI (23 components)
 ├── lib/                  Game logic (15 modules)
 ├── store/                Zustand stores (game, network)
