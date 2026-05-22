@@ -170,6 +170,7 @@ function createDefaultPlayer(id: string, name: string): ServerPlayer {
     unlockedSkills: [],
     skillPoints: defaultPlayer.skillPoints,
     lastAttackTime: 0,
+    vx: 0, vz: 0,
     inputQueue: [],
     lastProcessedSeq: 0,
     baseExp: 0,
@@ -1383,58 +1384,77 @@ function tick() {
         continue;
       }
 
-      while (p.inputQueue.length > 0) {
-        const input = p.inputQueue.shift()!;
-        p.lastProcessedSeq = input.seq;
-        if (input.dirX !== 0 || input.dirZ !== 0) {
-          dx = input.dirX;
-          dz = input.dirZ;
-        }
+      // ── Process latest input only (rate-limited: 1 per tick) ──
+      if (p.inputQueue.length > 0) {
+        const latest = p.inputQueue.pop()!;
+        p.inputQueue = [];
+        p.lastProcessedSeq = latest.seq;
+        dx = latest.dirX;
+        dz = latest.dirZ;
       }
 
-      // Security: rate-limit — max 1 input per tick, drain extras silently
-      if (p.inputQueue.length > 1) {
-        p.inputQueue = p.inputQueue.slice(-1);
-      }
-
+      // ── Velocity-based movement (matches client physics) ──
       if (dx !== 0 || dz !== 0) {
         const len = Math.sqrt(dx * dx + dz * dz);
         if (len > 1.0) { dx /= len; dz /= len; }
+      }
 
+      {
         const speed = balance.movement.playerSpeed;
-        const maxDelta = speed * tickTimeSec;
-        const newX = p.x + dx * maxDelta;
-        const newZ = p.z + dz * maxDelta;
+        const accelFactor = Math.min(1, (speed * 8) * tickTimeSec);
+        const frictionFactor = Math.min(1, 10 * tickTimeSec);
 
-        // Security: validate delta doesn't exceed max possible
-        const actualDelta = Math.sqrt((newX - p.x) ** 2 + (newZ - p.z) ** 2);
-        if (actualDelta > maxDelta + 0.001) continue;
+        if (dx !== 0 || dz !== 0) {
+          p.vx += (dx * speed - p.vx) * accelFactor;
+          p.vz += (dz * speed - p.vz) * accelFactor;
+        } else {
+          p.vx -= p.vx * frictionFactor;
+          p.vz -= p.vz * frictionFactor;
+          if (Math.abs(p.vx) < 0.001) p.vx = 0;
+          if (Math.abs(p.vz) < 0.001) p.vz = 0;
+        }
 
-        if (instance.navGrid) {
-          const cell = instance.navGrid.cells;
-          const cols = instance.navGrid.cols;
-          const cellSize = instance.navGrid.cellSize;
-          const halfW = (cols * cellSize) / 2;
-          const halfH = (instance.navGrid.rows * cellSize) / 2;
-          const gx = Math.floor((newX + halfW) / cellSize);
-          const gz = Math.floor((newZ + halfH) / cellSize);
-          if (gx >= 0 && gx < cols && gz >= 0 && gz < instance.navGrid.rows) {
-            const cellData = cell[gz * cols + gx];
-            if (cellData && cellData.walkable) {
+        if (p.vx !== 0 || p.vz !== 0) {
+          const newX = p.x + p.vx * tickTimeSec;
+          const newZ = p.z + p.vz * tickTimeSec;
+
+          // Security: validate delta
+          const maxDelta = speed * tickTimeSec;
+          const actualDelta = Math.sqrt((newX - p.x) ** 2 + (newZ - p.z) ** 2);
+          if (actualDelta <= maxDelta + 0.001) {
+            if (instance.navGrid) {
+              const cell = instance.navGrid.cells;
+              const cols = instance.navGrid.cols;
+              const cellSize = instance.navGrid.cellSize;
+              const halfW = (cols * cellSize) / 2;
+              const halfH = (instance.navGrid.rows * cellSize) / 2;
+              const gx = Math.floor((newX + halfW) / cellSize);
+              const gz = Math.floor((newZ + halfH) / cellSize);
+              if (gx >= 0 && gx < cols && gz >= 0 && gz < instance.navGrid.rows) {
+                const cellData = cell[gz * cols + gx];
+                if (cellData && cellData.walkable) {
+                  p.x = newX;
+                  p.z = newZ;
+                } else {
+                  p.vx = 0; p.vz = 0;
+                }
+              } else {
+                p.vx = 0; p.vz = 0;
+              }
+            } else {
               p.x = newX;
               p.z = newZ;
             }
+          } else {
+            p.vx = 0; p.vz = 0;
           }
-        } else {
-          p.x = newX;
-          p.z = newZ;
-        }
 
-        // Clamp to map bounds
-        const halfW = instance.config.dimensions.width / 2;
-        const halfH = instance.config.dimensions.height / 2;
-        p.x = Math.max(-halfW, Math.min(halfW, p.x));
-        p.z = Math.max(-halfH, Math.min(halfH, p.z));
+          // Clamp to map bounds
+          const halfW = instance.config.dimensions.width / 2;
+          const halfH = instance.config.dimensions.height / 2;
+          p.x = Math.max(-halfW, Math.min(halfW, p.x));
+          p.z = Math.max(-halfH, Math.min(halfH, p.z));
+        }
       }
 
       // Regen

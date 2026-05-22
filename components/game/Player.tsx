@@ -175,7 +175,7 @@ export function Player() {
     playerPosition.y = pos.y;
     playerPosition.z = pos.z;
 
-    // ── Server reconciliation (always-on, smooth) ──
+    // ── Server reconciliation (gentle, only on significant error) ──
     const socketConnected = networkStore.socket?.connected;
     if (socketConnected) {
       const snapPos = networkStore.lastSnapshotPos;
@@ -183,14 +183,14 @@ export function Player() {
       const corrDz = snapPos.z - pos.z;
       const corrDistSq = corrDx * corrDx + corrDz * corrDz;
 
-      if (corrDistSq > 9.0) {
+      if (corrDistSq > 25.0) {
         pos = { x: snapPos.x, y: snapPos.y, z: snapPos.z };
         rigidBodyRef.current.setTranslation(pos, true);
         playerPosition.x = pos.x;
         playerPosition.y = pos.y;
         playerPosition.z = pos.z;
-      } else if (corrDistSq > 0.01) {
-        const blend = isMoving ? 0.15 : 0.4;
+      } else if (corrDistSq > 1.0) {
+        const blend = isMoving ? 0.05 : 0.12;
         pos = {
           x: pos.x + corrDx * blend,
           y: pos.y,

@@ -16,6 +16,7 @@ export interface InventorySlot {
 export interface ServerPlayer {
   id: string;
   x: number; y: number; z: number;
+  vx: number; vz: number;
   name: string;
   stats: PlayerStats;
   hp: number; maxHp: number;
