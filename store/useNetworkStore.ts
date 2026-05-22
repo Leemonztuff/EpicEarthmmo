@@ -87,6 +87,11 @@ export const useNetworkStore = create<NetworkStore>((set, get) => ({
       set({ currentMapData: data.initData });
       const gs = useGameStore.getState();
       gs.setMap(data.mapId, data.mapName, data.mapType);
+      if (data.enemies) {
+        for (const [id, se] of Object.entries(data.enemies as any)) {
+          gs.updateEnemyState(id, se as any);
+        }
+      }
       if (data.players && newSocket.id) {
         const me = data.players[newSocket.id];
         if (me) {
@@ -100,6 +105,22 @@ export const useNetworkStore = create<NetworkStore>((set, get) => ({
       if (!data) return;
       set({ currentMapData: data });
       useGameStore.getState().setMap(data.mapId, data.mapName, data.mapType);
+    });
+
+    newSocket.on('mapChange', (data) => {
+      if (!data) return;
+      set({ currentMapData: data.initData });
+      const gs = useGameStore.getState();
+      gs.setMap(data.mapId, data.mapName, data.mapType);
+      if (data.spawnPosition) {
+        gs.setPosition({ x: data.spawnPosition.x, y: data.spawnPosition.y, z: data.spawnPosition.z });
+        set({ lastSnapshotPos: { x: data.spawnPosition.x, y: data.spawnPosition.y, z: data.spawnPosition.z } });
+      }
+      if (data.enemies) {
+        for (const [id, se] of Object.entries(data.enemies as any)) {
+          gs.updateEnemyState(id, se as any);
+        }
+      }
     });
 
     newSocket.on('worldSnapshot', (snapshot: WorldSnapshot) => {
