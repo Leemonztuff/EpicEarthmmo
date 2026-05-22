@@ -101,12 +101,13 @@ export function Joystick() {
     >
       {/* Base ring */}
       <div
-        className={`absolute inset-0 rounded-full transition-opacity duration-200 ${active ? 'opacity-35' : 'opacity-15'}`}
+        className={`absolute inset-0 rounded-full transition-opacity duration-200 ${active ? 'opacity-40' : 'opacity-20'}`}
         style={{
-          background: 'radial-gradient(circle, rgba(255,255,255,0.12) 0%, rgba(255,255,255,0.04) 60%, transparent 100%)',
-          border: '2px solid rgba(255,255,255,0.2)',
-          backdropFilter: 'blur(4px)',
-          WebkitBackdropFilter: 'blur(4px)',
+          background: 'radial-gradient(circle, rgba(125,162,200,0.25) 0%, rgba(75,109,147,0.08) 60%, transparent 100%)',
+          border: '2px solid rgba(125, 162, 200, 0.45)',
+          backdropFilter: 'blur(3px)',
+          WebkitBackdropFilter: 'blur(3px)',
+          boxShadow: active ? '0 0 15px rgba(92, 134, 180, 0.3)' : 'none',
         }}
       />
 
@@ -122,7 +123,7 @@ export function Joystick() {
         return (
           <div
             key={angle}
-            className="absolute text-white/15 text-[10px] font-bold"
+            className="absolute text-slate-300/40 text-[9px] font-black"
             style={{
               left: `calc(50% + ${Math.sin(rad) * r}px - 4px)`,
               top: `calc(50% - ${Math.cos(rad) * r}px - 5px)`,
@@ -140,19 +141,21 @@ export function Joystick() {
 
       {/* Thumb */}
       <div
-        className={`absolute rounded-full transition-[width,height,opacity] duration-150 ${active ? 'opacity-50' : 'opacity-25'}`}
+        className={`absolute rounded-full transition-[width,height,opacity] duration-150 ${active ? 'opacity-65' : 'opacity-35'}`}
         style={{
           width: active ? THUMB_SIZE + 4 : THUMB_SIZE,
           height: active ? THUMB_SIZE + 4 : THUMB_SIZE,
           left: `calc(50% - ${(active ? THUMB_SIZE + 4 : THUMB_SIZE) / 2}px + ${thumbOffset.x}px)`,
           top: `calc(50% - ${(active ? THUMB_SIZE + 4 : THUMB_SIZE) / 2}px + ${thumbOffset.y}px)`,
           background: active
-            ? 'radial-gradient(circle, rgba(255,255,255,0.45) 0%, rgba(255,255,255,0.15) 100%)'
-            : 'radial-gradient(circle, rgba(255,255,255,0.2) 0%, rgba(255,255,255,0.08) 100%)',
-          border: active ? '2.5px solid rgba(255,255,255,0.4)' : '2px solid rgba(255,255,255,0.2)',
-          backdropFilter: 'blur(4px)',
-          WebkitBackdropFilter: 'blur(4px)',
-          boxShadow: active ? '0 0 20px rgba(255,255,255,0.1)' : 'none',
+            ? 'radial-gradient(circle, rgba(255,255,255,0.7) 0%, rgba(92, 134, 180, 0.5) 100%)'
+            : 'radial-gradient(circle, rgba(255,255,255,0.3) 0%, rgba(75, 109, 147, 0.25) 100%)',
+          border: active ? '2.5px solid rgba(255, 255, 255, 0.7)' : '2px solid rgba(125, 162, 200, 0.5)',
+          backdropFilter: 'blur(3px)',
+          WebkitBackdropFilter: 'blur(3px)',
+          boxShadow: active 
+            ? '0 0 16px rgba(125, 162, 200, 0.4), inset 0 2px 4px rgba(255,255,255,0.5)' 
+            : 'inset 0 1px 2px rgba(255,255,255,0.2)',
         }}
       />
     </div>

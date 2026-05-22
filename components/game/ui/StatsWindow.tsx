@@ -3,7 +3,7 @@
 import React from 'react';
 import { useGameStore } from '@/store/useGameStore';
 import { Modal, Text } from '@/components/ui';
-import { TrendingUp, Star, Sword, Shield, Zap, Wind } from 'lucide-react';
+import { Sword, Shield, Zap, Wind, Star, TrendingUp } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/cn';
 
@@ -30,27 +30,37 @@ export function StatsWindow({ onClose }: { onClose: () => void }) {
     <Modal
       isOpen
       onClose={onClose}
-      title="Character"
-      subtitle={`Level ${player.baseLevel || 1} ${player.jobClass || 'Novice'}`}
+      title="Status"
+      subtitle={`Lv. ${player.baseLevel || 1} ${player.jobClass || 'Novice'}`}
+      size="md"
       position="bottom"
     >
-      <div className="space-y-6">
-        {/* Points Display */}
-        <div className="bg-slate-900/60 backdrop-blur-xl rounded-[2rem] p-6 border border-white/5 flex items-center justify-between shadow-2xl overflow-hidden relative">
-          <div className="flex items-center gap-4 relative z-10">
-            <div className="w-14 h-14 rounded-3xl bg-amber-500/10 flex items-center justify-center border border-amber-500/20 shadow-inner">
-               <Star size={28} className="text-amber-500" />
+      <div className="space-y-4">
+        
+        {/* Remaining Stat Points Banner - Compact & Radiant */}
+        <div className="bg-slate-950/40 border border-white/5 rounded-2xl p-3 flex items-center justify-between shadow-xl relative overflow-hidden">
+          <div className="flex items-center gap-3 relative z-10">
+            <div className="w-9 h-9 rounded-xl bg-amber-500/10 flex items-center justify-center border border-amber-500/20">
+               <Star size={20} className="text-amber-400 fill-amber-500/15" />
             </div>
             <div>
-              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-500/60 mb-0.5">Stat Points Remaining</p>
-              <h2 className="text-4xl font-black text-white leading-none tracking-tight">{points}</h2>
+              <p className="text-[8px] font-black uppercase tracking-widest text-amber-500/70">Remaining Points</p>
+              <h2 className="text-2xl font-black text-white leading-none mt-0.5">{points}</h2>
             </div>
           </div>
-          <div className="absolute -right-4 -top-4 w-24 h-24 bg-amber-500/10 blur-3xl rounded-full" />
+          {points > 0 && (
+            <motion.div
+              animate={{ opacity: [0.3, 0.7, 0.3] }}
+              transition={{ repeat: Infinity, duration: 1.5 }}
+              className="px-2.5 py-1 rounded bg-amber-500/20 border border-amber-500/30 text-[8px] font-black text-amber-400 uppercase tracking-wider shrink-0"
+            >
+              Ready!
+            </motion.div>
+          )}
         </div>
 
-        {/* Stats Grid */}
-        <div className="grid grid-cols-1 xs:grid-cols-2 gap-3">
+        {/* Attribute Sliders - Two column grid, extremely compact */}
+        <div className="grid grid-cols-2 gap-2">
           {statConfig.map(({ key, icon: Icon, label, desc, color }, index) => {
             const val = player.stats ? player.stats[key] : 0;
             const canAllocate = points > 0;
@@ -58,64 +68,68 @@ export function StatsWindow({ onClose }: { onClose: () => void }) {
             return (
               <motion.div
                 key={key}
-                initial={{ opacity: 0, y: 15 }}
+                initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.05 }}
+                transition={{ delay: index * 0.03 }}
                 className={cn(
-                  "group relative p-4 rounded-[1.5rem] border transition-all duration-300",
-                  canAllocate
-                    ? "bg-slate-900/40 border-white/5 hover:border-blue-500/30"
-                    : "bg-black/20 border-white/5 opacity-80"
+                  "p-2.5 rounded-xl border border-white/5 bg-slate-900/40 flex items-center justify-between gap-1.5 transition-all duration-200",
+                  canAllocate && "hover:border-blue-500/20"
                 )}
               >
-                <div className="flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-3">
-                    <div className={cn(
-                      "w-10 h-10 rounded-2xl flex items-center justify-center shadow-lg",
-                      color === 'red' ? "bg-red-500/20 text-red-400" :
-                      color === 'cyan' ? "bg-cyan-500/20 text-cyan-400" :
-                      color === 'green' ? "bg-emerald-500/20 text-emerald-400" :
-                      color === 'blue' ? "bg-blue-500/20 text-blue-400" :
-                      color === 'yellow' ? "bg-amber-500/20 text-amber-400" : "bg-purple-500/20 text-purple-400"
-                    )}>
-                      <Icon size={20} />
-                    </div>
-                    <div>
-                      <div className="flex items-baseline gap-1.5">
-                        <span className="text-xs font-black text-slate-400">{label}</span>
-                        <span className="text-xl font-black text-white leading-none">{val}</span>
-                      </div>
-                      <p className="text-[9px] text-slate-500 font-medium uppercase tracking-wider">{desc}</p>
-                    </div>
+                <div className="flex items-center gap-2 min-w-0">
+                  <div className={cn(
+                    "w-7 h-7 rounded-lg flex items-center justify-center shrink-0 border border-white/5",
+                    color === 'red' ? "bg-red-500/10 text-red-400" :
+                    color === 'cyan' ? "bg-cyan-500/10 text-cyan-400" :
+                    color === 'green' ? "bg-emerald-500/10 text-emerald-400" :
+                    color === 'blue' ? "bg-blue-500/10 text-blue-400" :
+                    color === 'yellow' ? "bg-amber-500/10 text-amber-400" : "bg-purple-500/10 text-purple-400"
+                  )}>
+                    <Icon size={14} />
                   </div>
-
-                  {canAllocate && (
-                    <motion.button
-                      whileTap={{ scale: 0.9 }}
-                      onClick={() => allocateStat(key)}
-                      className="w-10 h-10 rounded-2xl bg-blue-600 hover:bg-blue-500 text-white flex items-center justify-center shadow-lg shadow-blue-600/30 transition-colors"
-                    >
-                      <TrendingUp size={18} />
-                    </motion.button>
-                  )}
+                  <div className="min-w-0">
+                    <div className="flex items-baseline gap-1">
+                      <span className="text-[9px] font-black text-slate-400 uppercase">{label}</span>
+                      <span className="text-sm font-black text-white leading-none">{val}</span>
+                    </div>
+                    <span className="text-[7px] text-slate-500 font-semibold uppercase leading-none block truncate">
+                      {desc}
+                    </span>
+                  </div>
                 </div>
+
+                {/* Tactical Upgrade button */}
+                {canAllocate && (
+                  <motion.button
+                    whileTap={{ scale: 0.9 }}
+                    onClick={() => allocateStat(key)}
+                    className="w-7 h-7 rounded-lg bg-blue-600 hover:bg-blue-500 text-white flex items-center justify-center shadow-md active:scale-95 transition-all cursor-pointer shrink-0"
+                  >
+                    <TrendingUp size={12} />
+                  </motion.button>
+                )}
               </motion.div>
             );
           })}
         </div>
 
-        {/* Detailed Combat Sub-Stats */}
-        <div className="bg-slate-950/40 rounded-[2.5rem] border border-white/5 p-6 shadow-xl">
-           <div className="flex items-center gap-2 mb-4">
-              <div className="w-1 h-4 bg-blue-500 rounded-full" />
-              <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Combat Performance</h3>
+        {/* combat Stats - Highly compact list in two rows */}
+        <div className="bg-slate-950/40 rounded-2xl border border-white/5 p-3.5 shadow-xl">
+           <div className="flex items-center gap-1.5 mb-2.5">
+              <div className="w-[3px] h-3 bg-blue-500 rounded-full" />
+              <h3 className="text-[8px] font-black uppercase tracking-widest text-slate-400">Combat Performance</h3>
            </div>
 
-           <div className="grid grid-cols-2 sm:grid-cols-4 gap-6">
-              <StatItem label="Atk" value={combat.atk} icon={<Sword size={14} className="text-red-400" />} />
-              <StatItem label="Def" value={combat.def} icon={<Shield size={14} className="text-emerald-400" />} />
-              <StatItem label="MAtk" value={combat.matk} icon={<Zap size={14} className="text-blue-400" />} />
-              <StatItem label="Flee" value={combat.flee} icon={<Wind size={14} className="text-cyan-400" />} />
+           <div className="grid grid-cols-4 gap-y-3 gap-x-2">
+              <StatItem label="Atk" value={combat.atk} icon={<Sword size={11} className="text-red-400" />} />
+              <StatItem label="Def" value={combat.def} icon={<Shield size={11} className="text-emerald-400" />} />
+              <StatItem label="MAtk" value={combat.matk} icon={<Zap size={11} className="text-blue-400" />} />
+              <StatItem label="Flee" value={combat.flee} icon={<Wind size={11} className="text-cyan-400" />} />
+              
+              <StatItem label="Hit" value={combat.hit} icon={<Star size={11} className="text-amber-400" />} />
+              <StatItem label="Crit" value={Math.floor(combat.critChance * 100)} icon={<Star size={11} className="text-purple-400" />} unit="%" />
+              <StatItem label="ASpd" value={Math.floor(combat.attackSpeed)} icon={<Wind size={11} className="text-slate-400" />} />
+              <StatItem label="MDef" value={combat.mdef} icon={<Shield size={11} className="text-blue-400" />} />
            </div>
         </div>
       </div>
@@ -123,14 +137,16 @@ export function StatsWindow({ onClose }: { onClose: () => void }) {
   );
 }
 
-function StatItem({ label, value, icon }: { label: string; value: number; icon: React.ReactNode }) {
+function StatItem({ label, value, icon, unit }: { label: string; value: number; icon: React.ReactNode; unit?: string }) {
   return (
-    <div className="flex flex-col gap-1">
-      <div className="flex items-center gap-1.5 opacity-60">
+    <div className="flex flex-col gap-0.5 min-w-0">
+      <div className="flex items-center gap-1 opacity-70">
         {icon}
-        <span className="text-[10px] font-black uppercase tracking-tighter text-slate-400">{label}</span>
+        <span className="text-[8px] font-bold uppercase tracking-tight text-slate-400 truncate">{label}</span>
       </div>
-      <span className="text-xl font-black text-white tracking-tight leading-none">{value}</span>
+      <span className="text-xs font-black text-white tracking-tight leading-none">
+        {value}{unit}
+      </span>
     </div>
   );
 }

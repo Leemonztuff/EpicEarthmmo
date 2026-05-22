@@ -1,29 +1,22 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import { useGameStore } from '@/store/useGameStore';
-import { Modal, IconBox, Text, Button, Badge, Section, ListItem, GameIcon } from '@/components/ui';
-import { Sword, Shield, Shirt, Footprints, Crown, Gem, X, ArrowUpRight } from 'lucide-react';
+import { Modal, Button, Badge, GameIcon } from '@/components/ui';
+import { Sword, Shield, Shirt, Footprints, Crown, Gem } from 'lucide-react';
 import { gameData } from '@/shared/loader';
+import { motion, AnimatePresence } from 'framer-motion';
+import { cn } from '@/lib/cn';
 
 const { items } = gameData;
 
-const slotConfig: Record<string, { label: string; icon: React.ReactNode; color: any }> = {
-  headTop: { label: 'Headgear', icon: <Crown size={20} />, color: 'yellow' },
-  weapon: { label: 'Weapon', icon: <Sword size={20} />, color: 'red' },
-  armor: { label: 'Armor', icon: <Shirt size={20} />, color: 'blue' },
-  shield: { label: 'Shield', icon: <Shield size={20} />, color: 'cyan' },
-  shoes: { label: 'Shoes', icon: <Footprints size={20} />, color: 'green' },
-  accessory1: { label: 'Accessory', icon: <Gem size={20} />, color: 'purple' },
-};
-
-const SLOT_ITEM_TYPES: Record<string, string> = {
-  weapon: 'weapon',
-  armor: 'armor',
-  shield: 'shield',
-  headTop: 'headgear',
-  shoes: 'shoes',
-  accessory1: 'accessory',
+const slotConfig: Record<string, { label: string; icon: React.ReactNode; color: string }> = {
+  headTop: { label: 'Headgear', icon: <Crown size={15} />, color: 'yellow' },
+  weapon: { label: 'Weapon', icon: <Sword size={15} />, color: 'red' },
+  armor: { label: 'Armor', icon: <Shirt size={15} />, color: 'blue' },
+  shield: { label: 'Shield', icon: <Shield size={15} />, color: 'cyan' },
+  shoes: { label: 'Shoes', icon: <Footprints size={15} />, color: 'green' },
+  accessory1: { label: 'Accessory', icon: <Gem size={15} />, color: 'purple' },
 };
 
 export function EquipmentWindow({ onClose }: { onClose: () => void }) {
@@ -34,7 +27,24 @@ export function EquipmentWindow({ onClose }: { onClose: () => void }) {
   const getEquippedStats = useGameStore((state) => state.getEquippedStats);
   const equippedStats = (typeof getEquippedStats === 'function' ? getEquippedStats() : null) || {};
 
-  const equippableItems = (player?.inventory || []).filter(i => i.type === 'equip');
+  const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
+  const [selectedItem, setSelectedItem] = useState<any>(null);
+
+  if (!player) return null;
+
+  const equippableItems = (player.inventory || []).filter(i => i.type === 'equip');
+
+  const handleUnequip = (slot: string) => {
+    unequipItem(slot as any);
+    setSelectedSlot(null);
+  };
+
+  const handleEquip = (itemId: string, slot: string) => {
+    equipItem(itemId, slot as any);
+    setSelectedItem(null);
+  };
+
+  const hasBonuses = Object.keys(equippedStats || {}).some(k => k !== 'statPoints' && (equippedStats as any)[k] !== 0);
 
   return (
     <Modal
@@ -45,21 +55,31 @@ export function EquipmentWindow({ onClose }: { onClose: () => void }) {
       position="bottom"
       size="md"
     >
-      <div className="space-y-6">
-        {/* Paper Doll Style Grid */}
-        <div className="grid grid-cols-2 gap-3">
+      <div className="space-y-4">
+        
+        {/* Paper Doll Style Grid - 3 Columns for Mobile Compactness */}
+        <div className="grid grid-cols-3 gap-2 bg-slate-950/40 p-2.5 rounded-2xl border border-white/5 shadow-xl">
           {Object.entries(slotConfig).map(([slot, config]) => {
             const equippedId = equippedItems[slot];
             const itemDef = equippedId ? items.find(i => i.id === equippedId) : null;
+            const isSelected = selectedSlot === slot;
 
             return (
-              <div
+              <motion.div
                 key={slot}
+                whileTap={{ scale: 0.96 }}
+                onClick={() => {
+                  if (itemDef) {
+                    setSelectedSlot(isSelected ? null : slot);
+                    setSelectedItem(null);
+                  }
+                }}
                 className={cn(
-                  "relative group flex items-center gap-3 p-3 rounded-2xl border transition-all duration-200",
+                  "relative flex flex-col items-center justify-center p-2 rounded-xl border transition-all duration-200 cursor-pointer select-none aspect-square text-center",
                   itemDef
-                    ? "bg-slate-800/60 border-slate-600/50 shadow-lg"
-                    : "bg-slate-900/30 border-dashed border-slate-800"
+                    ? "bg-slate-900/60 border-slate-700/60 shadow-lg hover:border-slate-600"
+                    : "bg-slate-950/20 border-dashed border-slate-800 opacity-60",
+                  isSelected && "border-indigo-500 bg-indigo-500/10 shadow-[0_0_8px_rgba(99,102,241,0.25)] opacity-100"
                 )}
               >
                 {itemDef ? (
@@ -71,113 +91,219 @@ export function EquipmentWindow({ onClose }: { onClose: () => void }) {
                     className="shrink-0"
                   />
                 ) : (
-                  <IconBox
-                    icon={config.icon}
-                    size="md"
-                    color="default"
-                    rounded="sm"
-                    className="opacity-20"
-                  />
+                  <div className="w-7 h-7 rounded-lg bg-slate-950/40 border border-slate-800 flex items-center justify-center text-slate-600 shrink-0">
+                    {config.icon}
+                  </div>
                 )}
-                <div className="flex-1 min-w-0">
-                  <Text variant="caption" className="uppercase text-[9px] font-black text-slate-500 tracking-tighter">
-                    {config.label}
-                  </Text>
-                  {itemDef ? (
-                    <Text variant="body" className="font-bold text-xs truncate text-white">
-                      {itemDef.name}
-                    </Text>
-                  ) : (
-                    <Text variant="body" className="text-xs text-slate-700 italic">Empty</Text>
-                  )}
-                </div>
+                
+                <span className="text-[7.5px] font-black uppercase text-slate-500 tracking-wider mt-1 truncate max-w-full">
+                  {config.label}
+                </span>
+
                 {itemDef && (
-                  <button
-                    onClick={() => unequipItem(slot as any)}
-                    className="absolute -top-1 -right-1 w-6 h-6 rounded-full bg-red-500/80 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-lg cursor-pointer"
-                  >
-                    <X size={12} strokeWidth={3} />
-                  </button>
+                  <span className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-emerald-500 border border-slate-950 animate-pulse" />
                 )}
-              </div>
+              </motion.div>
             );
           })}
         </div>
 
-        {/* Bonus Stats Panel */}
-        {Object.keys(equippedStats || {}).some(k => k !== 'statPoints' && (equippedStats as any)[k] !== 0) && (
-          <Section title="Active Bonuses" variant="card" className="bg-emerald-500/5 border-emerald-500/20">
-            <div className="flex flex-wrap gap-2">
+        {/* Selected Equipped Item Action Drawer */}
+        <AnimatePresence>
+          {selectedSlot && (() => {
+            const equippedId = equippedItems[selectedSlot];
+            const itemDef = equippedId ? items.find(i => i.id === equippedId) : null;
+            const config = slotConfig[selectedSlot];
+            if (!itemDef) return null;
+
+            return (
+              <motion.div
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 12 }}
+                className="bg-slate-900/90 border border-slate-700/60 rounded-xl p-3 shadow-2xl flex items-center justify-between gap-3"
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-10 h-10 rounded-lg bg-slate-950/50 flex items-center justify-center border border-white/5 shrink-0">
+                    <GameIcon
+                      iconType="item"
+                      id={itemDef.id}
+                      name={itemDef.name}
+                      size={28}
+                    />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="flex items-baseline gap-1">
+                      <span className="text-[7.5px] font-black uppercase text-indigo-400">{config.label}</span>
+                      <h4 className="text-[11px] font-black text-white truncate uppercase leading-none">{itemDef.name}</h4>
+                    </div>
+                    <div className="flex gap-1 mt-1 overflow-x-auto py-0.5 max-w-[200px] custom-scrollbar">
+                      {itemDef.equipStats && Object.entries(itemDef.equipStats).map(([k, v]) => (
+                        <Badge key={k} variant="success" size="xs" className="text-[8px] py-0 px-1 font-bold">
+                          {k.toUpperCase()} +{v}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 shrink-0">
+                  <Button
+                    variant="danger"
+                    size="sm"
+                    onClick={() => handleUnequip(selectedSlot)}
+                    className="h-8 px-4 text-[10px] font-black uppercase tracking-wider"
+                  >
+                    Unequip
+                  </Button>
+                  <button 
+                    onClick={() => setSelectedSlot(null)}
+                    className="text-[9px] font-bold text-slate-500 hover:text-slate-400 uppercase py-2 cursor-pointer outline-none"
+                  >
+                    Dismiss
+                  </button>
+                </div>
+              </motion.div>
+            );
+          })()}
+        </AnimatePresence>
+
+        {/* Active Bonuses Panel - Clean & Compact */}
+        {hasBonuses && (
+          <div className="bg-emerald-950/15 border border-emerald-500/15 p-2.5 rounded-2xl shadow-md">
+            <div className="flex items-center gap-1.5 mb-1.5">
+              <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+              <span className="text-[8px] font-black uppercase tracking-wider text-slate-400">Gear Attributes Bonus</span>
+            </div>
+            <div className="flex flex-wrap gap-1">
               {Object.entries(equippedStats || {}).map(([key, val]) => {
                 if (key === 'statPoints' || val === 0) return null;
                 return (
-                  <Badge key={key} variant="success" size="sm" className="bg-emerald-500/20">
+                  <Badge key={key} variant="success" size="xs" className="bg-emerald-500/10 border-emerald-500/20 text-emerald-400 py-0.5 px-1.5 font-black">
                     {key.toUpperCase()} +{val}
                   </Badge>
                 );
               })}
             </div>
-          </Section>
+          </div>
         )}
 
-        {/* Inventory Selection */}
-        <Section title="Available Gear" variant="default">
-          <div className="space-y-2">
+        {/* Available Gear Section - Grid of Available Items to Equip */}
+        <div className="bg-slate-950/40 rounded-2xl border border-white/5 p-3 shadow-xl">
+          <div className="flex items-center gap-1.5 mb-2">
+            <div className="w-[3px] h-3 bg-indigo-500 rounded-full" />
+            <h3 className="text-[8px] font-black uppercase tracking-widest text-slate-400">Available Gear</h3>
+          </div>
+
+          <div className="min-h-[120px] relative">
             {equippableItems.length === 0 ? (
-              <div className="py-8 text-center border-2 border-dashed border-slate-800 rounded-2xl">
-                <Text variant="caption" className="text-slate-600">No equippable items in inventory</Text>
+              <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-4">
+                <span className="text-[10px] text-slate-600 font-bold uppercase tracking-wider">No equippable gear</span>
+                <span className="text-[8px] text-slate-700 font-medium leading-none mt-1">Obtain armor & weapons from drops or shops!</span>
               </div>
             ) : (
-              equippableItems.map(item => {
-                const itemDef = items.find(i => i.id === item.id);
-                return (
-                  <ListItem
-                    key={item.id}
-                    variant="clickable"
-                    padding="sm"
-                    icon={
-                      <GameIcon
-                        iconType="item"
-                        id={item.id}
-                        name={item.name}
-                        size={28}
-                        className="shrink-0"
-                      />
-                    }
-                    title={item.name}
-                    description={
-                      <div className="flex gap-1 mt-1">
-                        {itemDef?.equipStats && Object.entries(itemDef.equipStats || {}).map(([k, v]) => (
-                          <Badge key={k} variant="primary" size="xs">{k.toUpperCase()} +{v}</Badge>
+              <div className="grid grid-cols-1 xs:grid-cols-2 gap-1.5 max-h-[150px] overflow-y-auto custom-scrollbar pr-1">
+                {equippableItems.map(item => {
+                  const itemDef = items.find(i => i.id === item.id);
+                  const isSelected = selectedItem?.id === item.id;
+                  
+                  return (
+                    <motion.div
+                      key={item.id}
+                      whileTap={{ scale: 0.98 }}
+                      onClick={() => setSelectedItem(isSelected ? null : item)}
+                      className={cn(
+                        "p-2 rounded-xl border flex items-center justify-between gap-2 cursor-pointer select-none transition-all duration-200",
+                        isSelected ? "border-indigo-400 bg-indigo-500/10 shadow-[0_0_8px_rgba(99,102,241,0.2)]" : "bg-slate-900/40 border-slate-800 hover:border-slate-700"
+                      )}
+                    >
+                      <div className="flex items-center gap-2 min-w-0">
+                        <GameIcon
+                          iconType="item"
+                          id={item.id}
+                          name={item.name}
+                          size={24}
+                          className="shrink-0"
+                        />
+                        <div className="min-w-0">
+                          <h4 className="text-[10px] font-black text-white truncate uppercase leading-tight">{item.name}</h4>
+                          <span className="text-[7.5px] font-bold text-slate-500 uppercase leading-none block">
+                            {itemDef?.type === 'weapon' ? 'Weapon' : itemDef?.type === 'shield' ? 'Shield' : itemDef?.type === 'headgear' ? 'Headgear' : 'Gear'}
+                          </span>
+                        </div>
+                      </div>
+                      
+                      <div className="shrink-0 flex gap-0.5">
+                        {itemDef?.equipStats && Object.entries(itemDef.equipStats).slice(0, 1).map(([k, v]) => (
+                          <span key={k} className="px-1 py-0.5 rounded bg-indigo-500/10 text-indigo-400 text-[8px] font-bold leading-none border border-indigo-500/20 animate-pulse">
+                            +{v}
+                          </span>
                         ))}
                       </div>
-                    }
-                    action={
-                      <div className="flex gap-1">
-                        <Button
-                          variant="primary"
-                          size="sm"
-                          className="h-8 px-3"
-                          onClick={() => {
-                            const slot = itemDef?.type === 'weapon' ? 'weapon' : 'armor';
-                            equipItem(item.id, slot);
-                          }}
-                        >
-                          Equip
-                        </Button>
-                      </div>
-                    }
-                  />
-                );
-              })
+                    </motion.div>
+                  );
+                })}
+              </div>
             )}
           </div>
-        </Section>
+        </div>
+
+        {/* Selected Available Item Action Drawer */}
+        <AnimatePresence>
+          {selectedItem && (() => {
+            const itemDef = items.find(i => i.id === selectedItem.id);
+            if (!itemDef) return null;
+
+            // Simple heuristics to determine standard slot
+            const desc = (itemDef.description || '').toLowerCase();
+            const slot = desc.includes('shield') ? 'shield' : desc.includes('weapon') || desc.includes('sword') || desc.includes('bow') || desc.includes('dagger') ? 'weapon' : 'armor';
+
+            return (
+              <motion.div
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 12 }}
+                className="bg-slate-900/90 border border-slate-700/60 rounded-xl p-3 shadow-2xl flex items-center justify-between gap-3"
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-10 h-10 rounded-lg bg-slate-950/50 flex items-center justify-center border border-white/5 shrink-0">
+                    <GameIcon
+                      iconType="item"
+                      id={itemDef.id}
+                      name={itemDef.name}
+                      size={28}
+                    />
+                  </div>
+                  <div className="min-w-0">
+                    <h4 className="text-[11px] font-black text-white truncate uppercase leading-none">{itemDef.name}</h4>
+                    <p className="text-[9px] text-slate-400 leading-tight mt-1 max-w-[240px]">
+                      {itemDef.description}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 shrink-0">
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    onClick={() => handleEquip(itemDef.id, slot)}
+                    className="h-8 px-4 text-[10px] font-black uppercase tracking-wider"
+                  >
+                    Equip
+                  </Button>
+                  <button 
+                    onClick={() => setSelectedItem(null)}
+                    className="text-[9px] font-bold text-slate-500 hover:text-slate-400 uppercase py-2 cursor-pointer outline-none"
+                  >
+                    Dismiss
+                  </button>
+                </div>
+              </motion.div>
+            );
+          })()}
+        </AnimatePresence>
+
       </div>
     </Modal>
   );
-}
-
-function cn(...classes: any[]) {
-  return classes.filter(Boolean).join(' ');
 }

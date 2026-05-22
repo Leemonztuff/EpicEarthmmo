@@ -52,7 +52,14 @@ export function HUD({ characterName }: { characterName?: string }) {
           <PlayerFrame />
           <ConnectionBadge />
         </div>
-        <Minimap />
+        <div className="flex flex-col items-end gap-2">
+          <Minimap />
+          <MenuBar
+            onToggleChat={handleToggleChat}
+            onOpenSettings={handleOpenSettings}
+            onOpenEquipment={handleOpenEquipment}
+          />
+        </div>
       </div>
 
       {/* Center Top Section */}
@@ -84,13 +91,8 @@ export function HUD({ characterName }: { characterName?: string }) {
             <ChatBoxWrapper isOpen={chatOpen} onToggle={handleToggleChat} />
           </div>
 
-          <div className="flex flex-col items-end gap-2 sm:gap-4 pointer-events-auto flex-1 min-w-0">
+          <div className="pointer-events-auto relative w-[200px] h-[200px] shrink-0">
             <Hotbar />
-            <MenuBar
-              onToggleChat={handleToggleChat}
-              onOpenSettings={handleOpenSettings}
-              onOpenEquipment={handleOpenEquipment}
-            />
           </div>
         </div>
       </div>
