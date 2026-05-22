@@ -12,14 +12,14 @@ import type { ActiveBuffData } from '@/shared/types/network';
 const { balance } = gameData;
 
 function buffIcon(buff: ActiveBuffData) {
-  if (buff.isDebuff) return <Skull size={14} />;
-  if (buff.icon) return <Activity size={14} />;
+  if (buff.isDebuff) return <Skull size={10} />;
+  if (buff.icon) return <Activity size={10} />;
   const id = (buff.buffId || '').toLowerCase();
-  if (id.includes('hp')) return <Heart size={14} />;
-  if (id.includes('sp') || id.includes('mana')) return <Zap size={14} />;
-  if (id.includes('def') || id.includes('shield')) return <Shield size={14} />;
-  if (id.includes('atk') || id.includes('str') || id.includes('dmg')) return <Swords size={14} />;
-  return <Activity size={14} />;
+  if (id.includes('hp')) return <Heart size={10} />;
+  if (id.includes('sp') || id.includes('mana')) return <Zap size={10} />;
+  if (id.includes('def') || id.includes('shield')) return <Shield size={10} />;
+  if (id.includes('atk') || id.includes('str') || id.includes('dmg')) return <Swords size={10} />;
+  return <Activity size={10} />;
 }
 
 function buffVariant(buff: ActiveBuffData): 'buff' | 'debuff' | 'neutral' {
@@ -56,65 +56,86 @@ export function PlayerFrame() {
 
   return (
     <motion.div
-      initial={{ opacity: 0, x: -20 }}
-      animate={{ opacity: 1, x: 0 }}
+      initial={{ opacity: 0, y: -10 }}
+      animate={{ opacity: 1, y: 0 }}
       className="pointer-events-auto select-none max-w-full"
     >
-      <div className="flex items-center gap-2 sm:gap-3 mb-2">
-        <div className="relative flex-shrink-0">
-          <Avatar
-            name={player.name || 'Hero'}
-            level={player.baseLevel || 1}
-            size="md"
-            ringColor="gradient"
-            className="shadow-xl shadow-black/40 w-10 h-10 sm:w-12 sm:h-12"
-          />
-          <motion.div
-            animate={{ scale: [1, 1.2, 1], opacity: [0.3, 0.6, 0.3] }}
-            transition={{ repeat: Infinity, duration: 3 }}
-            className="absolute inset-0 rounded-full bg-blue-400/20 blur-md -z-10"
-          />
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-baseline gap-1.5 sm:gap-2 mb-0.5 sm:mb-1">
-            <span className="text-white font-black text-sm sm:text-base truncate drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)] tracking-tight">
-              {player.name || 'Hero'}
-            </span>
-            <span className="text-blue-400/80 text-[8px] sm:text-[10px] font-black uppercase tracking-tighter">
-              {player.jobClass || 'Novice'}
-            </span>
+      {/* Compact Capsule Border with RO glass skin */}
+      <div className="flex flex-col p-2 rounded-2xl ro-window-panel border border-slate-700/40 shadow-xl bg-slate-950/70 backdrop-blur-md max-w-[220px] xs:max-w-[240px] md:max-w-[280px]">
+        
+        {/* Main Info Row */}
+        <div className="flex items-center gap-2">
+          {/* Avatar frame */}
+          <div className="relative shrink-0">
+            <Avatar
+              name={player.name || 'Hero'}
+              level={player.baseLevel || 1}
+              size="sm" // Small, compact avatar
+              ringColor="gradient"
+              className="w-8 h-8 md:w-9 md:h-9 border border-white/10 shadow-inner"
+            />
+            {/* Soft pulse behind avatar */}
+            <motion.div
+              animate={{ opacity: [0.15, 0.4, 0.15] }}
+              transition={{ repeat: Infinity, duration: 2.5 }}
+              className="absolute inset-0 rounded-full bg-blue-400/10 blur-sm -z-10"
+            />
           </div>
-          <div className="flex flex-col gap-1 sm:gap-1.5">
-            <ProgressBar
-              value={player.hp || 0}
-              max={player.maxHp || 100}
-              color="hp"
-              size="sm"
-              className="w-28 xs:w-32 sm:w-48 shadow-lg h-1.5 sm:h-2"
-            />
-            <ProgressBar
-              value={player.sp || 0}
-              max={player.maxSp || 100}
-              color="sp"
-              size="sm"
-              className="w-24 xs:w-28 sm:w-40 shadow-lg h-1.5 sm:h-2"
-            />
+
+          {/* Bars stacked next to avatar */}
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center justify-between gap-1 mb-0.5">
+              <span className="text-white font-black text-xs truncate tracking-tight uppercase">
+                {player.name || 'Novice'}
+              </span>
+              <span className="text-blue-400 font-extrabold text-[8px] tracking-widest uppercase shrink-0">
+                Lv{player.baseLevel || 1}
+              </span>
+            </div>
+            
+            {/* HP and SP Progress bars - Thicker, compact width */}
+            <div className="flex flex-col gap-0.5">
+              <ProgressBar
+                value={player.hp || 0}
+                max={player.maxHp || 100}
+                color="hp"
+                size="sm"
+                className="w-full h-[8px] rounded-sm border-0"
+                showLabel={true}
+              />
+              <ProgressBar
+                value={player.sp || 0}
+                max={player.maxSp || 100}
+                color="sp"
+                size="sm"
+                className="w-full h-[8px] rounded-sm border-0"
+                showLabel={true}
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* EXP Bar overlay - Extremely thin lines at the foot of capsule */}
+        <div className="flex flex-col gap-[1px] mt-1.5 pt-1.5 border-t border-white/5">
+          <div className="flex items-center gap-1.5">
+            <span className="text-[6px] font-black text-amber-500/80 w-5">BASE</span>
+            <ThinBar value={baseExpPct} color="exp" className="flex-1 h-[2px]" />
+            <span className="text-[6px] font-bold text-amber-500/60 font-mono">{Math.floor(baseExpPct)}%</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="text-[6px] font-black text-purple-500/80 w-5">JOB</span>
+            <ThinBar value={jobExpPct} color="jobExp" className="flex-1 h-[2px]" />
+            <span className="text-[6px] font-bold text-purple-500/60 font-mono">{Math.floor(jobExpPct)}%</span>
           </div>
         </div>
       </div>
 
-      <div className="flex flex-col gap-0.5 sm:gap-1 px-1 mb-2">
-         <div className="flex items-center gap-2">
-            <span className="text-[7px] sm:text-[8px] font-black text-amber-500 w-4 sm:w-6">BASE</span>
-            <ThinBar value={baseExpPct} color="exp" className="flex-1 h-1 sm:h-1.5" />
-         </div>
-         <div className="flex items-center gap-2">
-            <span className="text-[7px] sm:text-[8px] font-black text-purple-500 w-4 sm:w-6">JOB</span>
-            <ThinBar value={jobExpPct} color="jobExp" className="flex-1 h-1 sm:h-1.5" />
-         </div>
-      </div>
-
-      <StatusEffectBar effects={toStatusEffectProps(activeBuffs)} />
+      {/* Buff icons tucked neatly beneath status capsule */}
+      {activeBuffs.length > 0 && (
+        <div className="mt-1 flex justify-start pl-1 max-w-[200px]">
+          <StatusEffectBar effects={toStatusEffectProps(activeBuffs)} />
+        </div>
+      )}
     </motion.div>
   );
 }

@@ -1,34 +1,67 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useGameStore } from '@/store/useGameStore';
-import { Modal, Button, ListItem, Badge, TabBar, EmptyState, GameIcon, getItemVariant } from '@/components/ui';
-import { Package, Heart, Sword, Gem } from 'lucide-react';
+import { Modal, Button, Badge, TabBar, EmptyState, GameIcon, getItemVariant } from '@/components/ui';
+import { Package, Heart, Sword, Gem, X } from 'lucide-react';
 import { gameData } from '@/shared/loader';
 import { motion, AnimatePresence } from 'framer-motion';
-
-const { items } = gameData;
+import { cn } from '@/lib/cn';
 
 export function InventoryWindow({ onClose }: { onClose: () => void }) {
   const player = useGameStore((state) => state.player);
   const consumeItem = useGameStore((state) => state.consumeItem);
+  const equipItem = useGameStore((state) => state.equipItem);
+  const equippedItems = player?.equippedItems || {};
+
   const [activeTab, setActiveTab] = useState('all');
   const [selectedItem, setSelectedItem] = useState<any>(null);
 
   if (!player) return null;
 
   const tabs = [
-    { id: 'all', label: 'All', icon: <Package size={14} /> },
-    { id: 'usable', label: 'Usable', icon: <Heart size={14} /> },
-    { id: 'equip', label: 'Gear', icon: <Sword size={14} /> },
-    { id: 'misc', label: 'Misc', icon: <Gem size={14} /> },
+    { id: 'all', label: 'All', icon: <Package size={12} /> },
+    { id: 'usable', label: 'Usable', icon: <Heart size={12} /> },
+    { id: 'equip', label: 'Gear', icon: <Sword size={12} /> },
+    { id: 'misc', label: 'Misc', icon: <Gem size={12} /> },
   ];
 
   const inventory = player.inventory || [];
-  const filteredItems = inventory.filter(item => {
-    if (activeTab === 'all') return true;
-    return item.type === activeTab;
-  });
+  
+  const filteredItems = useMemo(() => {
+    return inventory.filter((item) => {
+      if (activeTab === 'all') return true;
+      return item.type === activeTab;
+    });
+  }, [inventory, activeTab]);
+
+  // Pad the grid to always show a minimum number of slots (classic RO style)
+  const paddedSlots = useMemo(() => {
+    const minSlots = 32; // 8x4 grid
+    const slots = [...filteredItems];
+    while (slots.length < minSlots) {
+      slots.push(null as any); // Empty slot placeholder
+    }
+    return slots;
+  }, [filteredItems]);
+
+  const handleUseItem = (item: any) => {
+    if (!item) return;
+    if (item.type === 'usable') {
+      consumeItem(item.id);
+      if (item.amount <= 1) setSelectedItem(null);
+    } else if (item.type === 'equip') {
+      // Determine slot based on item description or standard weapon/armor
+      const desc = (item.description || '').toLowerCase();
+      const slot = desc.includes('shield') ? 'shield' : desc.includes('weapon') || desc.includes('sword') || desc.includes('bow') || desc.includes('dagger') ? 'weapon' : 'armor';
+      equipItem(item.id, slot);
+      setSelectedItem(null);
+    }
+  };
+
+  const isEquipped = (itemId: string) => {
+    return Object.values(equippedItems).includes(itemId);
+  };
 
   return (
     <Modal
@@ -40,132 +73,141 @@ export function InventoryWindow({ onClose }: { onClose: () => void }) {
       position="bottom"
     >
       <div className="space-y-4">
+        
+        {/* Compact Sorting Tabs */}
         <TabBar
           tabs={tabs}
           activeTab={activeTab}
-          onTabChange={setActiveTab}
+          onTabChange={(tabId) => {
+            setActiveTab(tabId);
+            setSelectedItem(null); // Clear selected on tab change
+          }}
           variant="pill"
           size="sm"
         />
 
-        <div className="min-h-[300px]">
-          <AnimatePresence mode="wait">
-            {filteredItems.length === 0 ? (
-              <motion.div
-                key="empty"
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-              >
-                <EmptyState
-                  icon={<Package size={48} className="text-slate-700" />}
-                  title="No items found"
-                  description={activeTab === 'all' ? "Your inventory is currently empty." : `You don't have any items in the ${activeTab} category.`}
-                />
-              </motion.div>
-            ) : (
-              <motion.div
-                key={activeTab}
-                initial={{ opacity: 0, x: 10 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -10 }}
-                className="grid gap-2"
-              >
-                {filteredItems.map((item, index) => {
-                  const variant = getItemVariant(item.type);
-
+        {/* Dynamic RO-Style Slot Grid */}
+        <div className="min-h-[220px] bg-slate-950/40 p-2.5 rounded-2xl border border-white/5 relative">
+          {filteredItems.length === 0 && activeTab !== 'all' ? (
+            <div className="absolute inset-0 flex items-center justify-center">
+              <EmptyState
+                icon={<Package size={32} className="text-slate-700" />}
+                title="Empty Tab"
+                description={`No items in ${activeTab}`}
+                className="py-6"
+              />
+            </div>
+          ) : (
+            <div className="grid grid-cols-6 xs:grid-cols-8 gap-2 max-h-[220px] overflow-y-auto custom-scrollbar pr-1">
+              {paddedSlots.map((item, index) => {
+                if (!item) {
+                  // Render empty slot
                   return (
-                    <ListItem
-                      key={`${item.id}-${index}`}
-                      variant="clickable"
-                      padding="sm"
-                      onClick={() => setSelectedItem(item)}
-                      icon={
-                        <GameIcon
-                          iconType="item"
-                          id={item.id}
-                          name={item.name}
-                          variant={variant}
-                          size={28}
-                          className="shrink-0"
-                        />
-                      }
-                      title={
-                        <div className="flex items-center justify-between">
-                          <span>{item.name}</span>
-                          {item.amount > 1 && (
-                            <Badge variant="amount" size="xs">x{item.amount}</Badge>
-                          )}
-                        </div>
-                      }
-                      description={item.description}
-                      action={
-                        item.type === 'usable' ? (
-                          <Button
-                            variant="primary"
-                            size="sm"
-                            className="h-8 px-4"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              consumeItem(item.id);
-                            }}
-                          >
-                            Use
-                          </Button>
-                        ) : item.type === 'equip' ? (
-                          <Badge variant="purple" size="xs">Gear</Badge>
-                        ) : null
-                      }
+                    <div 
+                      key={`empty-${index}`} 
+                      className="ro-item-slot opacity-30 select-none border border-dashed border-slate-800 bg-transparent"
                     />
                   );
-                })}
-              </motion.div>
-            )}
-          </AnimatePresence>
+                }
+
+                const variant = getItemVariant(item.type);
+                const equipped = isEquipped(item.id);
+                const isSelected = selectedItem?.id === item.id;
+
+                return (
+                  <motion.div
+                    key={`${item.id}-${index}`}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => setSelectedItem(item)}
+                    className={cn(
+                      "ro-item-slot cursor-pointer select-none",
+                      equipped && "ro-item-slot-equipped",
+                      isSelected && "border-blue-400 bg-blue-500/10 shadow-[0_0_8px_rgba(92,134,180,0.3)]"
+                    )}
+                  >
+                    {/* Item Icon */}
+                    <GameIcon
+                      iconType="item"
+                      id={item.id}
+                      name={item.name}
+                      variant={variant}
+                      size={28}
+                    />
+
+                    {/* Equip "E" indicator */}
+                    {equipped && (
+                      <span className="absolute top-0.5 left-0.5 px-0.5 bg-yellow-500 text-slate-950 font-black text-[6px] rounded leading-none border border-slate-950">
+                        E
+                      </span>
+                    )}
+
+                    {/* Amount badge inside slot */}
+                    {item.amount > 1 && (
+                      <span className="absolute bottom-0.5 right-0.5 bg-slate-950/80 px-0.5 text-white font-black text-[8px] rounded leading-none">
+                        {item.amount}
+                      </span>
+                    )}
+                  </motion.div>
+                );
+              })}
+            </div>
+          )}
         </div>
 
-        {/* Item Detail Panel */}
+        {/* sliding Item Detail Action Panel */}
         <AnimatePresence>
           {selectedItem && (
             <motion.div
-              initial={{ opacity: 0, y: 20 }}
+              initial={{ opacity: 0, y: 15 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 20 }}
-              className="bg-slate-950/60 backdrop-blur-xl border border-white/10 rounded-3xl p-4 shadow-2xl"
+              exit={{ opacity: 0, y: 15 }}
+              className="bg-slate-900/90 border border-slate-700/60 rounded-2xl p-3 shadow-2xl relative overflow-hidden"
             >
-              <div className="flex items-start justify-between gap-4">
+              <div className="flex items-start justify-between gap-3">
                 <div className="flex items-center gap-3">
-                  <GameIcon
-                    iconType="item"
-                    id={selectedItem.id}
-                    name={selectedItem.name}
-                    variant={getItemVariant(selectedItem.type)}
-                    size={48}
-                  />
+                  <div className="w-12 h-12 rounded-xl bg-slate-950/50 flex items-center justify-center border border-white/5 shrink-0">
+                    <GameIcon
+                      iconType="item"
+                      id={selectedItem.id}
+                      name={selectedItem.name}
+                      variant={getItemVariant(selectedItem.type)}
+                      size={32}
+                    />
+                  </div>
                   <div>
-                    <h3 className="font-black text-white">{selectedItem.name}</h3>
-                    <p className="text-xs text-slate-400 leading-tight">{selectedItem.description}</p>
+                    <div className="flex items-baseline gap-1.5">
+                      <h3 className="font-extrabold text-xs text-white uppercase">{selectedItem.name}</h3>
+                      {selectedItem.type === 'equip' && (
+                        <Badge variant="purple" size="xs">Gear</Badge>
+                      )}
+                    </div>
+                    <p className="text-[10px] text-slate-400 leading-tight mt-0.5 max-w-[200px]">
+                      {selectedItem.description}
+                    </p>
                   </div>
                 </div>
-                <div className="flex flex-col gap-2">
-                   {selectedItem.type === 'usable' ? (
-                     <Button
-                       variant="primary"
-                       size="sm"
-                       onClick={() => {
-                         consumeItem(selectedItem.id);
-                         if (selectedItem.amount <= 1) setSelectedItem(null);
-                       }}
-                       className="px-6 rounded-full shadow-lg shadow-blue-500/20"
-                     >
-                       Use
-                     </Button>
-                   ) : (
-                     <Badge variant="purple" size="md" className="rounded-full">GEAR</Badge>
-                   )}
-                   <Button variant="ghost" size="sm" onClick={() => setSelectedItem(null)} className="text-slate-500">
-                     Dismiss
-                   </Button>
+
+                {/* Tactile Big Action Buttons */}
+                <div className="flex flex-col gap-1.5 shrink-0">
+                  {selectedItem.type !== 'misc' ? (
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      onClick={() => handleUseItem(selectedItem)}
+                      className="px-4 py-1.5 h-8 text-[11px] rounded-lg font-black uppercase tracking-wider"
+                    >
+                      {selectedItem.type === 'usable' ? 'Use' : isEquipped(selectedItem.id) ? 'Unequip' : 'Equip'}
+                    </Button>
+                  ) : (
+                    <Badge variant="default" size="sm" className="text-[9px] uppercase tracking-wider h-8 flex items-center justify-center">Loot</Badge>
+                  )}
+                  
+                  <button 
+                    onClick={() => setSelectedItem(null)}
+                    className="w-full text-center text-[9px] font-bold text-slate-500 hover:text-slate-400 uppercase py-0.5 cursor-pointer outline-none"
+                  >
+                    Dismiss
+                  </button>
                 </div>
               </div>
             </motion.div>

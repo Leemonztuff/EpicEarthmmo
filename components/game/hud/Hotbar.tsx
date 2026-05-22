@@ -1,28 +1,30 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { useGameStore } from '@/store/useGameStore';
 import { useNetworkStore } from '@/store/useNetworkStore';
 import { gameData } from '@/shared/loader';
 import { Badge, GameIcon, showToast } from '@/components/ui';
-import { Sword } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { Swords } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/cn';
 
-const { skills, items } = gameData;
+const { skills } = gameData;
 
 export function Hotbar() {
   const player = useGameStore((state) => state.player);
   const activeSkill = useGameStore((state) => state.activeSkill);
-  const setActiveSkill = useGameStore((state) => state.setActiveSkill);
   const skillCooldowns = useGameStore((state) => state.skillCooldowns);
   const selectedTargetId = useGameStore((state) => state.selectedTargetId);
   const position = useGameStore((state) => state.position);
+  
   const attackTarget = useNetworkStore((state) => state.attackTarget);
   const castSkill = useNetworkStore((state) => state.castSkill);
   const consumeItem = useGameStore((state) => state.consumeItem);
+  
   const [now, setNow] = useState(Date.now());
 
+  // Keep cooldowns ticking accurately
   useEffect(() => {
     const interval = setInterval(() => setNow(Date.now()), 100);
     return () => clearInterval(interval);
@@ -30,16 +32,27 @@ export function Hotbar() {
 
   if (!player) return null;
 
-  const quickItems = (player.inventory || []).filter(i => i.type === 'usable' && i.amount > 0).slice(0, 3);
+  // Items and skills filters
+  const quickItems = useMemo(() => {
+    return (player.inventory || [])
+      .filter((i) => i.type === 'usable' && i.amount > 0)
+      .slice(0, 3);
+  }, [player.inventory]);
+
+  const activeSkills = useMemo(() => {
+    return (player.unlockedSkills || []).slice(0, 4);
+  }, [player.unlockedSkills]);
 
   const handleAttack = () => {
     if (selectedTargetId) {
       attackTarget(selectedTargetId);
+    } else {
+      showToast('Select a target first!', 'info');
     }
   };
 
   const handleSkillClick = (skillId: string) => {
-    const skillDef = skills.find(s => s.id === skillId);
+    const skillDef = skills.find((s) => s.id === skillId);
     if (!skillDef) return;
 
     if (player.sp < skillDef.spCost) {
@@ -64,133 +77,218 @@ export function Hotbar() {
       return;
     }
 
-    if (targetType === 'directional' || targetType === 'cone' || targetType === 'line') {
-      const dirX = 0;
-      const dirZ = 1;
-      castSkill(skillId, selectedTargetId ?? undefined, position.x, position.z, dirX, dirZ);
-      return;
-    }
-
-    if (targetType === 'chain') {
-      if (selectedTargetId) {
-        castSkill(skillId, selectedTargetId);
-      }
-      return;
-    }
-
     castSkill(skillId, selectedTargetId ?? undefined);
   };
 
+  // ERGONOMIC CALCULATIONS FOR CONCENTRIC ARCS
+  // Center of Attack Button is right: 36px, bottom: 36px
+  const centerPosition = { right: 36, bottom: 36 };
+  
+  // Outer Arc for Skills (Radius: 105px, from 90° (top) to 180° (left))
+  const getOuterArcStyle = (index: number, total: number) => {
+    const radius = 105;
+    // Spacing out nicely
+    const startAngle = Math.PI; // 180 deg
+    const endAngle = Math.PI / 2; // 90 deg
+    const angle = total > 1 
+      ? startAngle - (index / (total - 1)) * (startAngle - endAngle)
+      : startAngle;
+    
+    const x = Math.cos(angle) * radius;
+    const y = Math.sin(angle) * radius;
+    
+    return {
+      position: 'absolute' as const,
+      right: `${centerPosition.right - x}px`,
+      bottom: `${centerPosition.bottom + y}px`,
+    };
+  };
+
+  // Inner Arc for Items (Radius: 60px, from 100° to 170°)
+  const getInnerArcStyle = (index: number, total: number) => {
+    const radius = 60;
+    const startAngle = Math.PI * 0.95; // ~170 deg
+    const endAngle = Math.PI * 0.55; // ~100 deg
+    const angle = total > 1 
+      ? startAngle - (index / (total - 1)) * (startAngle - endAngle)
+      : startAngle;
+    
+    const x = Math.cos(angle) * radius;
+    const y = Math.sin(angle) * radius;
+    
+    return {
+      position: 'absolute' as const,
+      right: `${centerPosition.right - x}px`,
+      bottom: `${centerPosition.bottom + y}px`,
+    };
+  };
+
   return (
-    <div className="pointer-events-auto select-none max-w-full">
-      <div className="flex items-end gap-2 sm:gap-3 p-2 sm:p-3 bg-slate-950/40 backdrop-blur-md rounded-2xl sm:rounded-[2rem] border border-slate-800/60 shadow-2xl">
-        {/* Main Attack Button */}
-        <div className="relative group">
-          <motion.button
-            whileTap={{ scale: 0.9 }}
-            onClick={handleAttack}
-            className={cn(
-              "w-12 h-12 sm:w-16 sm:h-16 rounded-xl sm:rounded-2xl flex items-center justify-center transition-all duration-300 border-2 cursor-pointer relative overflow-hidden",
-              selectedTargetId
-                ? "bg-gradient-to-b from-red-500 to-red-700 border-red-400 shadow-[0_0_20px_rgba(239,68,68,0.4)]"
-                : "bg-slate-900 border-slate-800 text-slate-600 grayscale"
-            )}
-          >
-            {selectedTargetId && (
-              <motion.div
-                animate={{ scale: [1, 1.2, 1], opacity: [0.2, 0.4, 0.2] }}
-                transition={{ repeat: Infinity, duration: 2 }}
-                className="absolute inset-0 bg-white"
-              />
-            )}
-            <Sword size={32} className="relative z-10 text-white" />
-          </motion.button>
-          <div className="absolute -bottom-5 left-0 right-0 text-center">
-             <span className="text-[7px] sm:text-[9px] font-black text-white/40 uppercase tracking-tighter">Attack</span>
-          </div>
-        </div>
+    <div className="absolute right-0 bottom-0 pointer-events-none select-none w-[200px] h-[200px] z-20">
+      
+      {/* 1. MAIN ATTACK BUTTON (Center of Arc) */}
+      <div 
+        className="pointer-events-auto absolute"
+        style={{ 
+          right: `${centerPosition.right}px`, 
+          bottom: `${centerPosition.bottom}px`,
+          transform: 'translate(50%, 50%)' // Center exactly on coordinates
+        }}
+      >
+        <motion.button
+          whileTap={{ scale: 0.92 }}
+          onClick={handleAttack}
+          className={cn(
+            "w-[68px] h-[68px] rounded-full flex items-center justify-center border-2 shadow-2xl relative cursor-pointer outline-none transition-all duration-300",
+            selectedTargetId
+              ? "bg-gradient-to-b from-red-500 to-red-700 border-red-300 shadow-[0_0_24px_rgba(239,68,68,0.6)]"
+              : "bg-slate-900/90 border-slate-700 text-slate-500 grayscale opacity-80"
+          )}
+        >
+          {selectedTargetId && (
+            <motion.div
+              animate={{ scale: [1, 1.15, 1], opacity: [0.15, 0.35, 0.15] }}
+              transition={{ repeat: Infinity, duration: 2 }}
+              className="absolute inset-0 bg-white rounded-full"
+            />
+          )}
+          <Swords size={28} className="relative z-10 text-white drop-shadow-[0_1.5px_3px_rgba(0,0,0,0.5)]" />
+        </motion.button>
+        <span className="absolute -bottom-5 left-1/2 -translate-x-1/2 text-[7px] font-black uppercase text-white/50 tracking-widest drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
+          Atk
+        </span>
+      </div>
 
-        <div className="h-10 sm:h-12 w-[1px] bg-slate-800/60 mx-0.5 sm:mx-1 mb-2" />
-
-        {/* Consumables and Skills */}
-        <div className="flex flex-col gap-2 sm:gap-3">
-          {/* Quick Items */}
-          <div className="flex gap-1.5 sm:gap-2">
-            {quickItems.map((item) => {
-              return (
-                <motion.button
-                  key={item.id}
-                  whileTap={{ scale: 0.9 }}
-                  onClick={() => consumeItem(item.id)}
-                  className={cn(
-                    "w-9 h-9 sm:w-11 sm:h-11 rounded-lg sm:rounded-xl flex flex-col items-center justify-center border transition-all cursor-pointer relative",
-                    "bg-slate-900/50 border-slate-800"
-                  )}
+      {/* 2. QUICK CONSUMABLE ITEMS (Inner Arc, Radius: 60px) */}
+      <AnimatePresence>
+        {quickItems.map((item, index) => {
+          const style = getInnerArcStyle(index, quickItems.length);
+          return (
+            <motion.div
+              key={item.id}
+              initial={{ scale: 0, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0, opacity: 0 }}
+              className="pointer-events-auto"
+              style={{
+                ...style,
+                transform: 'translate(50%, 50%)'
+              }}
+            >
+              <motion.button
+                whileTap={{ scale: 0.9 }}
+                onClick={() => consumeItem(item.id)}
+                className="w-10 h-10 rounded-full flex items-center justify-center border border-slate-700/60 bg-slate-950/80 shadow-xl cursor-pointer relative overflow-hidden backdrop-blur-md"
+              >
+                <GameIcon
+                  iconType="item"
+                  id={item.id}
+                  name={item.name}
+                  size={20}
+                />
+                
+                {/* Count badge */}
+                <Badge 
+                  variant="amount" 
+                  size="xs" 
+                  className="absolute -top-1 -right-1 px-1 min-w-[14px] h-[14px] leading-none text-[8px] rounded-full border border-slate-950 bg-amber-500 font-bold shadow-lg"
                 >
-                  <GameIcon
-                    iconType="item"
-                    id={item.id}
-                    name={item.name}
-                    size={22}
-                  />
-                  <Badge variant="amount" size="xs" className="absolute -top-1 -right-1 sm:-top-1.5 sm:-right-1.5 px-1 min-w-[14px] sm:min-w-[18px] h-3.5 sm:h-4.5 text-[8px] sm:text-[10px] rounded-full border-slate-900 shadow-lg">
-                    {item.amount}
-                  </Badge>
-                </motion.button>
-              );
-            })}
-          </div>
+                  {item.amount}
+                </Badge>
+              </motion.button>
+              
+              {/* Shortcut Tag */}
+              <span className="absolute -bottom-4 left-1/2 -translate-x-1/2 text-[6px] font-black text-slate-400 drop-shadow-[0_1px_1px_rgba(0,0,0,0.8)]">
+                I{index + 1}
+              </span>
+            </motion.div>
+          );
+        })}
+      </AnimatePresence>
 
-          {/* Active Skills */}
-          <div className="flex gap-1.5 sm:gap-2">
-            {(player.unlockedSkills || []).slice(0, 4).map((skillId) => {
-              const skillDef = skills.find(s => s.id === skillId);
-              if (!skillDef) return null;
-              const isActive = activeSkill === skillId;
-              const cdExpires = skillCooldowns[skillId] ?? 0;
-              const cdRemaining = Math.max(0, cdExpires - now);
-              const onCooldown = cdRemaining > 0;
+      {/* 3. ACTIVE SKILLS (Outer Arc, Radius: 105px) */}
+      <AnimatePresence>
+        {activeSkills.map((skillId, index) => {
+          const skillDef = skills.find((s) => s.id === skillId);
+          if (!skillDef) return null;
 
-              return (
-                <motion.button
-                  key={skillId}
-                  whileTap={{ scale: 0.9 }}
-                  onClick={() => !onCooldown && handleSkillClick(skillId)}
-                  className={cn(
-                    "w-9 h-9 sm:w-11 sm:h-11 rounded-lg sm:rounded-xl flex flex-col items-center justify-center border transition-all cursor-pointer relative overflow-hidden",
-                    onCooldown && "opacity-50 cursor-not-allowed",
-                    isActive
-                      ? "bg-amber-500/20 border-amber-500/50 shadow-[0_0_10px_rgba(245,158,11,0.3)]"
-                      : "bg-slate-900/50 border-slate-800 hover:border-slate-700"
-                  )}
-                >
-                  <GameIcon
-                    iconType="skill"
-                    id={skillId}
-                    name={skillDef.name}
-                    variant={isActive ? 'amber' : 'default'}
-                    size={22}
-                  />
-                  <span className="text-[6px] sm:text-[7px] font-black text-white/50 absolute bottom-0.5 sm:bottom-1">{skillDef.spCost}</span>
-                  {onCooldown && (
-                    <div className="absolute inset-0 flex items-center justify-center bg-black/60 rounded-lg sm:rounded-xl">
-                      <span className="text-[9px] sm:text-[10px] font-bold text-white/90">
-                        {(cdRemaining / 1000).toFixed(1)}s
+          const isActive = activeSkill === skillId;
+          const cdExpires = skillCooldowns[skillId] ?? 0;
+          const cdRemaining = Math.max(0, cdExpires - now);
+          const onCooldown = cdRemaining > 0;
+          const style = getOuterArcStyle(index, activeSkills.length);
+
+          return (
+            <motion.div
+              key={skillId}
+              initial={{ scale: 0, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0, opacity: 0 }}
+              className="pointer-events-auto"
+              style={{
+                ...style,
+                transform: 'translate(50%, 50%)'
+              }}
+            >
+              <motion.button
+                whileTap={{ scale: 0.9 }}
+                onClick={() => !onCooldown && handleSkillClick(skillId)}
+                disabled={onCooldown}
+                className={cn(
+                  "w-[42px] h-[42px] rounded-full flex flex-col items-center justify-center border shadow-xl relative overflow-hidden transition-all duration-200 cursor-pointer backdrop-blur-md",
+                  onCooldown && "cursor-not-allowed border-slate-800",
+                  isActive
+                    ? "bg-amber-500/25 border-amber-400 shadow-[0_0_12px_rgba(245,158,11,0.4)]"
+                    : "bg-slate-900/90 border-slate-700 hover:border-slate-500"
+                )}
+              >
+                <GameIcon
+                  iconType="skill"
+                  id={skillId}
+                  name={skillDef.name}
+                  variant={isActive ? 'amber' : 'default'}
+                  size={20}
+                />
+                
+                {/* SP Cost text at the bottom */}
+                <span className="text-[6px] font-black text-blue-400/90 absolute bottom-0.5 tracking-tighter">
+                  {skillDef.spCost}
+                </span>
+
+                {/* HIGH-FIDELITY CLOCKWISE RADIAL SWEEP FOR COOLDOWN */}
+                {onCooldown && (
+                  <>
+                    {/* Dark radial overlay */}
+                    <div 
+                      className="ro-cooldown-sweep z-10 flex items-center justify-center"
+                      style={{
+                        background: 'rgba(0, 0, 0, 0.72)'
+                      }}
+                    >
+                      <span className="text-[9px] font-black text-white tracking-tighter select-none">
+                        {(cdRemaining / 1000).toFixed(1)}
                       </span>
                     </div>
-                  )}
-                  {isActive && (
-                    <motion.div
-                      layoutId="active-skill"
-                      className="absolute inset-0 border-2 border-amber-400 rounded-lg sm:rounded-xl"
-                    />
-                  )}
-                </motion.button>
-              );
-            })}
-          </div>
-        </div>
-      </div>
+                  </>
+                )}
+                
+                {/* Highlight ring for active skills */}
+                {isActive && (
+                  <motion.div
+                    layoutId="active-skill"
+                    className="absolute inset-0 border border-amber-400 rounded-full"
+                  />
+                )}
+              </motion.button>
+              
+              {/* Shortcut Hotkey Tag (eg: F1, F2...) */}
+              <span className="absolute -bottom-4 left-1/2 -translate-x-1/2 text-[7px] font-black text-amber-500/90 drop-shadow-[0_1px_1px_rgba(0,0,0,0.8)]">
+                F{index + 1}
+              </span>
+            </motion.div>
+          );
+        })}
+      </AnimatePresence>
     </div>
   );
 }
