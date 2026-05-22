@@ -43,8 +43,33 @@ const mapManager = new MapManager();
 for (const template of enemyData.templates) {
   mapManager.registerEnemyTemplate(template);
 }
+const openedChestStates = new Map<string, Map<string, number>>();
 for (const mapConfig of mapConfigs) {
   mapManager.loadMap(mapConfig);
+  openedChestStates.set(mapConfig.id, new Map());
+}
+
+function getChestState(mapId: string) {
+  if (!openedChestStates.has(mapId)) {
+    openedChestStates.set(mapId, new Map());
+  }
+  return openedChestStates.get(mapId)!;
+}
+
+function isChestAvailable(mapId: string, chestId: string) {
+  const state = getChestState(mapId);
+  const respawnAt = state.get(chestId);
+  if (!respawnAt) return true;
+  if (Date.now() >= respawnAt) {
+    state.delete(chestId);
+    return true;
+  }
+  return false;
+}
+
+function markChestOpened(mapId: string, chestId: string, respawnSeconds: number) {
+  const state = getChestState(mapId);
+  state.set(chestId, Date.now() + respawnSeconds * 1000);
 }
 
 // ── Initialize SkillEngine ──
@@ -1322,7 +1347,42 @@ function executePendingInteraction(player: ServerPlayer, io: any) {
       break;
     }
     case 'chest': {
-      socket.emit('openChest', { chestId: interaction.id });
+      const chests: any[] = (mapCfg as any)?.chests || [];
+      const chest = chests.find((c: any) => c.id === interaction.id);
+      if (!chest) return;
+
+      if (!isChestAvailable(player.currentMapId, chest.id)) {
+        socket.emit('openChest', { chestId: chest.id, alreadyOpened: true });
+        return;
+      }
+
+      socket.emit('openChest', { chestId: chest.id });
+      const loot: any[] = [];
+      for (const drop of chest.lootTable || []) {
+        if (Math.random() <= drop.chance) {
+          const amount = Math.floor(Math.random() * (drop.maxAmount - drop.minAmount + 1)) + drop.minAmount;
+          if (amount > 0) {
+            const itemDef = items.find((i: any) => i.id === drop.itemId);
+            loot.push({
+              id: drop.itemId,
+              amount,
+              name: itemDef?.name || drop.itemId,
+              type: itemDef?.type || 'misc',
+              description: itemDef?.description || '',
+            });
+          }
+        }
+      }
+
+      if (loot.length > 0) {
+        addItemsToInventory(player, loot.map(l => ({ id: l.id, amount: l.amount })));
+        for (const item of loot) {
+          io.to(player.currentMapId).emit('itemReceived', { chestId: chest.id, item });
+        }
+      }
+
+      markChestOpened(player.currentMapId, chest.id, chest.respawnSeconds || 60);
+      io.to(player.currentMapId).emit('chestOpened', { chestId: chest.id, loot });
       break;
     }
     case 'warp': {
@@ -1655,6 +1715,21 @@ function tick() {
         isDead: false,
       });
     });
+
+    // ── Chest respawn ──
+    {
+      const state = getChestState(mapId);
+      const reopened: string[] = [];
+      for (const [chestId, respawnAt] of Array.from(state.entries())) {
+        if (now >= respawnAt) {
+          state.delete(chestId);
+          reopened.push(chestId);
+        }
+      }
+      if (reopened.length > 0) {
+        io.to(mapId).emit('chestRespawned', { chestIds: reopened });
+      }
+    }
 
     // ── Mob AI ──
     mapManager.tickMobAI(mapId, now, tickTimeSec, (enemy, playerSocketId) => {

@@ -47,6 +47,35 @@
       "name": "Prontera Gate"
     }
   ],
+  "chests": [
+    {
+      "id": "field_chest_1",
+      "position": { "x": 10, "y": 0, "z": -10 },
+      "lootTable": [
+        { "itemId": "jellopy", "chance": 0.8, "minAmount": 1, "maxAmount": 2 },
+        { "itemId": "red_potion", "chance": 0.25, "minAmount": 1, "maxAmount": 1 }
+      ],
+      "respawnSeconds": 90
+    },
+    {
+      "id": "field_chest_2",
+      "position": { "x": -15, "y": 0, "z": 12 },
+      "lootTable": [
+        { "itemId": "jellopy", "chance": 0.75, "minAmount": 1, "maxAmount": 2 },
+        { "itemId": "plant_stem", "chance": 0.2, "minAmount": 1, "maxAmount": 1 }
+      ],
+      "respawnSeconds": 90
+    },
+    {
+      "id": "field_chest_3",
+      "position": { "x": 18, "y": 0, "z": 8 },
+      "lootTable": [
+        { "itemId": "jellopy", "chance": 0.85, "minAmount": 1, "maxAmount": 2 },
+        { "itemId": "red_potion", "chance": 0.2, "minAmount": 1, "maxAmount": 1 }
+      ],
+      "respawnSeconds": 90
+    }
+  ],
   "enemyAreas": [
     {
       "enemyId": "poring",
@@ -82,13 +111,6 @@
       "radius": 8,
       "count": 3,
       "respawnSeconds": 18
-    },
-    {
-      "enemyId": "wolf",
-      "center": { "x": -25, "z": -25 },
-      "radius": 10,
-      "count": 3,
-      "respawnSeconds": 35
     }
   ],
   "decorations": [
