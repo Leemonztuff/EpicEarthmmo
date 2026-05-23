@@ -56,6 +56,7 @@ export function SkillsWindow({ onClose }: { onClose: () => void }) {
           )}
         </div>
 
+<<<<<<< HEAD
         {/* Compact Two-Column Grid */}
         <div className="min-h-[220px] bg-slate-950/40 p-2 rounded-2xl border border-white/5 relative">
           <div className="grid grid-cols-1 xs:grid-cols-2 gap-2 max-h-[200px] overflow-y-auto custom-scrollbar pr-1">
@@ -64,6 +65,14 @@ export function SkillsWindow({ onClose }: { onClose: () => void }) {
               const meetsReqs = skill.requirements.every(r => player.unlockedSkills.includes(r) || r === 'basic_attack');
               const canUnlock = !isUnlocked && meetsReqs && player.skillPoints >= skill.skillPointCost;
               const isSelected = selectedSkill?.id === skill.id;
+=======
+        <div className="grid gap-3">
+          {skills.map((skill, index) => {
+            const unlocked = player.unlockedSkills || [];
+            const isUnlocked = unlocked.includes(skill.id) || skill.skillPointCost === 0;
+            const meetsReqs = (skill.requirements || []).every((r: string) => unlocked.includes(r) || r === 'basic_attack');
+            const canUnlock = !isUnlocked && meetsReqs && player.skillPoints >= skill.skillPointCost;
+>>>>>>> e663a2a (fix: defensive checks for .includes across UI to prevent runtime errors)
 
               return (
                 <motion.div
@@ -153,6 +162,7 @@ export function SkillsWindow({ onClose }: { onClose: () => void }) {
               exit={{ opacity: 0, y: 15 }}
               className="bg-slate-900/90 border border-slate-700/60 rounded-2xl p-3 shadow-2xl relative overflow-hidden"
             >
+<<<<<<< HEAD
               <div className="flex flex-col gap-3">
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex items-center gap-3">
@@ -234,6 +244,47 @@ export function SkillsWindow({ onClose }: { onClose: () => void }) {
                     <button 
                       onClick={() => setSelectedSkill(null)}
                       className="text-[9px] font-bold text-slate-500 hover:text-slate-400 uppercase py-2 cursor-pointer outline-none shrink-0"
+=======
+              <div className="flex flex-col gap-4">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <h2 className="text-xl font-black text-white">{selectedSkill.name}</h2>
+                    <p className="text-sm text-slate-400 mt-1 max-w-[80%]">{selectedSkill.description}</p>
+                  </div>
+                  <GameIcon
+                    iconType="skill"
+                    id={selectedSkill.id}
+                    name={selectedSkill.name}
+                    variant="green"
+                    size={56}
+                  />
+                </div>
+
+                <div className="h-[1px] bg-white/5 w-full" />
+
+                <div className="flex items-center justify-between">
+                  <div className="flex flex-col gap-1">
+                    <span className="text-[9px] font-black uppercase tracking-widest text-slate-500">Requirements</span>
+                    <div className="flex gap-2">
+                       {(selectedSkill.requirements || []).map((req: string) => (
+                         <Badge key={req} variant={(player.unlockedSkills || []).includes(req) ? "success" : "default"} size="xs">
+                            {req.replace('_', ' ')}
+                         </Badge>
+                       ))}
+                    </div>
+                  </div>
+
+                  {(player.unlockedSkills || []).includes(selectedSkill.id) ? (
+                    <Badge variant="success" size="md" className="h-10 px-6 rounded-full bg-emerald-500/20 border-emerald-500/30 font-black">
+                      MASTERED
+                    </Badge>
+                  ) : (
+                    <Button
+                      variant={player.skillPoints >= selectedSkill.skillPointCost && (selectedSkill.requirements || []).every((r: string) => (player.unlockedSkills || []).includes(r) || r === 'basic_attack') ? "primary" : "secondary"}
+                      disabled={player.skillPoints < selectedSkill.skillPointCost || !(selectedSkill.requirements || []).every((r: string) => (player.unlockedSkills || []).includes(r) || r === 'basic_attack')}
+                      onClick={() => unlockSkill(selectedSkill.id, selectedSkill.skillPointCost)}
+                      className="h-12 px-8 rounded-full font-black text-sm shadow-xl"
+>>>>>>> e663a2a (fix: defensive checks for .includes across UI to prevent runtime errors)
                     >
                       Dismiss
                     </button>

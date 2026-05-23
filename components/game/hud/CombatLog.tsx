@@ -40,6 +40,7 @@ export function CombatLog() {
           className="px-3 py-2 border-b border-white/5 flex items-center justify-between bg-slate-900/30 cursor-pointer active:brightness-90 transition-all hover:brightness-110 ro-double-border"
           title="Toggle Combat Log"
         >
+<<<<<<< HEAD
           <div className="flex items-center gap-2">
              <Terminal size={10} className="text-blue-400 shrink-0" />
              <span className="text-[7.5px] sm:text-[9.5px] font-black text-slate-400 uppercase tracking-widest leading-none">
@@ -52,6 +53,33 @@ export function CombatLog() {
           >
             {isCollapsed ? <ChevronUp size={12} strokeWidth={2.5} /> : <ChevronDown size={12} strokeWidth={2.5} />}
           </button>
+=======
+          <AnimatePresence initial={false}>
+            {combatLog.map((log, i) => {
+              const s = String(log || '');
+              const isDamage = s.includes('Damage') || s.includes('Hit');
+              const isHeal = s.includes('Heal') || s.includes('Restored');
+
+              return (
+                <motion.div
+                  key={`${i}-${s}`}
+                  initial={{ opacity: 0, x: -5 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  className="flex items-start gap-1.5"
+                >
+                  <p className={cn(
+                    "leading-relaxed line-clamp-2 sm:line-clamp-none",
+                    isDamage ? "text-red-400/90" :
+                    isHeal ? "text-emerald-400/90" :
+                    "text-slate-300"
+                  )}>
+                    {s}
+                  </p>
+                </motion.div>
+              );
+            })}
+          </AnimatePresence>
+>>>>>>> e663a2a (fix: defensive checks for .includes across UI to prevent runtime errors)
         </div>
 
         {/* Dynamic Expand/Collapse Body */}
