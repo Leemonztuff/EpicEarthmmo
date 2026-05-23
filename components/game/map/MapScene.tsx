@@ -103,7 +103,7 @@ export function MapScene({ mapData }: { mapData: MapData }) {
     return decos.length > 0 ? decos : mapData.decorations;
   }, [mapData.regions, mapData.decorations, mapData.tiles, mapData.triggers, playerPos.x, playerPos.z]);
 
-  const openedChests = useGameStore((state) => state.openedChests);
+  const openedChests = useGameStore((state) => state.openedChests || []);
 
   const visibleTiles = useMemo(() => {
     if (!mapData.tiles || mapData.tiles.length === 0) return [];
