@@ -1322,7 +1322,53 @@ function executePendingInteraction(player: ServerPlayer, io: any) {
       break;
     }
     case 'chest': {
-      socket.emit('openChest', { chestId: interaction.id });
+      const chests: any[] = (mapCfg as any)?.chests || [];
+      const chestDef = chests.find((c: any) => c.id === interaction.id);
+      if (!chestDef) {
+        // Chest is decorative only — just animate
+        socket.emit('openChest', { chestId: interaction.id, loot: [] });
+        break;
+      }
+
+      // Per-player chest cooldown to prevent spam re-opening
+      const chestCooldownKey = `${player.id}:${interaction.id}`;
+      const now2 = Date.now();
+      const lastOpen = (player as any)._chestCooldowns?.get?.(chestCooldownKey) ?? 0;
+      const respawnMs = (chestDef.respawnSeconds ?? 300) * 1000;
+      if (now2 - lastOpen < respawnMs) {
+        socket.emit('chestCooldown', { chestId: interaction.id, remainingMs: respawnMs - (now2 - lastOpen) });
+        break;
+      }
+
+      // Init cooldown map lazily
+      if (!(player as any)._chestCooldowns) {
+        (player as any)._chestCooldowns = new Map<string, number>();
+      }
+      (player as any)._chestCooldowns.set(chestCooldownKey, now2);
+
+      // Roll loot from chest's lootTable
+      const chestLoot: any[] = [];
+      for (const drop of (chestDef.lootTable ?? [])) {
+        if (Math.random() <= drop.chance) {
+          const amount = drop.minAmount + Math.floor(Math.random() * (drop.maxAmount - drop.minAmount + 1));
+          const itemDef = items.find((i: any) => i.id === drop.itemId);
+          chestLoot.push({
+            id: drop.itemId,
+            name: itemDef?.name ?? drop.itemId,
+            type: itemDef?.type ?? 'misc',
+            amount,
+            description: itemDef?.description ?? '',
+          });
+        }
+      }
+
+      addItemsToInventory(player, chestLoot.map(l => ({ id: l.id, amount: l.amount })));
+
+      socket.emit('chestOpened', {
+        chestId: interaction.id,
+        loot: chestLoot,
+        inventory: player.inventory,
+      });
       break;
     }
     case 'warp': {

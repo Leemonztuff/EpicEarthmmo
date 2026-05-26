@@ -264,5 +264,59 @@
     "buyPrice": 8000,
     "sellPrice": 2400,
     "levelReq": 20
+  },
+  {
+    "id": "mystic_ore",
+    "name": "Mystic Ore",
+    "type": "misc",
+    "description": "A rare ore pulsing with dungeon energy. Used for advanced crafting.",
+    "rarity": 2,
+    "maxStack": 99,
+    "buyPrice": 0,
+    "sellPrice": 200
+  },
+  {
+    "id": "cursed_bandage",
+    "name": "Cursed Bandage",
+    "type": "usable",
+    "description": "Bandages soaked in dungeon energy. Restores 50 HP with an eerie glow.",
+    "rarity": 1,
+    "effect": {
+      "type": "restore_hp",
+      "value": 50
+    },
+    "maxStack": 99,
+    "buyPrice": 0,
+    "sellPrice": 80
+  },
+  {
+    "id": "vampire_fang",
+    "name": "Vampire Fang",
+    "type": "misc",
+    "description": "A sharp fang from a Drainliar. Sought by alchemists.",
+    "rarity": 2,
+    "maxStack": 99,
+    "buyPrice": 0,
+    "sellPrice": 150
+  },
+  {
+    "id": "elder_bone",
+    "name": "Elder Bone",
+    "type": "misc",
+    "description": "A weathered bone from an Elder Wolf. Dense with age.",
+    "rarity": 1,
+    "maxStack": 99,
+    "buyPrice": 0,
+    "sellPrice": 90
+  },
+  {
+    "id": "mummy_wrap",
+    "name": "Mummy Wrap",
+    "type": "misc",
+    "description": "Ancient bandages from a Mummy. Smells of old curses.",
+    "rarity": 2,
+    "maxStack": 99,
+    "buyPrice": 0,
+    "sellPrice": 175
   }
 ]
